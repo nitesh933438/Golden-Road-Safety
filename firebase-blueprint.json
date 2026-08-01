@@ -1,17 +1,147 @@
 {
   "collections": [
     {
-      "collectionId": "hazards",
-      "description": "Hazard reports submitted by users.",
+      "collectionId": "users",
+      "description": "User profiles, roles, contact info, emergency contacts and settings.",
       "fields": [
-        { "name": "type", "type": "string", "description": "Type of hazard" },
-        { "name": "description", "type": "string", "description": "Description of the hazard" },
-        { "name": "lat", "type": "number", "description": "Latitude of the hazard" },
-        { "name": "lng", "type": "number", "description": "Longitude of the hazard" },
-        { "name": "imageUrl", "type": "string", "description": "URL of the uploaded photo" },
-        { "name": "timestamp", "type": "timestamp", "description": "Time the hazard was reported" },
-        { "name": "status", "type": "string", "description": "Status of the hazard report" },
-        { "name": "reportedBy", "type": "string", "description": "User ID of the reporter" }
+        { "name": "uid", "type": "string", "description": "Unique user identifier from Auth" },
+        { "name": "name", "type": "string", "description": "Full display name of user" },
+        { "name": "email", "type": "string", "description": "User email address" },
+        { "name": "phone", "type": "string", "description": "Contact phone number" },
+        { "name": "role", "type": "string", "description": "User role: admin, volunteer, user" },
+        { "name": "provider", "type": "string", "description": "Auth provider: google, password" },
+        { "name": "photoURL", "type": "string", "description": "Cloudinary image URL or profile photo" },
+        { "name": "city", "type": "string", "description": "User city" },
+        { "name": "state", "type": "string", "description": "User state" },
+        { "name": "bloodGroup", "type": "string", "description": "Blood group type" },
+        { "name": "createdAt", "type": "timestamp", "description": "Account registration timestamp" },
+        { "name": "lastLogin", "type": "timestamp", "description": "Last login timestamp" },
+        { "name": "isOnline", "type": "boolean", "description": "Real-time online status" },
+        { "name": "emergencyContacts", "type": "array", "description": "List of emergency contacts" },
+        { "name": "settings", "type": "map", "description": "User preferences and settings" }
+      ]
+    },
+    {
+      "collectionId": "emergencies",
+      "description": "Automated SOS, crash incidents, and victim tracking.",
+      "fields": [
+        { "name": "id", "type": "string", "description": "Emergency unique ID" },
+        { "name": "userId", "type": "string", "description": "Victim or reporter user ID" },
+        { "name": "type", "type": "string", "description": "Incident type e.g. Crash, SOS, Medical" },
+        { "name": "severity", "type": "string", "description": "Criticality level: Low, Medium, High, Critical" },
+        { "name": "location", "type": "string", "description": "Location description" },
+        { "name": "latitude", "type": "number", "description": "GPS latitude" },
+        { "name": "longitude", "type": "number", "description": "GPS longitude" },
+        { "name": "address", "type": "string", "description": "Street address" },
+        { "name": "status", "type": "string", "description": "Status: Active, Assigned, In-Progress, Resolved" },
+        { "name": "timeline", "type": "array", "description": "Milestones and progress logs" },
+        { "name": "hospital", "type": "string", "description": "Assigned hospital name" },
+        { "name": "police", "type": "string", "description": "Assigned police unit" },
+        { "name": "volunteer", "type": "string", "description": "Assigned responder volunteer ID" },
+        { "name": "createdTime", "type": "timestamp", "description": "Incident creation time" },
+        { "name": "completedTime", "type": "timestamp", "description": "Incident resolution time" }
+      ]
+    },
+    {
+      "collectionId": "notifications",
+      "description": "Real-time system, emergency, volunteer, hospital, police, hazard, community, training, and admin notifications.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "Target user ID or 'all' for broadcast" },
+        { "name": "title", "type": "string", "description": "Title of notification" },
+        { "name": "message", "type": "string", "description": "Body message of notification" },
+        { "name": "type", "type": "string", "description": "Category type: emergency, sos, volunteer, hospital, police, ai, hazard, community, training, admin" },
+        { "name": "priority", "type": "string", "description": "Priority: Low, Normal, High, Critical" },
+        { "name": "isRead", "type": "boolean", "description": "Read status" },
+        { "name": "createdTime", "type": "timestamp", "description": "Creation timestamp" }
+      ]
+    },
+    {
+      "collectionId": "hazards",
+      "description": "Road hazard reports, blackspots, and community verification votes.",
+      "fields": [
+        { "name": "reporter", "type": "string", "description": "User ID of the reporter" },
+        { "name": "imageUrl", "type": "string", "description": "Cloudinary URL of hazard photo" },
+        { "name": "location", "type": "string", "description": "Area or landmark name" },
+        { "name": "address", "type": "string", "description": "Full street address" },
+        { "name": "description", "type": "string", "description": "Detailed description" },
+        { "name": "status", "type": "string", "description": "Pending, Verified, Resolved" },
+        { "name": "verified", "type": "boolean", "description": "Verified status" },
+        { "name": "votes", "type": "number", "description": "Upvotes from community" }
+      ]
+    },
+    {
+      "collectionId": "communityPosts",
+      "description": "Community posts, safety updates, and Samaritan forum discussions.",
+      "fields": [
+        { "name": "author", "type": "map", "description": "Author info: uid, name, avatar, role" },
+        { "name": "text", "type": "string", "description": "Post text content" },
+        { "name": "images", "type": "array", "description": "List of Cloudinary image URLs" },
+        { "name": "likes", "type": "number", "description": "Total like count" },
+        { "name": "comments", "type": "array", "description": "User comment objects" },
+        { "name": "createdTime", "type": "timestamp", "description": "Publication timestamp" }
+      ]
+    },
+    {
+      "collectionId": "volunteers",
+      "description": "Good Samaritan responder registry, availability, and certifications.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "User ID of volunteer" },
+        { "name": "trainingStatus", "type": "string", "description": "Status: Level 1, Level 2, Certified Master" },
+        { "name": "approvalStatus", "type": "string", "description": "Approved, Pending, Rejected" },
+        { "name": "availability", "type": "boolean", "description": "Active for emergency dispatch" },
+        { "name": "currentLocation", "type": "map", "description": "Latitude and Longitude" },
+        { "name": "completedRescues", "type": "number", "description": "Count of successfully assisted incidents" },
+        { "name": "rating", "type": "number", "description": "Volunteer trust rating" }
+      ]
+    },
+    {
+      "collectionId": "training",
+      "description": "First aid courses, quiz scores, and verified certificates.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "User ID" },
+        { "name": "completedCourses", "type": "array", "description": "List of finished course IDs" },
+        { "name": "quizScores", "type": "map", "description": "Map of module scores" },
+        { "name": "certificates", "type": "array", "description": "Certificate objects with Cloudinary URLs" },
+        { "name": "progress", "type": "number", "description": "Overall training completion percentage" }
+      ]
+    },
+    {
+      "collectionId": "rideHistory",
+      "description": "SafeRide telemetry logs, distance, speeds, and crash event tracking.",
+      "fields": [
+        { "name": "userId", "type": "string", "description": "User ID" },
+        { "name": "rideStart", "type": "timestamp", "description": "Start timestamp" },
+        { "name": "rideEnd", "type": "timestamp", "description": "End timestamp" },
+        { "name": "distance", "type": "number", "description": "Distance traveled in kilometers" },
+        { "name": "duration", "type": "number", "description": "Ride duration in seconds" },
+        { "name": "averageSpeed", "type": "number", "description": "Average speed in km/h" },
+        { "name": "crashDetected", "type": "boolean", "description": "Whether impact anomaly was registered" },
+        { "name": "emergencyTriggered", "type": "boolean", "description": "Whether SOS alert was sent" }
+      ]
+    },
+    {
+      "collectionId": "medicalIDs",
+      "description": "Emergency Wallet & Medical ID records, blood group, allergies, conditions, and emergency contacts.",
+      "fields": [
+        { "name": "uid", "type": "string", "description": "Owner user ID" },
+        { "name": "fullName", "type": "string", "description": "Full name of patient" },
+        { "name": "dob", "type": "string", "description": "Date of birth" },
+        { "name": "gender", "type": "string", "description": "Gender" },
+        { "name": "bloodGroup", "type": "string", "description": "Blood group e.g. O+, A+" },
+        { "name": "height", "type": "string", "description": "Height in cm" },
+        { "name": "weight", "type": "string", "description": "Weight in kg" },
+        { "name": "allergies", "type": "string", "description": "Severe allergies list" },
+        { "name": "currentMedicines", "type": "string", "description": "Current prescriptions" },
+        { "name": "medicalConditions", "type": "string", "description": "Pre-existing medical conditions" },
+        { "name": "organDonor", "type": "boolean", "description": "Registered organ donor status" },
+        { "name": "emergencyContacts", "type": "array", "description": "Emergency contacts array (up to 5)" },
+        { "name": "insuranceProvider", "type": "string", "description": "Health insurance provider name" },
+        { "name": "insurancePolicyNumber", "type": "string", "description": "Insurance policy ID" },
+        { "name": "doctorName", "type": "string", "description": "Primary doctor name" },
+        { "name": "doctorPhone", "type": "string", "description": "Primary doctor phone" },
+        { "name": "preferredHospital", "type": "string", "description": "Preferred hospital & branch" },
+        { "name": "photoURL", "type": "string", "description": "Cloudinary profile image" },
+        { "name": "updatedAt", "type": "timestamp", "description": "Last update timestamp" }
       ]
     }
   ]

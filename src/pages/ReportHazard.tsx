@@ -15,7 +15,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-
 const HAZARD_TYPES = [
   { id: "pothole", label: "Pothole & Road Damage", icon: AlertTriangle, desc: "Cracks, cave-ins, or surface erosion" },
   { id: "blackspot", label: "Accident Blackspot", icon: ShieldAlert, desc: "High-risk blind turn or unsafe intersection" },
@@ -25,8 +24,13 @@ const HAZARD_TYPES = [
   { id: "debris", label: "Obstruction & Debris", icon: Trash2, desc: "Fallen tree, cargo, or construction debris" },
 ];
 
+import { uploadToCloudinary } from "../lib/cloudinary";
+
+import { useOfflineSync } from "../context/OfflineSyncContext";
+
 export function ReportHazard() {
   const navigate = useNavigate();
+  const { isOnline, queueItem } = useOfflineSync();
   const [selectedType, setSelectedType] = useState("pothole");
   const [severity, setSeverity] = useState<"Low" | "Medium" | "High" | "Critical">("High");
   const [description, setDescription] = useState("");
@@ -56,9 +60,12 @@ export function ReportHazard() {
     }
   };
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -70,25 +77,41 @@ export function ReportHazard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, "hazards"), {
-        type: selectedType,
-        severity,
-        description: description || "Road hazard reported by citizen responder.",
-        address,
-        coords,
-        hasPhoto: !!imagePreview,
-        status: "Verified",
-        createdAt: serverTimestamp(),
-      });
-    } catch (err) {
-      console.warn("Firestore fallback used for demo hazard report:", err);
+    let uploadedPhotoUrl = "";
+
+    const hazardPayload = {
+      type: selectedType,
+      severity,
+      description: description || "Road hazard reported by citizen responder.",
+      address,
+      coords,
+      hasPhoto: !!imagePreview,
+      photoURL: imagePreview || "",
+      status: "Verified",
+      createdAt: new Date().toISOString()
+    };
+
+    if (!isOnline) {
+      await queueItem("hazard", hazardPayload);
+    } else {
+      try {
+        if (selectedFile) {
+          uploadedPhotoUrl = await uploadToCloudinary(selectedFile, "hazards");
+        }
+
+        await addDoc(collection(db, "hazards"), {
+          ...hazardPayload,
+          photoURL: uploadedPhotoUrl || imagePreview || "",
+          createdAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn("Firestore hazard report fallback queueing:", err);
+        await queueItem("hazard", hazardPayload);
+      }
     }
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmittedSuccess(true);
-    }, 800);
+    setIsSubmitting(false);
+    setSubmittedSuccess(true);
   };
 
   if (submittedSuccess) {

@@ -46,3 +46,36 @@ self.addEventListener('activate', event => {
     })
   );
 });
+
+// Push Notification Handler
+self.addEventListener('push', event => {
+  let data = { title: 'GoldenGuard Emergency Alert', body: 'Golden Hour dispatch update received.' };
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: '/icon-192.png',
+    badge: '/favicon.ico',
+    vibrate: [200, 100, 200, 100, 200],
+    data: {
+      url: data.url || '/notifications'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url || '/notifications')
+  );
+});

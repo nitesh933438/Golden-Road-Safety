@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <!-- Background Shield -->
+  <path d="M256 32 C340 80, 430 80, 448 112 C448 280, 380 416, 256 480 C132 416, 64 280, 64 112 C82 80, 172 80, 256 32 Z" fill="url(#shieldGrad)" stroke="url(#goldGrad)" stroke-width="16" />
+  <!-- Golden Cross & Heart Emblem -->
+  <path d="M224 160 H288 V224 H352 V288 H288 V352 H224 V288 H160 V224 H224 Z" fill="url(#goldGrad)" />
+  <path d="M256 220 C270 200, 295 200, 305 215 C315 230, 305 250, 256 280 C207 250, 197 230, 207 215 C217 200, 242 200, 256 220 Z" fill="#ffffff" opacity="0.9" />
+</svg>

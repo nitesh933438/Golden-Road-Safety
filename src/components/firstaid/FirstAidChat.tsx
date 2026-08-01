@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Mic, SquareSquare, Volume2, ShieldAlert } from "lucide-react";
+import { Send, Bot, User, Mic, SquareSquare, Volume2, ShieldAlert, WifiOff } from "lucide-react";
+import { OFFLINE_AI_GUIDES } from "../../lib/offlineStore";
 
 export function FirstAidChat({ category }: { category: string | null }) {
   const [messages, setMessages] = useState<{ role: 'user' | 'model'; content: string }[]>([
@@ -64,6 +65,29 @@ export function FirstAidChat({ category }: { category: string | null }) {
     }
   };
 
+  const findOfflineGuideResponse = (queryText: string, catText: string | null) => {
+    const text = (queryText + " " + (catText || "")).toLowerCase();
+    
+    let matchedGuide = OFFLINE_AI_GUIDES.find(g => 
+      text.includes(g.id) || 
+      g.title.toLowerCase().split(" ").some(word => word.length > 3 && text.includes(word))
+    );
+
+    if (!matchedGuide) {
+      matchedGuide = OFFLINE_AI_GUIDES[0]; // CPR default
+    }
+
+    return `🔴 [OFFLINE AI MANUAL MODE - ${matchedGuide.title}]
+
+📋 Step-by-Step Emergency Response:
+${matchedGuide.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}
+
+⚠️ Precaution:
+${matchedGuide.precautions}
+
+(Offline guide retrieved from local IndexedDB cache. Call 108 or 112 immediately if condition worsens.)`;
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
     
@@ -71,6 +95,16 @@ export function FirstAidChat({ category }: { category: string | null }) {
     setInput("");
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
+
+    if (!navigator.onLine) {
+      setTimeout(() => {
+        const offlineReply = findOfflineGuideResponse(userMsg, category);
+        setMessages(prev => [...prev, { role: 'model', content: offlineReply }]);
+        speakText(offlineReply.replace(/[*#]/g, ''));
+        setIsLoading(false);
+      }, 300);
+      return;
+    }
 
     try {
       const response = await fetch('/api/chat', {
@@ -85,13 +119,15 @@ export function FirstAidChat({ category }: { category: string | null }) {
       const data = await response.json();
       if (data.reply) {
         setMessages(prev => [...prev, { role: 'model', content: data.reply }]);
-        speakText(data.reply); // Auto-speak response
-      } else if (data.error) {
-        setMessages(prev => [...prev, { role: 'model', content: `Error: ${data.error}` }]);
+        speakText(data.reply);
+      } else {
+        const offlineReply = findOfflineGuideResponse(userMsg, category);
+        setMessages(prev => [...prev, { role: 'model', content: offlineReply }]);
       }
     } catch (error) {
-      console.error(error);
-      setMessages(prev => [...prev, { role: 'model', content: "Sorry, I am offline. Please refer to offline guides or call emergency services immediately." }]);
+      console.warn("First aid API offline fallback:", error);
+      const offlineReply = findOfflineGuideResponse(userMsg, category);
+      setMessages(prev => [...prev, { role: 'model', content: offlineReply }]);
     } finally {
       setIsLoading(false);
     }

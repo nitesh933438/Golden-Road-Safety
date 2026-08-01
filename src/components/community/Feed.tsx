@@ -1,5 +1,8 @@
-import React, { useState } from "react";
-import { Heart, MessageCircle, Share2, AlertTriangle, ShieldCheck, MapPin } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Heart, MessageCircle, Share2, AlertTriangle, ShieldCheck, MapPin, Send, Sparkles } from "lucide-react";
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 
 interface Post {
   id: string;
@@ -7,6 +10,7 @@ interface Post {
   role: string;
   avatarInitials: string;
   avatarColor: string;
+  photoURL?: string;
   time: string;
   content: string;
   type: "tip" | "hazard" | "success" | "campaign";
@@ -66,27 +70,87 @@ const MOCK_POSTS: Post[] = [
 ];
 
 export function Feed() {
+  const { userProfile } = useAuth();
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
   const [newPostText, setNewPostText] = useState("");
   const [postType, setPostType] = useState<"tip" | "hazard" | "success" | "campaign">("tip");
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-  const handleCreatePost = () => {
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    try {
+      const q = query(collection(db, "communityPosts"));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const fetched: Post[] = snapshot.docs.map((docSnap) => {
+            const d = docSnap.data();
+            return {
+              id: docSnap.id,
+              author: d.author || "Community Member",
+              role: d.role || "Good Samaritan",
+              avatarInitials: d.author ? d.author.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "CM",
+              avatarColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+              photoURL: d.photoURL || "",
+              time: "Just now",
+              content: d.content || "",
+              type: d.type || "tip",
+              likes: d.likes || 1,
+              comments: d.comments || 0
+            };
+          });
+
+          setPosts((prev) => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newFetched = fetched.filter(f => !existingIds.has(f.id));
+            if (newFetched.length === 0) return prev;
+            return [...newFetched, ...prev];
+          });
+        }
+      }, (err) => console.warn("Feed snapshot notice:", err));
+    } catch (e) {}
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const handleCreatePost = async () => {
     if (!newPostText.trim()) return;
+    const authorName = userProfile?.name || "Good Samaritan";
+    const authorRole = userProfile?.role === "admin" ? "GoldenGuard Administrator" : "Active Citizen Responder";
+
     const newPost: Post = {
-      id: Date.now().toString(),
-      author: "You (Citizen Safety Guard)",
-      role: "Active Responder",
-      avatarInitials: "ME",
+      id: `local-${Date.now()}`,
+      author: authorName,
+      role: authorRole,
+      avatarInitials: authorName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
       avatarColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+      photoURL: userProfile?.photoURL || "",
       time: "Just now",
       content: newPostText,
       type: postType,
       likes: 1,
       comments: 0
     };
+
     setPosts([newPost, ...posts]);
+    const currentText = newPostText;
     setNewPostText("");
+
+    try {
+      await addDoc(collection(db, "communityPosts"), {
+        author: authorName,
+        role: authorRole,
+        photoURL: userProfile?.photoURL || "",
+        content: currentText,
+        type: postType,
+        likes: 1,
+        comments: 0,
+        createdAt: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn("Firestore community post notice:", e);
+    }
   };
 
   const toggleLike = (id: string) => {
@@ -176,8 +240,12 @@ export function Feed() {
             <div key={post.id} className="bg-white dark:bg-surface-800 rounded-2xl p-5 border border-surface-200 dark:border-surface-700 shadow-sm">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${post.avatarColor}`}>
-                    {post.avatarInitials}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold overflow-hidden ${post.avatarColor}`}>
+                    {post.photoURL ? (
+                      <img src={post.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{post.avatarInitials}</span>
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-surface-900 dark:text-white leading-tight">{post.author}</h3>

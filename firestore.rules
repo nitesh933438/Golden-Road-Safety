@@ -1,9 +1,85 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.email == "nitesh933438@gmail.com" &&
+             request.auth.token.firebase.sign_in_provider == "google.com";
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Emergencies collection
+    match /emergencies/{emergencyId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isSignedIn() || isAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Hazards collection
     match /hazards/{hazardId} {
       allow read: if true;
-      allow write: if true; // Temporarily open for demo
+      allow create: if true;
+      allow update, delete: if isSignedIn() || isAdmin();
+    }
+
+    // Community Posts collection
+    match /communityPosts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isSignedIn() || isAdmin();
+    }
+
+    // Volunteers collection
+    match /volunteers/{volunteerId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Training collection
+    match /training/{trainingId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || true;
+      allow delete: if isAdmin();
+    }
+
+    // Ride History collection
+    match /rideHistory/{rideId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || true;
+      allow delete: if isAdmin();
+    }
+
+    // Medical IDs collection
+    match /medicalIDs/{docId} {
+      // Emergency reading allowed for lockscreen access and QR scanning
+      allow read: if true;
+      // Strict rule: Only the owner can create or update their Medical ID (Admin cannot edit user Medical ID)
+      allow create, update: if isOwner(docId) || (isSignedIn() && request.auth.uid == docId);
+      allow delete: if isOwner(docId);
     }
   }
 }
+

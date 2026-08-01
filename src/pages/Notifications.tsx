@@ -1,206 +1,341 @@
 import React, { useState } from "react";
 import { 
   Bell, ShieldAlert, AlertTriangle, CheckCircle2, 
-  MapPin, Heart, Search, Filter, Trash2, CheckCheck, 
-  Info, ArrowRight, UserCheck, Activity
+  Search, Trash2, CheckCheck, Info, ArrowRight, UserCheck, 
+  Stethoscope, Building2, Car, Bot, Megaphone, BookOpen, 
+  Users, Send, Shield, Zap, BellRing, Sparkles, X, ChevronRight
 } from "lucide-react";
 import { Link } from "react-router-dom";
-
-export interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  group: "Today" | "Yesterday" | "Older";
-  type: "emergency" | "hazard" | "volunteer" | "system";
-  isRead: boolean;
-  link?: string;
-}
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n1",
-    title: "Volunteer Accepted SOS",
-    message: "Vol. Rahul Verma accepted your emergency dispatch request in Sector 7, Delhi. (ETA: 2.1 mins)",
-    time: "10 minutes ago",
-    group: "Today",
-    type: "emergency",
-    isRead: false,
-    link: "/sos"
-  },
-  {
-    id: "n2",
-    title: "Hospital Trauma ER Prepped",
-    message: "Max Super Specialty Hospital Trauma Bay 2 has reserved ICU bed for incoming Golden Hour casualty.",
-    time: "25 minutes ago",
-    group: "Today",
-    type: "emergency",
-    isRead: false,
-    link: "/map"
-  },
-  {
-    id: "n3",
-    title: "Police Patrol Unit Dispatched",
-    message: "Highway Patrol Squad 4 dispatched to NH-48 Km 14 for accident site cordon and traffic clearance.",
-    time: "1 hour ago",
-    group: "Today",
-    type: "emergency",
-    isRead: true,
-    link: "/map"
-  },
-  {
-    id: "n4",
-    title: "Road Hazard Report Verified",
-    message: "Municipal Command Center verified blackspot pothole report on Outer Ring Road. Maintenance crew assigned.",
-    time: "3 hours ago",
-    group: "Today",
-    type: "hazard",
-    isRead: true,
-    link: "/report"
-  },
-  {
-    id: "n5",
-    title: "New CPR Certificate Awarded",
-    message: "Congratulations! Your Level 3 CPR & Advanced Triage Refresher certificate has been verified.",
-    time: "Yesterday at 4:30 PM",
-    group: "Yesterday",
-    type: "volunteer",
-    isRead: true,
-    link: "/training"
-  },
-  {
-    id: "n6",
-    title: "Community Responder Milestone",
-    message: "Over 1,400 active volunteers logged in across Mumbai & Delhi today. Golden Hour response time dropped to 4.2 mins.",
-    time: "Yesterday at 11:15 AM",
-    group: "Yesterday",
-    type: "system",
-    isRead: true,
-    link: "/community"
-  },
-  {
-    id: "n7",
-    title: "Good Samaritan Protection Law Update",
-    message: "Supreme Court Guidelines reminder: You are legally immune when providing emergency trauma care.",
-    time: "3 days ago",
-    group: "Older",
-    type: "system",
-    isRead: true,
-    link: "/first-aid"
-  }
-];
+import { useNotifications, NotificationType, NotificationItem } from "../context/NotificationContext";
 
 export function Notifications() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const { 
+    notifications, 
+    unreadCount, 
+    pushPermission, 
+    requestPushPermission, 
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification, 
+    clearAllNotifications, 
+    sendTestNotification 
+  } = useNotifications();
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"all" | "emergency" | "hazard" | "volunteer" | "system">("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isTestPanelOpen, setIsTestPanelOpen] = useState(false);
 
-  const handleMarkAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-  };
-
-  const handleClearAll = () => {
-    setNotifications([]);
-  };
-
-  const toggleRead = (id: string) => {
-    setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+  // Category mapping helper
+  const getCategoryMatches = (itemType: NotificationType, filterCategory: string): boolean => {
+    if (filterCategory === "all") return true;
+    if (filterCategory === "emergency_sos") return itemType === "emergency" || itemType === "sos";
+    if (filterCategory === "responders") return itemType === "volunteer" || itemType === "community";
+    if (filterCategory === "services") return itemType === "hospital" || itemType === "police";
+    if (filterCategory === "ai") return itemType === "ai";
+    if (filterCategory === "hazard") return itemType === "hazard";
+    if (filterCategory === "training_admin") return itemType === "training" || itemType === "admin";
+    return itemType === filterCategory;
   };
 
   const filtered = notifications.filter((item) => {
-    const matchesCategory = selectedCategory === "all" || item.type === selectedCategory;
+    const matchesCategory = getCategoryMatches(item.type, selectedCategory);
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.message.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const grouped = {
-    Today: filtered.filter(n => n.group === "Today"),
-    Yesterday: filtered.filter(n => n.group === "Yesterday"),
-    Older: filtered.filter(n => n.group === "Older")
+    Today: filtered.filter((n) => n.group === "Today"),
+    Yesterday: filtered.filter((n) => n.group === "Yesterday"),
+    Older: filtered.filter((n) => n.group === "Older"),
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
       case "emergency":
+      case "sos":
         return <ShieldAlert className="w-5 h-5 text-red-500" />;
+      case "volunteer":
+      case "community":
+        return <UserCheck className="w-5 h-5 text-emerald-500" />;
+      case "hospital":
+        return <Building2 className="w-5 h-5 text-blue-500" />;
+      case "police":
+        return <Car className="w-5 h-5 text-indigo-500" />;
+      case "ai":
+        return <Bot className="w-5 h-5 text-amber-500" />;
       case "hazard":
         return <AlertTriangle className="w-5 h-5 text-amber-500" />;
-      case "volunteer":
-        return <UserCheck className="w-5 h-5 text-emerald-500" />;
+      case "training":
+        return <BookOpen className="w-5 h-5 text-purple-500" />;
+      case "admin":
+        return <Megaphone className="w-5 h-5 text-red-400" />;
       default:
-        return <Info className="w-5 h-5 text-blue-500" />;
+        return <Info className="w-5 h-5 text-surface-500" />;
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const getNotificationBadge = (type: NotificationType) => {
+    switch (type) {
+      case "emergency":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-500/30">EMERGENCY</span>;
+      case "sos":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white animate-pulse">AUTO SOS</span>;
+      case "volunteer":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">VOLUNTEER</span>;
+      case "hospital":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">HOSPITAL</span>;
+      case "police":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">POLICE</span>;
+      case "ai":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">AI ADVISORY</span>;
+      case "hazard":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">HAZARD</span>;
+      case "training":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">TRAINING</span>;
+      case "admin":
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">BROADCAST</span>;
+      default:
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-200 text-surface-700">COMMUNITY</span>;
+    }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-5xl mx-auto space-y-6 pb-12 animate-in fade-in duration-300">
       
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-surface-900 p-6 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm">
+      {/* Top Banner Header */}
+      <div className="bg-gradient-to-r from-surface-900 via-surface-800 to-amber-950 text-white p-6 sm:p-8 rounded-3xl border border-surface-700/60 shadow-xl relative overflow-hidden">
+        <div className="absolute -right-8 -bottom-8 opacity-10 pointer-events-none">
+          <Bell className="w-72 h-72 text-white" />
+        </div>
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black uppercase tracking-widest">
+              <BellRing className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span>REAL-TIME DISPATCH & INCIDENT CENTER</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
+              Notification Center
+              {unreadCount > 0 && (
+                <span className="px-3 py-0.5 rounded-full bg-red-600 text-white text-base font-black animate-bounce">
+                  {unreadCount} Unread
+                </span>
+              )}
+            </h1>
+            <p className="text-surface-300 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed">
+              Real-time Firestore synchronization for SOS dispatches, hospital trauma bed reservations, volunteer arrival ETAs, police corridor alerts, and admin broadcasts.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={markAllAsRead}
+              disabled={unreadCount === 0}
+              className="px-4 py-3 rounded-2xl bg-surface-800 hover:bg-surface-700 text-surface-200 hover:text-white text-xs font-extrabold flex items-center gap-2 transition-all disabled:opacity-40 border border-surface-700 shadow-sm"
+            >
+              <CheckCheck className="w-4 h-4 text-emerald-400" />
+              <span>Mark All Read</span>
+            </button>
+
+            <button
+              onClick={clearAllNotifications}
+              disabled={notifications.length === 0}
+              className="px-4 py-3 rounded-2xl bg-red-950/60 hover:bg-red-900/80 text-red-300 text-xs font-extrabold flex items-center gap-2 transition-all disabled:opacity-40 border border-red-500/30 shadow-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Clear All</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* PWA Browser Push Notification Permission Banner */}
+      <div className="bg-white dark:bg-surface-900 p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-500/10 text-amber-500 rounded-2xl relative">
-            <Bell className="w-6 h-6" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center">
-                {unreadCount}
-              </span>
-            )}
+          <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-500 shrink-0">
+            <BellRing className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-surface-900 dark:text-white">Operations Notification Center</h1>
-            <p className="text-xs text-surface-500">Real-time alerts, volunteer updates, and command dispatches</p>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-extrabold text-surface-900 dark:text-white">PWA Web Push Notifications</h3>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                pushPermission === "granted" 
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                  : pushPermission === "denied"
+                  ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+              }`}>
+                STATUS: {pushPermission.toUpperCase()}
+              </span>
+            </div>
+            <p className="text-xs text-surface-500 mt-0.5">
+              Receive native device alerts even when GoldenGuard is in the background.
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {pushPermission !== "granted" ? (
+            <button
+              onClick={requestPushPermission}
+              className="w-full sm:w-auto py-2.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md active:scale-95 transition-all"
+            >
+              Enable Push Notifications
+            </button>
+          ) : (
+            <button
+              onClick={() => sendTestNotification("emergency")}
+              className="w-full sm:w-auto py-2.5 px-4 rounded-2xl bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-900 dark:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Send className="w-3.5 h-3.5 text-amber-500" />
+              <span>Test Push Alert</span>
+            </button>
+          )}
+
           <button
-            onClick={handleMarkAllRead}
-            disabled={unreadCount === 0}
-            className="px-3 py-2 rounded-xl bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            onClick={() => setIsTestPanelOpen(!isTestPanelOpen)}
+            className="py-2.5 px-4 rounded-2xl bg-surface-900 text-white hover:bg-surface-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0"
           >
-            <CheckCheck className="w-4 h-4 text-emerald-500" /> Mark All Read
-          </button>
-          <button
-            onClick={handleClearAll}
-            disabled={notifications.length === 0}
-            className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-4 h-4" /> Clear All
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>{isTestPanelOpen ? "Hide Tester" : "Simulate Alerts"}</span>
           </button>
         </div>
       </div>
 
+      {/* Broadcast & Incident Simulation Panel (Hackathon Feature) */}
+      {isTestPanelOpen && (
+        <div className="bg-surface-900 text-white p-6 rounded-3xl border border-surface-700 shadow-xl space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between border-b border-surface-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-400" />
+              <h3 className="font-black text-sm uppercase tracking-wide">Real-time Alert Generator</h3>
+            </div>
+            <span className="text-xs text-surface-400 font-medium">Fires Firestore & PWA Notifications instantly</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            <button
+              onClick={() => sendTestNotification("emergency")}
+              className="p-3 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-red-400 font-extrabold flex items-center gap-1">🚨 Emergency</div>
+              <div className="text-[10px] text-surface-300 font-normal">Crash Anomaly</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("sos")}
+              className="p-3 rounded-xl bg-red-900/80 hover:bg-red-800 border border-red-500/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-red-300 font-extrabold flex items-center gap-1">🆘 Auto SOS</div>
+              <div className="text-[10px] text-surface-300 font-normal">Dispatch #882</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("volunteer")}
+              className="p-3 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-emerald-400 font-extrabold flex items-center gap-1">🤝 Volunteer</div>
+              <div className="text-[10px] text-surface-300 font-normal">Responder En Route</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("hospital")}
+              className="p-3 rounded-xl bg-blue-950/80 hover:bg-blue-900 border border-blue-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-blue-400 font-extrabold flex items-center gap-1">🏥 Hospital</div>
+              <div className="text-[10px] text-surface-300 font-normal">Trauma Room Prepped</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("police")}
+              className="p-3 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-indigo-400 font-extrabold flex items-center gap-1">🚔 Police</div>
+              <div className="text-[10px] text-surface-300 font-normal">Corridor Dispatched</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("ai")}
+              className="p-3 rounded-xl bg-amber-950/80 hover:bg-amber-900 border border-amber-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-amber-400 font-extrabold flex items-center gap-1">🤖 AI First Aid</div>
+              <div className="text-[10px] text-surface-300 font-normal">Triage Protocol</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("hazard")}
+              className="p-3 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-orange-400 font-extrabold flex items-center gap-1">⚠️ Road Hazard</div>
+              <div className="text-[10px] text-surface-300 font-normal">Blackspot Warning</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("community")}
+              className="p-3 rounded-xl bg-teal-950/80 hover:bg-teal-900 border border-teal-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-teal-400 font-extrabold flex items-center gap-1">🌐 Community</div>
+              <div className="text-[10px] text-surface-300 font-normal">Responder Fleet</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("training")}
+              className="p-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-purple-400 font-extrabold flex items-center gap-1">🎓 Training</div>
+              <div className="text-[10px] text-surface-300 font-normal">CPR Badge Due</div>
+            </button>
+
+            <button
+              onClick={() => sendTestNotification("admin")}
+              className="p-3 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-600/40 text-left text-xs font-bold space-y-1 transition-all"
+            >
+              <div className="text-rose-400 font-extrabold flex items-center gap-1">📢 Admin Broadcast</div>
+              <div className="text-[10px] text-surface-300 font-normal">System Weather Alert</div>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full md:w-80">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search notification alerts..."
-            className="w-full bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-medium outline-none focus:ring-2 focus:ring-amber-500"
+            placeholder="Search operational notifications..."
+            className="w-full bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-2xl py-3 pl-10 pr-4 text-xs font-semibold text-surface-900 dark:text-white placeholder-surface-400 outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm"
           />
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Category Tabs */}
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {[
-            { id: "all", label: "All" },
-            { id: "emergency", label: "SOS & Dispatch" },
-            { id: "hazard", label: "Hazards" },
-            { id: "volunteer", label: "Volunteers" },
-            { id: "system", label: "System" },
+            { id: "all", label: "All Alerts" },
+            { id: "emergency_sos", label: "🚨 SOS & Emergency" },
+            { id: "services", label: "🏥 Hospital & Police" },
+            { id: "responders", label: "🤝 Volunteers" },
+            { id: "ai", label: "🤖 AI First Aid" },
+            { id: "hazard", label: "⚠️ Hazards" },
+            { id: "training_admin", label: "📢 Admin & Badges" },
           ].map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-3.5 py-2 rounded-2xl text-xs font-extrabold transition-all ${
                 selectedCategory === cat.id
-                  ? "bg-amber-500 text-black shadow-md"
+                  ? "bg-amber-500 text-black shadow-md scale-105"
                   : "bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 text-surface-600 dark:text-surface-400 hover:border-surface-400"
               }`}
             >
@@ -210,7 +345,7 @@ export function Notifications() {
         </div>
       </div>
 
-      {/* Notifications Group List */}
+      {/* Notifications Grouped List */}
       <div className="space-y-8">
         {(["Today", "Yesterday", "Older"] as const).map((groupKey) => {
           const items = grouped[groupKey];
@@ -218,11 +353,11 @@ export function Notifications() {
 
           return (
             <div key={groupKey} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-surface-400">{groupKey}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-black uppercase tracking-widest text-surface-400">{groupKey}</span>
                 <span className="h-px flex-1 bg-surface-200 dark:bg-surface-800"></span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
-                  {items.length}
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
+                  {items.length} {items.length === 1 ? "alert" : "alerts"}
                 </span>
               </div>
 
@@ -230,39 +365,64 @@ export function Notifications() {
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => toggleRead(item.id)}
-                    className={`p-5 rounded-3xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
+                    onClick={() => markAsRead(item.id)}
+                    className={`p-5 sm:p-6 rounded-3xl border transition-all cursor-pointer flex flex-col sm:flex-row items-start justify-between gap-4 ${
                       item.isRead
-                        ? "bg-white/60 dark:bg-surface-900/60 border-surface-200 dark:border-surface-800 opacity-85"
-                        : "bg-white dark:bg-surface-900 border-amber-500/50 dark:border-amber-500/40 shadow-md ring-1 ring-amber-500/20"
+                        ? "bg-white/70 dark:bg-surface-900/60 border-surface-200 dark:border-surface-800/80 opacity-90"
+                        : "bg-white dark:bg-surface-900 border-amber-500/60 dark:border-amber-500/50 shadow-lg ring-1 ring-amber-500/30"
                     }`}
                   >
                     <div className="flex items-start gap-4">
                       <div className="p-3 bg-surface-100 dark:bg-surface-800 rounded-2xl shrink-0 mt-0.5">
                         {getNotificationIcon(item.type)}
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-extrabold text-surface-900 dark:text-white">{item.title}</h3>
+
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-black text-surface-900 dark:text-white leading-tight">
+                            {item.title}
+                          </h3>
+                          {getNotificationBadge(item.type)}
                           {!item.isRead && (
-                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
                           )}
                         </div>
-                        <p className="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">{item.message}</p>
-                        <span className="text-[10px] text-surface-400 font-medium block pt-1">{item.time}</span>
+
+                        <p className="text-xs text-surface-600 dark:text-surface-300 font-medium leading-relaxed">
+                          {item.message}
+                        </p>
+
+                        <div className="flex items-center gap-3 pt-1 text-[11px] text-surface-400 font-medium">
+                          <span>{item.time}</span>
+                          <span>•</span>
+                          <span className="capitalize text-amber-600 dark:text-amber-400 font-bold">{item.type} Channel</span>
+                        </div>
                       </div>
                     </div>
 
-                    {item.link && (
-                      <Link
-                        to={item.link}
-                        onClick={(e) => e.stopPropagation()}
-                        className="px-3 py-2 bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-900 dark:text-white rounded-xl text-xs font-bold flex items-center gap-1 shrink-0 transition-colors"
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0 pt-2 sm:pt-0">
+                      {item.link && (
+                        <Link
+                          to={item.link}
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-xl text-xs font-black flex items-center gap-1 transition-colors"
+                        >
+                          <span>Action</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      )}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(item.id);
+                        }}
+                        title="Delete notification"
+                        className="p-2 text-surface-400 hover:text-red-500 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
                       >
-                        <span>View</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    )}
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -272,9 +432,9 @@ export function Notifications() {
 
         {filtered.length === 0 && (
           <div className="p-12 text-center bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 space-y-3">
-            <Bell className="w-10 h-10 text-surface-400 mx-auto opacity-50" />
-            <h3 className="font-bold text-base text-surface-900 dark:text-white">No Notifications Found</h3>
-            <p className="text-xs text-surface-500">There are no operational alerts matching your current filter.</p>
+            <Bell className="w-12 h-12 text-surface-300 dark:text-surface-700 mx-auto" />
+            <h3 className="font-bold text-base text-surface-900 dark:text-white">No Matching Notifications</h3>
+            <p className="text-xs text-surface-500">There are no operational alerts matching your current filter query.</p>
           </div>
         )}
       </div>

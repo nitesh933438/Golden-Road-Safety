@@ -1,14 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   User, Award, Shield, FileCheck, Clock, CheckCircle2, 
   Sparkles, Heart, MapPin, Phone, Mail, ChevronRight, 
   Download, ExternalLink, Share2, ToggleLeft, ToggleRight,
-  TrendingUp, ShieldCheck
+  TrendingUp, ShieldCheck, Camera, Edit2, Save, X, LogIn
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { uploadToCloudinary } from "../lib/cloudinary";
 
 export function Profile() {
+  const { currentUser, userProfile, updateProfileData, loginWithGoogle } = useAuth();
   const [isVolunteerActive, setIsVolunteerActive] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "certificates" | "history" | "achievements">("overview");
+  
+  // Local edit form fields
+  const [name, setName] = useState(userProfile?.name || "Dr. Aarav Sharma");
+  const [role, setRole] = useState(userProfile?.role === "admin" ? "GoldenGuard Administrator" : "Good Samaritan Lead Responder");
+  const [phone, setPhone] = useState(userProfile?.phone || "+91 98765 43210");
+  const [email, setEmail] = useState(userProfile?.email || "aarav.sharma@goldenguard.in");
+  const [city, setCity] = useState(userProfile?.city || "New Delhi");
+  const [bloodGroup, setBloodGroup] = useState(userProfile?.bloodGroup || "O+");
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (userProfile) {
+      setName(userProfile.name || "Dr. Aarav Sharma");
+      setRole(userProfile.role === "admin" ? "GoldenGuard Administrator" : "Good Samaritan Lead Responder");
+      setPhone(userProfile.phone || "+91 98765 43210");
+      setEmail(userProfile.email || "aarav.sharma@goldenguard.in");
+      setCity(userProfile.city || "New Delhi");
+      setBloodGroup(userProfile.bloodGroup || "O+");
+    }
+  }, [userProfile]);
+
+  // Save profile changes to Firestore & local state
+  const handleSaveProfile = async () => {
+    try {
+      await updateProfileData({
+        name,
+        phone,
+        email,
+        city,
+        bloodGroup
+      });
+      setIsEditing(false);
+    } catch (e) {
+      console.error("Save profile error:", e);
+    }
+  };
+
+  // Photo upload handler (Uploads to Cloudinary)
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadingPhoto(true);
+      try {
+        const cloudinaryUrl = await uploadToCloudinary(file, "profiles");
+        await updateProfileData({ photoURL: cloudinaryUrl }, file);
+      } catch (err) {
+        console.error("Photo upload failed:", err);
+      } finally {
+        setUploadingPhoto(false);
+      }
+    }
+  };
 
   const profileData = {
     name: "Dr. Aarav Sharma",
@@ -51,16 +109,50 @@ export function Profile() {
         
         <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
           
+          {/* Hidden File Input for Image Upload */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handlePhotoUpload} 
+            accept="image/*" 
+            className="hidden" 
+          />
+
           {/* Avatar & Badge */}
-          <div className="relative shrink-0">
-            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-amber-500 via-red-500 to-indigo-600 p-1 shadow-2xl">
-              <div className="w-full h-full bg-surface-900 rounded-[22px] flex items-center justify-center font-black text-3xl sm:text-4xl text-white">
-                AS
-              </div>
+          <div className="relative shrink-0 group">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-amber-500 via-red-500 to-indigo-600 p-1 shadow-2xl relative overflow-hidden">
+              {userProfile?.photoURL ? (
+                <img 
+                  src={userProfile.photoURL} 
+                  alt="Profile Avatar" 
+                  className="w-full h-full object-cover rounded-[22px]"
+                />
+              ) : (
+                <div className="w-full h-full bg-surface-900 rounded-[22px] flex items-center justify-center font-black text-3xl sm:text-4xl text-white">
+                  {(userProfile?.name || name).split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "AS"}
+                </div>
+              )}
+
+              {/* Upload Overlay Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white text-xs font-black rounded-[22px]"
+                title="Upload Profile Photo"
+              >
+                <Camera className="w-5 h-5 text-amber-400" />
+                <span>Change Photo</span>
+              </button>
             </div>
-            <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-2 rounded-xl border-2 border-surface-900 shadow-lg" title="Identity Verified">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-2 -right-2 bg-amber-500 hover:bg-amber-400 text-black p-2 rounded-xl border-2 border-surface-900 shadow-lg transition-transform hover:scale-110"
+              title="Upload Photo"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Details */}
@@ -73,15 +165,67 @@ export function Profile() {
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 Good Samaritan Protected
               </span>
+
+              <button
+                onClick={() => {
+                  if (isEditing) handleSaveProfile();
+                  else setIsEditing(true);
+                }}
+                className="px-3 py-1 rounded-full bg-surface-800 hover:bg-surface-700 text-surface-200 border border-surface-700 text-xs font-extrabold flex items-center gap-1.5 transition-colors ml-auto"
+              >
+                {isEditing ? <Save className="w-3.5 h-3.5 text-emerald-400" /> : <Edit2 className="w-3.5 h-3.5 text-amber-400" />}
+                <span>{isEditing ? "Save Profile" : "Edit Profile"}</span>
+              </button>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">{profileData.name}</h1>
-            <p className="text-sm text-surface-300 font-medium">{profileData.role}</p>
+            {isEditing ? (
+              <div className="space-y-2 pt-2 max-w-md">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-surface-800 border border-surface-700 rounded-xl px-3 py-1.5 text-base font-bold text-white outline-none focus:ring-2 focus:ring-amber-500"
+                  placeholder="Full Name"
+                />
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full bg-surface-800 border border-surface-700 rounded-xl px-3 py-1.5 text-xs text-surface-300 outline-none focus:ring-2 focus:ring-amber-500"
+                  placeholder="Role / Profession"
+                />
+              </div>
+            ) : (
+              <>
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tight">{name}</h1>
+                <p className="text-sm text-surface-300 font-medium">{role}</p>
+              </>
+            )}
 
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-surface-400 pt-2">
               <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-amber-500" /> {profileData.location}</span>
-              <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-amber-500" /> {profileData.phone}</span>
-              <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-amber-500" /> {profileData.email}</span>
+              
+              {isEditing ? (
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="bg-surface-800 border border-surface-700 rounded-lg px-2 py-1 text-xs text-white"
+                  />
+                  <input
+                    type="text"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-surface-800 border border-surface-700 rounded-lg px-2 py-1 text-xs text-white"
+                  />
+                </div>
+              ) : (
+                <>
+                  <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-amber-500" /> {phone}</span>
+                  <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-amber-500" /> {email}</span>
+                </>
+              )}
             </div>
           </div>
 

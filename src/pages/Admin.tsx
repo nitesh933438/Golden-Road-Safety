@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "../lib/firebase";
+import React, { useState } from "react";
 import { 
   ShieldAlert, LayoutDashboard, Map as MapIcon, Users, 
-  Activity, Bell, BarChart3, Settings, LogOut, FileText
+  Activity, Bell, BarChart3, Settings, LogOut, Lock, AlertTriangle
 } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { AdminDashboardTab } from "../components/admin/AdminDashboardTab";
 import { AdminMapTab } from "../components/admin/AdminMapTab";
 import { AdminEmergenciesTab } from "../components/admin/AdminEmergenciesTab";
@@ -24,65 +23,64 @@ type AdminTab =
 
 export function Admin() {
   const { demoMode } = useOutletContext<{ demoMode: boolean }>();
-  const [user, setUser] = useState(auth.currentUser);
+  const { currentUser, userProfile, isGoogleAdmin, loginWithGoogle, logout, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login failed", error);
-    }
-  };
-
-  const handleLogout = () => {
-    auth.signOut();
-  };
 
   if (loading && !demoMode) {
     return <div className="p-8 flex justify-center"><div className="w-10 h-10 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div></div>;
   }
 
-  // Bypass email check if demoMode is active to allow judges to view the Admin UI
-  if (!demoMode && (!user || user.email !== ADMIN_EMAIL)) {
+  // Strict Admin Check: Google Login with nitesh933438@gmail.com is required (unless demoMode)
+  const isAuthorizedAdmin = demoMode || isGoogleAdmin;
+
+  if (!isAuthorizedAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] animate-in fade-in duration-500">
-        <div className="bg-white dark:bg-surface-800 p-8 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-lg text-center max-w-md w-full">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="bg-white dark:bg-surface-800 p-8 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl text-center max-w-md w-full space-y-5">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
             <ShieldAlert className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Admin Access Restricted</h1>
-          <p className="text-surface-600 dark:text-surface-400 mb-6">
-            You must be signed in as the authorized administrator to access the Command Center.
-          </p>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black text-surface-900 dark:text-white">Admin Access Restricted</h1>
+            <p className="text-xs text-surface-500 leading-relaxed">
+              GoldenGuard Command Center requires <strong>Google Authentication</strong> with authorized administrator credentials (<code className="text-amber-500 font-mono">nitesh933438@gmail.com</code>).
+            </p>
+          </div>
           
-          {user ? (
-            <div className="space-y-4">
-              <div className="bg-surface-100 dark:bg-surface-700 p-3 rounded-lg text-sm break-all">
-                Signed in as: <strong>{user.email}</strong>
+          {currentUser ? (
+            <div className="space-y-3 pt-2">
+              <div className="bg-surface-100 dark:bg-surface-700/50 p-3.5 rounded-2xl text-xs space-y-1 text-left border border-surface-200 dark:border-surface-700">
+                <div className="font-bold text-surface-900 dark:text-white flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-500" /> Account: {currentUser.email}
+                </div>
+                <div className="text-[11px] text-surface-500">
+                  Provider: <span className="font-semibold text-amber-600 capitalize">{userProfile?.provider || "password"}</span>
+                </div>
+                {userProfile?.provider === "password" && currentUser.email === ADMIN_EMAIL && (
+                  <div className="pt-2 text-red-500 font-bold text-[11px] flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Email/Password logins are not granted Admin privilege.
+                  </div>
+                )}
               </div>
+
               <button 
-                onClick={handleLogout}
-                className="w-full py-3 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-xl font-bold transition-colors shadow-sm"
+                onClick={logout}
+                className="w-full py-3 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 text-surface-900 dark:text-white rounded-2xl font-bold text-xs transition-colors shadow-sm"
               >
-                Sign Out
+                Sign Out & Switch Account
               </button>
             </div>
           ) : (
             <button 
-              onClick={handleLogin}
-              className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors shadow-md"
+              onClick={loginWithGoogle}
+              className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black rounded-2xl font-black text-xs transition-all shadow-lg flex items-center justify-center gap-2"
             >
-              Sign in with Google
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#000" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#000" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              </svg>
+              Sign in with Authorized Google Account
             </button>
           )}
         </div>
@@ -111,7 +109,7 @@ export function Admin() {
             <ShieldAlert className="text-primary-600" />
             Command Center
           </h2>
-          <div className="text-xs text-surface-500 mt-1 truncate">{demoMode ? "demo@goldenguard.ai" : user?.email}</div>
+          <div className="text-xs text-surface-500 mt-1 truncate">{demoMode ? "demo@goldenguard.ai" : currentUser?.email}</div>
         </div>
         
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
@@ -133,7 +131,7 @@ export function Admin() {
 
         <div className="p-4 border-t border-surface-200 dark:border-surface-700">
           <button 
-            onClick={demoMode ? () => {} : handleLogout}
+            onClick={demoMode ? () => {} : logout}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
           >
             <LogOut className="w-4 h-4" /> Sign Out

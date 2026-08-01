@@ -93,6 +93,9 @@ export function Team() {
           <img
             src={LEADER.avatar}
             alt={LEADER.name}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://ui-avatars.com/api/?name=Alex+Rivera&background=f59e0b&color=fff";
+            }}
             className="w-36 h-36 rounded-3xl object-cover ring-4 ring-amber-500/30 shadow-lg"
           />
           <div className="flex-1 space-y-3 text-center md:text-left">
@@ -129,6 +132,9 @@ export function Team() {
               <img
                 src={dev.avatar}
                 alt={dev.name}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(dev.name)}&background=3b82f6&color=fff`;
+                }}
                 className="w-24 h-24 rounded-2xl object-cover ring-2 ring-surface-200 dark:ring-surface-700 shadow-md"
               />
               <div>
@@ -162,6 +168,9 @@ export function Team() {
               <img
                 src={guide.avatar}
                 alt={guide.name}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(guide.name)}&background=a855f7&color=fff`;
+                }}
                 className="w-20 h-20 rounded-2xl object-cover ring-2 ring-purple-500/30 shrink-0"
               />
               <div className="space-y-1 min-w-0">

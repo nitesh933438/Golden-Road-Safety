@@ -21,18 +21,32 @@ import {
   Info,
   UserCheck,
   Play,
-  User
+  User,
+  Bike,
+  Wifi,
+  WifiOff,
+  RefreshCw
 } from "lucide-react";
 import { useTheme } from "../theme/ThemeProvider";
 import { useDemo } from "../../context/DemoContext";
+import { useNotifications } from "../../context/NotificationContext";
+import { useAuth } from "../../context/AuthContext";
+import { useOfflineSync } from "../../context/OfflineSyncContext";
+import { AuthModal } from "../auth/AuthModal";
 import { cn } from "../../lib/utils";
 import { Footer } from "./Footer";
 import { WelcomeModal } from "../demo/WelcomeModal";
 import { GuidedDemoTour } from "../demo/GuidedDemoTour";
+import { AutoSOSModal } from "../crash/AutoSOSModal";
+import { CrashTopBanner } from "../crash/CrashTopBanner";
+import { SimulateCrashButton } from "../crash/SimulateCrashButton";
 
 const NAV_ITEMS = [
   { name: "Dashboard", to: "/", icon: LayoutDashboard },
+  { name: "Emergency Wallet 💳", to: "/wallet", icon: ShieldAlert },
+  { name: "SafeRide Guardian 🏍️", to: "/saferide", icon: Bike },
   { name: "SOS (Golden Hour)", to: "/sos", icon: ShieldAlert, alert: true },
+  { name: "Sync Center 🔄", to: "/sync", icon: Wifi },
   { name: "AI First Aid", to: "/first-aid", icon: Stethoscope },
   { name: "Smart Map", to: "/map", icon: MapIcon },
   { name: "Notifications", to: "/notifications", icon: Bell },
@@ -49,7 +63,11 @@ const NAV_ITEMS = [
 export function Layout() {
   const { theme, setTheme } = useTheme();
   const { demoMode, toggleDemoMode, startTour, setShowWelcomeModal } = useDemo();
+  const { unreadCount } = useNotifications();
+  const { currentUser, userProfile } = useAuth();
+  const { isOnline, pendingCount } = useOfflineSync();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -59,6 +77,8 @@ export function Layout() {
     <div className="flex h-screen w-full bg-surface-50 dark:bg-surface-950 overflow-hidden font-sans">
       <WelcomeModal />
       <GuidedDemoTour />
+      <AutoSOSModal />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
 
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
@@ -90,23 +110,27 @@ export function Layout() {
           </button>
         </div>
 
-        {/* Guided Tour Launcher Card */}
-        <div className="mx-4 my-2 p-3 rounded-2xl bg-gradient-to-r from-red-600/30 via-amber-600/30 to-amber-500/20 border border-amber-500/40">
+        {/* Hackathon Live Demo Launcher & Simulate Crash */}
+        <div className="mx-4 my-2 p-3 rounded-2xl bg-gradient-to-r from-red-600/30 via-amber-600/30 to-amber-500/20 border border-amber-500/40 space-y-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Hackathon Mode</span>
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           </div>
-          <p className="text-xs text-surface-200 mb-2 font-medium leading-tight">Interactive 6-Step Guided Live Demo</p>
-          <button
-            onClick={() => {
-              setSidebarOpen(false);
-              startTour();
-            }}
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
-          >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            <span>Start Live Demo</span>
-          </button>
+          <p className="text-xs text-surface-200 font-medium leading-tight">Interactive Guided Live Demo & Crash Simulator</p>
+          <div className="space-y-1.5 pt-1">
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                startTour();
+              }}
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Start Live Tour</span>
+            </button>
+
+            <SimulateCrashButton variant="compact" className="w-full justify-center" />
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto mt-2 px-4 space-y-1 custom-scrollbar">
@@ -166,6 +190,8 @@ export function Layout() {
 
       {/* Main Content Area */}
       <div className="flex flex-col flex-1 min-w-0 bg-surface-50 dark:bg-surface-950">
+        <CrashTopBanner />
+
         {/* Header */}
         <header className="flex items-center h-16 px-4 sm:px-8 bg-white/80 dark:bg-surface-900/80 backdrop-blur-md border-b border-surface-200 dark:border-surface-800 sticky top-0 z-30">
           <button
@@ -185,33 +211,57 @@ export function Layout() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 opacity-40" />
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4 ml-auto">
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+            <SimulateCrashButton variant="compact" className="hidden sm:inline-flex" />
+
             {demoMode ? (
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-xs font-bold text-blue-700 dark:text-blue-400 animate-pulse">
                 <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                DEMO MODE ACTIVE
+                DEMO MODE
               </div>
             ) : (
               <button
                 onClick={toggleDemoMode}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-100 dark:bg-surface-800 text-xs font-semibold text-surface-600 dark:text-surface-300 hover:text-white transition-colors"
               >
-                <span>Enable Demo Mode</span>
+                <span>Enable Demo</span>
               </button>
             )}
+
+            <Link
+              to="/sync"
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black transition-all ${
+                isOnline
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse"
+              }`}
+              title="Click to view Sync Center & Offline Queue"
+            >
+              {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+              <span>{isOnline ? "🟢 Online" : "🔴 Offline"}</span>
+              {pendingCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[10px] font-black">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
 
             <button
               onClick={startTour}
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-black text-xs font-extrabold shadow-md hover:scale-105 transition-all"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Guided Tour</span>
+              <span>Tour</span>
             </button>
             
             <div className="flex items-center gap-3 text-surface-500">
               <Link to="/notifications" className="relative hover:text-surface-900 dark:hover:text-surface-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full p-1" aria-label="Notifications">
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 border-2 border-white dark:border-surface-900"></span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-surface-900 animate-pulse">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </Link>
               
               <button
@@ -222,12 +272,33 @@ export function Layout() {
                 {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
               
-              <Link to="/profile" className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-red-500 text-white flex items-center justify-center font-bold text-xs shadow-md hover:scale-105 transition-transform" title="My Profile">
-                 AR
-              </Link>
+              <button 
+                onClick={() => setAuthModalOpen(true)} 
+                className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-red-500 text-white flex items-center justify-center font-bold text-xs shadow-md hover:scale-105 transition-transform overflow-hidden relative ring-2 ring-amber-500/30" 
+                title={currentUser ? `${userProfile?.name} (${userProfile?.role})` : "Sign In / Register"}
+              >
+                {userProfile?.photoURL ? (
+                  <img src={userProfile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : "AS"}</span>
+                )}
+              </button>
             </div>
           </div>
         </header>
+
+        {/* Offline Alert Banner */}
+        {!isOnline && (
+          <div className="bg-gradient-to-r from-red-600 to-amber-600 text-white px-4 py-2.5 text-xs font-black flex items-center justify-between shadow-lg z-30 animate-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <WifiOff className="w-4 h-4 shrink-0 animate-pulse" />
+              <span>🔴 Offline Mode Active — Internet unavailable. SOS, AI First Aid Guides & Contacts remain 100% operational.</span>
+            </div>
+            <Link to="/sync" className="px-3 py-1 rounded-lg bg-black/30 hover:bg-black/50 text-white text-[11px] font-black uppercase transition-colors shrink-0">
+              Sync Center ({pendingCount})
+            </Link>
+          </div>
+        )}
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto relative flex flex-col custom-scrollbar">
@@ -272,4 +343,5 @@ export function Layout() {
     </div>
   );
 }
+
 

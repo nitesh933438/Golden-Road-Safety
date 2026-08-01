@@ -4,7 +4,7 @@ import {
   ShieldAlert, Activity, Users, AlertTriangle, 
   Map as MapIcon, Timer, Plus, Camera, Navigation, 
   HeartPulse, PhoneCall, FileText, ChevronRight,
-  Radio, Clock, CheckCircle2, ShieldCheck, Award, Stethoscope, Sparkles, Building2, Car
+  Radio, Clock, CheckCircle2, ShieldCheck, Award, Stethoscope, Sparkles, Building2, Car, Bike
 } from "lucide-react";
 import { EmergencySheet } from "../components/EmergencySheet";
 
@@ -106,6 +106,14 @@ export function Dashboard() {
                 <ShieldAlert className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 Start Emergency
               </button>
+
+              <Link 
+                to="/saferide"
+                className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black rounded-2xl font-black text-sm sm:text-base transition-all shadow-lg shadow-amber-500/20 hover:scale-[1.02]"
+              >
+                <Bike className="w-5 h-5 fill-current" />
+                SafeRide Guardian
+              </Link>
 
               <Link 
                 to="/first-aid"

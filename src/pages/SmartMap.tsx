@@ -12,6 +12,7 @@ import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firesto
 import { db } from "../lib/firebase";
 import { useTheme } from "../components/theme/ThemeProvider";
 import { useOutletContext } from "react-router-dom";
+import { saveLastLocation, getLastLocation } from "../lib/offlineStore";
 
 // Standard India Center coordinates for fallback
 const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
@@ -147,21 +148,26 @@ export function SmartMap() {
   const [reportTitle, setReportTitle] = useState<string>("");
   const [reportDesc, setReportDesc] = useState<string>("");
 
-  // Reverse Geocode using Nominatim
+  // Reverse Geocode using Nominatim with offline cache fallback
   const fetchAddress = useCallback(async (lat: number, lng: number) => {
     try {
+      if (!navigator.onLine) {
+        const cached = getLastLocation();
+        setAddress(cached.address || `Offline Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        return;
+      }
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
       );
       if (!response.ok) throw new Error("Geocoding failed");
       const data = await response.json();
-      if (data && data.display_name) {
-        setAddress(data.display_name);
-      } else {
-        setAddress(`Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-      }
+      const addrStr = (data && data.display_name) ? data.display_name : `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      setAddress(addrStr);
+      saveLastLocation({ lat, lng, address: addrStr });
     } catch (err) {
-      setAddress(`Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
+      const fallbackStr = `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
+      setAddress(fallbackStr);
+      saveLastLocation({ lat, lng, address: fallbackStr });
     }
   }, []);
 
@@ -171,9 +177,12 @@ export function SmartMap() {
     setGeoError(null);
 
     if (!navigator.geolocation) {
-      setGeoError("Geolocation is not supported by your browser. Defaulted map to India Command Center.");
-      setMapCenter(INDIA_CENTER);
-      setZoomLevel(DEFAULT_ZOOM);
+      const cached = getLastLocation();
+      setGeoError("Geolocation is not supported. Showing last known cached location.");
+      setMapCenter([cached.lat, cached.lng]);
+      setUserLocation({ lat: cached.lat, lng: cached.lng });
+      setAddress(cached.address);
+      setZoomLevel(USER_ZOOM);
       setIsLoading(false);
       return;
     }
@@ -191,15 +200,13 @@ export function SmartMap() {
         setIsLoading(false);
       },
       (err) => {
-        console.warn("Geolocation Error / Denied:", err.message);
-        let errorMsg = "GPS location permission denied or unavailable. Centered map on India Command Hub.";
-        if (err.code === err.PERMISSION_DENIED) {
-          errorMsg = "Location permission denied by browser. Displaying national emergency command map.";
-        }
-        setGeoError(errorMsg);
-        setMapCenter(INDIA_CENTER);
-        setZoomLevel(DEFAULT_ZOOM);
-        setAddress("National Highway Emergency Network (India Hub)");
+        console.warn("Geolocation Error / Offline:", err.message);
+        const cached = getLastLocation();
+        setGeoError("GPS Signal unavailable or offline. Using cached last known position.");
+        setMapCenter([cached.lat, cached.lng]);
+        setUserLocation({ lat: cached.lat, lng: cached.lng });
+        setAddress(cached.address);
+        setZoomLevel(USER_ZOOM);
         setIsLoading(false);
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }

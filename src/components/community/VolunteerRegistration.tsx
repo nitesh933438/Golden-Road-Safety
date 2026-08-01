@@ -1,22 +1,44 @@
 import React, { useState } from "react";
 import { ShieldAlert, CheckCircle2, ChevronRight } from "lucide-react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 
 export function VolunteerRegistration({ onSubmit }: { onSubmit: () => void }) {
+  const { currentUser, userProfile } = useAuth();
   const [formData, setFormData] = useState({
-    fullName: "",
-    phone: "",
-    city: "",
-    state: "",
-    bloodGroup: "",
-    firstAidTrained: "no",
-    cprCertified: "no",
-    languages: "",
-    emergencyContact: ""
+    fullName: userProfile?.name || "",
+    phone: userProfile?.phone || "",
+    city: userProfile?.city || "",
+    state: "Delhi NCR",
+    bloodGroup: userProfile?.bloodGroup || "O+",
+    firstAidTrained: "yes",
+    cprCertified: "yes",
+    languages: "English, Hindi",
+    emergencyContact: "Emergency Contact (+91 98765 00000)"
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Normally save to Firestore here
+    try {
+      await addDoc(collection(db, "volunteers"), {
+        uid: currentUser?.uid || "guest-vol",
+        fullName: formData.fullName,
+        phone: formData.phone,
+        city: formData.city,
+        state: formData.state,
+        bloodGroup: formData.bloodGroup,
+        firstAidTrained: formData.firstAidTrained === "yes",
+        cprCertified: formData.cprCertified === "yes",
+        languages: formData.languages,
+        emergencyContact: formData.emergencyContact,
+        status: "pending",
+        approved: false,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.warn("Firestore volunteer submission error:", err);
+    }
     onSubmit();
   };
 
