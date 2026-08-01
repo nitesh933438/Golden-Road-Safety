@@ -10,6 +10,7 @@ import { getLocalMedicalID, saveMedicalID, MedicalIDData, EmergencyContact } fro
 import { uploadToCloudinary } from "../lib/cloudinary";
 import { QRCodeSVG } from "qrcode.react";
 import { Link, useNavigate } from "react-router-dom";
+import { SmartInput } from "../components/ui/SmartInput";
 
 export function MedicalWallet() {
   const { currentUser, userProfile, isAdmin } = useAuth();
@@ -394,13 +395,13 @@ export function MedicalWallet() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Full Name */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-surface-700 dark:text-surface-300">Full Name</label>
-              <input
-                type="text"
+            <div>
+              <SmartInput
+                label="Full Name"
                 value={formData.fullName}
-                onChange={(e) => handleChange("fullName", e.target.value)}
-                className="w-full bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl px-3.5 py-2.5 text-sm font-bold text-surface-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                onChange={(val) => handleChange("fullName", val)}
+                validationType="name"
+                placeholder="Enter patient full name..."
               />
             </div>
 

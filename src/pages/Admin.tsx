@@ -101,9 +101,28 @@ export function Admin() {
   ] as const;
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] bg-surface-50 dark:bg-surface-900 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 animate-in fade-in duration-500">
-      {/* Sidebar */}
-      <div className="w-64 bg-white dark:bg-surface-800 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm flex flex-col overflow-hidden shrink-0 mr-6">
+    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-5rem)] bg-surface-50 dark:bg-surface-900 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 animate-in fade-in duration-500 gap-6">
+      
+      {/* Mobile/Tablet Horizontal Tabs */}
+      <div className="lg:hidden bg-white dark:bg-surface-800 p-3 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-sm overflow-x-auto flex items-center gap-2 custom-scrollbar">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as AdminTab)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              activeTab === tab.id
+                ? "bg-amber-500 text-black shadow-md"
+                : "text-surface-600 dark:text-surface-400 bg-surface-100 dark:bg-surface-700/50"
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex w-64 bg-white dark:bg-surface-800 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm flex-col overflow-hidden shrink-0">
         <div className="p-6 border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/50">
           <h2 className="font-bold text-lg text-surface-900 dark:text-white flex items-center gap-2">
             <ShieldAlert className="text-primary-600" />
@@ -119,7 +138,7 @@ export function Admin() {
               onClick={() => setActiveTab(tab.id as AdminTab)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
                 activeTab === tab.id
-                  ? "bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400"
+                  ? "bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400 font-bold"
                   : "text-surface-600 dark:text-surface-400 hover:bg-surface-50 dark:hover:bg-surface-700/50"
               }`}
             >
@@ -140,9 +159,9 @@ export function Admin() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white dark:bg-surface-800 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm overflow-hidden flex flex-col relative hover:shadow-md transition-shadow">
+      <div className="flex-1 bg-white dark:bg-surface-800 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm overflow-hidden flex flex-col relative hover:shadow-md transition-shadow min-w-0">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 to-amber-500 z-10"></div>
-        <div className="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar animate-in slide-in-from-bottom-4 duration-500">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar animate-in slide-in-from-bottom-4 duration-500">
           {activeTab === "dashboard" && <AdminDashboardTab />}
           {activeTab === "map" && <AdminMapTab />}
           {activeTab === "emergencies" && <AdminEmergenciesTab />}

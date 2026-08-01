@@ -14,6 +14,8 @@ import {
   Database
 } from "lucide-react";
 
+import appLogo from "../assets/images/goldenguard_app_logo_1785611320510.jpg";
+
 export function About() {
   const TECH_STACK = [
     { name: "React 18 & TypeScript", desc: "Type-safe, high-performance UI components", category: "Frontend" },
@@ -50,12 +52,22 @@ export function About() {
         </div>
         
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider border border-amber-500/30">
-            <Sparkles className="w-3.5 h-3.5" /> Hackathon Architectural Blueprint
+          <div className="flex items-center gap-4 mb-2">
+            <img 
+              src={appLogo} 
+              alt="GoldenGuard Official Emblem" 
+              className="w-14 h-14 rounded-2xl object-cover ring-4 ring-amber-500/40 shadow-2xl shrink-0" 
+              referrerPolicy="no-referrer"
+            />
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider border border-amber-500/30 mb-1">
+                <Sparkles className="w-3.5 h-3.5" /> Hackathon Architectural Blueprint
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+                About GoldenGuard
+              </h1>
+            </div>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            About GoldenGuard
-          </h1>
           <p className="text-lg text-surface-300 leading-relaxed">
             GoldenGuard is an AI-powered road safety and emergency response ecosystem engineered to maximize survival rates during the critical 10-minute Golden Hour.
           </p>

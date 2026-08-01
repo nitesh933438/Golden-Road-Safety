@@ -8,10 +8,7 @@ import {
   BookOpen,
   Users,
   LayoutDashboard,
-  Search,
   Bell,
-  Sun,
-  Moon,
   Menu,
   X,
   MoreHorizontal,
@@ -25,21 +22,20 @@ import {
   Bike,
   Wifi,
   WifiOff,
-  RefreshCw
 } from "lucide-react";
-import { useTheme } from "../theme/ThemeProvider";
 import { useDemo } from "../../context/DemoContext";
-import { useNotifications } from "../../context/NotificationContext";
-import { useAuth } from "../../context/AuthContext";
 import { useOfflineSync } from "../../context/OfflineSyncContext";
 import { AuthModal } from "../auth/AuthModal";
 import { cn } from "../../lib/utils";
 import { Footer } from "./Footer";
+import { Header } from "./Header";
 import { WelcomeModal } from "../demo/WelcomeModal";
 import { GuidedDemoTour } from "../demo/GuidedDemoTour";
 import { AutoSOSModal } from "../crash/AutoSOSModal";
 import { CrashTopBanner } from "../crash/CrashTopBanner";
 import { SimulateCrashButton } from "../crash/SimulateCrashButton";
+
+import appLogo from "../../assets/images/goldenguard_app_logo_1785611320510.jpg";
 
 const NAV_ITEMS = [
   { name: "Dashboard", to: "/", icon: LayoutDashboard },
@@ -61,17 +57,10 @@ const NAV_ITEMS = [
 ];
 
 export function Layout() {
-  const { theme, setTheme } = useTheme();
   const { demoMode, toggleDemoMode, startTour, setShowWelcomeModal } = useDemo();
-  const { unreadCount } = useNotifications();
-  const { currentUser, userProfile } = useAuth();
   const { isOnline, pendingCount } = useOfflineSync();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
-
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
 
   return (
     <div className="flex h-screen w-full bg-surface-50 dark:bg-surface-950 overflow-hidden font-sans">
@@ -95,12 +84,18 @@ export function Layout() {
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center px-6">
+        <div className="flex h-16 items-center px-6 border-b border-surface-800/60">
           <Link to="/" className="flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500 text-white font-bold shadow-lg shadow-amber-500/20">
-              G
+            <img 
+              src={appLogo} 
+              alt="GoldenGuard Logo" 
+              className="w-10 h-10 object-cover rounded-xl shadow-lg ring-2 ring-amber-500/40" 
+              referrerPolicy="no-referrer"
+            />
+            <div>
+              <span className="text-lg font-black tracking-tight text-white block leading-none">GoldenGuard</span>
+              <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">Golden Hour Guardian</span>
             </div>
-            <span className="text-lg font-bold tracking-tight text-white">GoldenGuard</span>
           </Link>
           <button
             className="ml-auto lg:hidden text-surface-500 hover:text-white"
@@ -193,99 +188,10 @@ export function Layout() {
         <CrashTopBanner />
 
         {/* Header */}
-        <header className="flex items-center h-16 px-4 sm:px-8 bg-white/80 dark:bg-surface-900/80 backdrop-blur-md border-b border-surface-200 dark:border-surface-800 sticky top-0 z-30">
-          <button
-            className="p-2 mr-4 -ml-2 rounded-lg text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 lg:hidden focus:ring-2 focus:ring-primary-500 outline-none"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          
-          <div className="relative group w-80 hidden sm:block">
-            <input
-              type="text"
-              placeholder="Search GoldenGuard operations..."
-              className="w-full bg-surface-100 dark:bg-surface-800 border-none rounded-full py-2 pl-10 pr-4 text-xs focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-500 outline-none transition-all"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 opacity-40" />
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-            <SimulateCrashButton variant="compact" className="hidden sm:inline-flex" />
-
-            {demoMode ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-xs font-bold text-blue-700 dark:text-blue-400 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                DEMO MODE
-              </div>
-            ) : (
-              <button
-                onClick={toggleDemoMode}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-100 dark:bg-surface-800 text-xs font-semibold text-surface-600 dark:text-surface-300 hover:text-white transition-colors"
-              >
-                <span>Enable Demo</span>
-              </button>
-            )}
-
-            <Link
-              to="/sync"
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black transition-all ${
-                isOnline
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                  : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse"
-              }`}
-              title="Click to view Sync Center & Offline Queue"
-            >
-              {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              <span>{isOnline ? "🟢 Online" : "🔴 Offline"}</span>
-              {pendingCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[10px] font-black">
-                  {pendingCount}
-                </span>
-              )}
-            </Link>
-
-            <button
-              onClick={startTour}
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-black text-xs font-extrabold shadow-md hover:scale-105 transition-all"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Tour</span>
-            </button>
-            
-            <div className="flex items-center gap-3 text-surface-500">
-              <Link to="/notifications" className="relative hover:text-surface-900 dark:hover:text-surface-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full p-1" aria-label="Notifications">
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-surface-900 animate-pulse">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </Link>
-              
-              <button
-                onClick={toggleTheme}
-                className="hover:text-surface-900 dark:hover:text-surface-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full p-1"
-                aria-label="Toggle theme"
-              >
-                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              
-              <button 
-                onClick={() => setAuthModalOpen(true)} 
-                className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-red-500 text-white flex items-center justify-center font-bold text-xs shadow-md hover:scale-105 transition-transform overflow-hidden relative ring-2 ring-amber-500/30" 
-                title={currentUser ? `${userProfile?.name} (${userProfile?.role})` : "Sign In / Register"}
-              >
-                {userProfile?.photoURL ? (
-                  <img src={userProfile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : "AS"}</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </header>
+        <Header 
+          onOpenSidebar={() => setSidebarOpen(true)} 
+          onOpenAuthModal={() => setAuthModalOpen(true)} 
+        />
 
         {/* Offline Alert Banner */}
         {!isOnline && (

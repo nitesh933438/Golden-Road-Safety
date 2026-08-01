@@ -13,6 +13,7 @@ import { db } from "../lib/firebase";
 import { useTheme } from "../components/theme/ThemeProvider";
 import { useOutletContext } from "react-router-dom";
 import { saveLastLocation, getLastLocation } from "../lib/offlineStore";
+import { SmartInput } from "../components/ui/SmartInput";
 
 // Standard India Center coordinates for fallback
 const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
@@ -369,27 +370,34 @@ export function SmartMap() {
         <div className="flex-1 max-w-lg pointer-events-auto flex flex-col gap-2">
           
           <form onSubmit={handleSearch} className="relative">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                placeholder="Search city, emergency hospital, or landmark in India..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl text-surface-900 dark:text-white pl-10 pr-10 py-3 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-              />
-              <Search className="w-4 h-4 text-surface-400 absolute left-3.5" />
-              {isSearching ? (
-                <Loader2 className="w-4 h-4 text-amber-500 absolute right-3.5 animate-spin" />
-              ) : searchQuery && (
-                <button 
-                  type="button" 
-                  onClick={() => { setSearchQuery(""); setSearchResults([]); }}
-                  className="absolute right-3.5 text-surface-400 hover:text-surface-700 dark:hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+            <SmartInput
+              value={searchQuery}
+              onChange={(val) => {
+                setSearchQuery(val);
+                if (val.length > 2) {
+                  // Trigger live debounced Nominatim search
+                  fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=in`
+                  )
+                    .then(res => res.json())
+                    .then(data => setSearchResults(data))
+                    .catch(() => {});
+                }
+              }}
+              placeholder="Search city, hospital, or police station..."
+              historyKey="smartmap_search"
+              suggestions={[
+                "AIIMS Trauma Center, Delhi",
+                "Max Super Specialty Hospital, Saket",
+                "KEM Hospital Emergency Unit, Mumbai",
+                "Central Highway Patrol Post",
+                "Sector 7 Rapid Response Circle",
+                "Connaught Place Emergency Corridor"
+              ]}
+              showVoiceInput={true}
+              enableAIIntent={true}
+              inputClassName="py-2.5 text-xs bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 shadow-xl"
+            />
 
             {/* Nominatim Search Dropdown */}
             {searchResults.length > 0 && (

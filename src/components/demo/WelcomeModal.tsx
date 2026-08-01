@@ -3,6 +3,8 @@ import { ShieldAlert, Play, LogIn, Info, Sparkles, HeartPulse, CheckCircle2, Arr
 import { useDemo } from "../../context/DemoContext";
 import { useNavigate } from "react-router-dom";
 
+import appLogo from "../../assets/images/goldenguard_app_logo_1785611320510.jpg";
+
 export function WelcomeModal() {
   const { showWelcomeModal, setShowWelcomeModal, startTour, setDemoMode } = useDemo();
   const navigate = useNavigate();
@@ -45,9 +47,20 @@ export function WelcomeModal() {
             <Sparkles className="w-3.5 h-3.5" /> Hackathon Presentation Experience
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">
-            GoldenGuard
-          </h1>
+          <div className="flex items-center gap-4 mb-2">
+            <img 
+              src={appLogo} 
+              alt="GoldenGuard Logo" 
+              className="w-14 h-14 rounded-2xl object-cover ring-4 ring-white/30 shadow-2xl shrink-0" 
+              referrerPolicy="no-referrer"
+            />
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-none">
+                GoldenGuard
+              </h1>
+              <span className="text-xs font-bold text-amber-200 uppercase tracking-widest">Golden Hour Response Network</span>
+            </div>
+          </div>
           <p className="text-lg font-medium text-amber-100 max-w-xl leading-snug">
             AI-Powered Road Safety & Golden Hour Response Platform
           </p>

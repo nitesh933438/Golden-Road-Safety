@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { 
   HeartPulse, Droplets, Bone, Flame, UserMinus, Activity, Zap, 
   Car, Skull, Baby, Phone, ShieldAlert, Map as MapIcon, Share2, 
-  ChevronLeft, BookOpen, AlertTriangle
+  ChevronLeft, BookOpen, AlertTriangle, Search
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { EmergencyTimers } from "../components/firstaid/EmergencyTimers";
 import { FirstAidChat } from "../components/firstaid/FirstAidChat";
+import { SmartInput } from "../components/ui/SmartInput";
 
 const EMERGENCY_CATEGORIES = [
   { id: "cpr", label: "Cardiac Arrest", icon: HeartPulse, color: "text-red-500", bg: "bg-red-500/10" },
@@ -25,9 +26,10 @@ const EMERGENCY_CATEGORIES = [
 export function FirstAid() {
   const [activeMode, setActiveMode] = useState<"dashboard" | "chat">("dashboard");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [symptomSearch, setSymptomSearch] = useState("");
 
   const startChat = (category: string | null = null) => {
-    setSelectedCategory(category);
+    setSelectedCategory(category || symptomSearch || "General Emergency");
     setActiveMode("chat");
   };
 
@@ -74,19 +76,45 @@ export function FirstAid() {
           {activeMode === "dashboard" ? (
             <div className="p-4 sm:p-6 animate-in slide-in-from-bottom-4 duration-500">
               
-              {/* Voice Prompt Bar */}
-              <div className="mb-8 p-1 bg-gradient-to-r from-primary-500 to-indigo-500 rounded-2xl p-[1px]">
-                <div className="bg-white dark:bg-surface-900 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
-                   <div className="flex-1 text-center sm:text-left">
-                     <h3 className="text-lg font-bold mb-1">What is the emergency?</h3>
-                     <p className="text-sm text-surface-500">Tap to speak or select a category below.</p>
-                   </div>
-                   <button 
-                     onClick={() => startChat()}
-                     className="w-full sm:w-auto px-6 py-3 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors shadow-sm"
-                   >
-                     <Phone className="w-5 h-5" /> Chat / Speak with AI
-                   </button>
+              {/* Smart Symptom Input Bar */}
+              <div className="mb-8 p-[1px] bg-gradient-to-r from-red-500 via-amber-500 to-primary-500 rounded-2xl shadow-md">
+                <div className="bg-white dark:bg-surface-900 rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
+                  <div>
+                    <h3 className="text-lg font-black mb-1 text-surface-900 dark:text-white flex items-center gap-2">
+                      <HeartPulse className="w-5 h-5 text-red-500 animate-pulse" /> What is the medical emergency?
+                    </h3>
+                    <p className="text-xs font-semibold text-surface-500">
+                      Type symptoms (e.g. "heavy bleeding", "no pulse cpr", "burns") or speak into microphone.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="flex-1 w-full">
+                      <SmartInput
+                        value={symptomSearch}
+                        onChange={setSymptomSearch}
+                        placeholder="Search symptoms or condition (e.g. Bleeding, CPR, Fracture)..."
+                        historyKey="first_aid_symptoms"
+                        suggestions={[
+                          "Heavy Bleeding Direct Pressure",
+                          "Unconscious Victim CPR 30:2",
+                          "Chemical Flame Burns First Aid",
+                          "Leg Fracture Splinting",
+                          "Airway Choking Heimlich Maneuver",
+                          "Head Injury Concussion Check",
+                          "Electric Shock Isolation Protocol"
+                        ]}
+                        showVoiceInput={true}
+                        enableAIIntent={true}
+                      />
+                    </div>
+                    <button 
+                      onClick={() => startChat(symptomSearch)}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shrink-0 text-xs"
+                    >
+                      <Search className="w-4 h-4" /> Get AI Triage
+                    </button>
+                  </div>
                 </div>
               </div>
 

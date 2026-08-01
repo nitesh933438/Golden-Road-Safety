@@ -27,6 +27,7 @@ const HAZARD_TYPES = [
 import { uploadToCloudinary } from "../lib/cloudinary";
 
 import { useOfflineSync } from "../context/OfflineSyncContext";
+import { SmartInput } from "../components/ui/SmartInput";
 
 export function ReportHazard() {
   const navigate = useNavigate();
@@ -256,28 +257,36 @@ export function ReportHazard() {
           
           {/* Location Input */}
           <div className="space-y-3">
-            <label className="text-sm font-bold text-surface-900 dark:text-white flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-blue-500" />
-              Location Address
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Enter street name or landmark..."
-                className="w-full p-4 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-2xl outline-none text-sm focus:ring-2 focus:ring-amber-500 font-medium"
-              />
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold text-surface-900 dark:text-white flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-blue-500" />
+                Location Address
+              </label>
               <button
                 type="button"
                 onClick={handleGetLocation}
                 disabled={isLocating}
-                className="absolute right-2 top-2 bottom-2 px-3 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl flex items-center gap-1 transition-colors"
+                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl flex items-center gap-1 transition-colors"
               >
                 <MapPin className="w-3.5 h-3.5" />
                 <span>{isLocating ? "Locating..." : "Use GPS"}</span>
               </button>
             </div>
+            <SmartInput
+              value={address}
+              onChange={setAddress}
+              placeholder="Search or type address / landmark..."
+              historyKey="hazard_location_history"
+              suggestions={[
+                "Market Street & 4th Ave, Sector 7",
+                "Metro Station Gate No 3, Highway Ring Road",
+                "Grand Trunk Road near Blind Curve Km 42",
+                "Industrial Area Junction, Sector 12",
+                "City Hospital Flyover Ramp"
+              ]}
+              showVoiceInput={true}
+              enableAIIntent={true}
+            />
           </div>
 
           {/* Photo Upload */}

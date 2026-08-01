@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { EmergencySheet } from "../components/EmergencySheet";
 
+import appLogo from "../assets/images/goldenguard_app_logo_1785611320510.jpg";
+
 export function Dashboard() {
   const { demoMode } = useOutletContext<{ demoMode: boolean }>();
   const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
@@ -81,9 +83,17 @@ export function Dashboard() {
         
         <div className="relative z-20 p-8 sm:p-12 lg:p-14 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-wider mb-6 backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 animate-spin" />
-              Golden Hour Emergency Network Active
+            <div className="flex items-center gap-3 mb-6">
+              <img 
+                src={appLogo} 
+                alt="GoldenGuard Official Logo" 
+                className="w-12 h-12 rounded-2xl object-cover ring-2 ring-amber-500/50 shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
+                <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                Golden Hour Emergency Network Active
+              </div>
             </div>
             
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-4 leading-snug">
