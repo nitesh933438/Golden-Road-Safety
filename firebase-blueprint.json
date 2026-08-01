@@ -1,0 +1,18 @@
+{
+  "collections": [
+    {
+      "collectionId": "hazards",
+      "description": "Hazard reports submitted by users.",
+      "fields": [
+        { "name": "type", "type": "string", "description": "Type of hazard" },
+        { "name": "description", "type": "string", "description": "Description of the hazard" },
+        { "name": "lat", "type": "number", "description": "Latitude of the hazard" },
+        { "name": "lng", "type": "number", "description": "Longitude of the hazard" },
+        { "name": "imageUrl", "type": "string", "description": "URL of the uploaded photo" },
+        { "name": "timestamp", "type": "timestamp", "description": "Time the hazard was reported" },
+        { "name": "status", "type": "string", "description": "Status of the hazard report" },
+        { "name": "reportedBy", "type": "string", "description": "User ID of the reporter" }
+      ]
+    }
+  ]
+}

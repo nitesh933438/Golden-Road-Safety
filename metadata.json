@@ -1,0 +1,10 @@
+{
+  "name": "GoldenGuard",
+  "description": "Enterprise-grade safety and emergency response application.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /hazards/{hazardId} {
+      allow read: if true;
+      allow write: if true; // Temporarily open for demo
+    }
+  }
+}

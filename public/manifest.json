@@ -1,0 +1,16 @@
+{
+  "name": "GoldenGuard: AI First Aid & SOS",
+  "short_name": "GoldenGuard",
+  "description": "Production-Ready AI First Aid Assistant & Emergency Response System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
