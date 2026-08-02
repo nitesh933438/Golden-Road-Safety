@@ -350,10 +350,10 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
               )}
             </div>
 
-            {/* Theme Toggle (Hidden on extra small screens, accessible via Profile Menu) */}
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="hidden xs:flex p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none transition-colors"
               aria-label="Toggle Theme"
               title="Toggle Light / Dark Mode"
             >
@@ -412,23 +412,13 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
                     </div>
                   </div>
 
-                  {/* Network Status, Theme & Language Selection Row */}
+                  {/* Network Status & Language Selection Row */}
                   <div className="p-2.5 bg-surface-50 dark:bg-surface-850/60 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-surface-400 tracking-wider">
                         Quick Settings
                       </span>
                       <div className="flex items-center gap-1.5">
-                        {/* Mobile Theme Switch Button */}
-                        <button
-                          onClick={toggleTheme}
-                          className="px-2 py-0.5 rounded-full bg-surface-200/80 dark:bg-surface-700 text-[10px] font-bold text-surface-700 dark:text-surface-200 flex items-center gap-1 hover:bg-amber-500/20 transition-colors"
-                          title="Toggle Theme"
-                        >
-                          {theme === "dark" ? <Sun className="w-3 h-3 text-amber-400" /> : <Moon className="w-3 h-3 text-surface-600" />}
-                          <span className="capitalize">{theme} Mode</span>
-                        </button>
-
                         {/* Offline/Online Status Badge */}
                         <Link
                           to="/sync"
