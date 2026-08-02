@@ -1,4 +1,4 @@
-const CACHE_NAME = 'goldenguard-v1';
+const CACHE_NAME = 'goldenguard-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,22 +12,34 @@ self.addEventListener('install', event => {
         return cache.addAll(urlsToCache);
       })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/index.html');
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Cache hit - return response
         if (response) {
+          // If we have a cached version, return it, but also try to update it
+          fetch(event.request).then(res => {
+            if (res && res.status === 200) {
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, res);
+              });
+            }
+          }).catch(() => {});
           return response;
         }
-        return fetch(event.request).catch(() => {
-          // Fallback for offline mode if the fetch fails (e.g. no network)
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        });
+        return fetch(event.request);
       })
   );
 });
@@ -45,6 +57,7 @@ self.addEventListener('activate', event => {
       );
     })
   );
+  self.clients.claim();
 });
 
 // Push Notification Handler
