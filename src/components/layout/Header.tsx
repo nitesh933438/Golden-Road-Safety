@@ -507,6 +507,17 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
                         <span>Admin Control Center</span>
                       </Link>
                     )}
+
+                    {!isAdmin && userProfile?.role === "volunteer" && (
+                      <Link
+                        to="/community"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                        <span>Volunteer Dashboard</span>
+                      </Link>
+                    )}
                   </div>
 
                   {/* Demo & Tour Launcher */}

@@ -34,10 +34,20 @@ import { GuidedDemoTour } from "../demo/GuidedDemoTour";
 import { AutoSOSModal } from "../crash/AutoSOSModal";
 import { CrashTopBanner } from "../crash/CrashTopBanner";
 import { SimulateCrashButton } from "../crash/SimulateCrashButton";
-
 import appLogo from "../../assets/images/goldenguard_app_logo_1785611320510.jpg";
+import { useAuth } from "../../context/AuthContext";
 
-const NAV_ITEMS = [
+import { LucideIcon } from "lucide-react";
+
+type NavItem = {
+  name: string;
+  to: string;
+  icon: LucideIcon;
+  alert?: boolean;
+  adminOnly?: boolean;
+};
+
+const BASE_NAV_ITEMS: NavItem[] = [
   { name: "Dashboard", to: "/", icon: LayoutDashboard },
   { name: "Emergency Wallet 💳", to: "/wallet", icon: ShieldAlert },
   { name: "SafeRide Guardian 🏍️", to: "/saferide", icon: Bike },
@@ -53,14 +63,20 @@ const NAV_ITEMS = [
   { name: "Report Hazard", to: "/report", icon: AlertTriangle },
   { name: "Training", to: "/training", icon: BookOpen },
   { name: "Community", to: "/community", icon: Users },
-  { name: "Admin Center", to: "/admin", icon: ShieldAlert },
+];
+
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  { name: "Admin Center", to: "/admin", icon: ShieldAlert, adminOnly: true },
 ];
 
 export function Layout() {
+  const { userProfile, isAdmin } = useAuth();
   const { demoMode, toggleDemoMode, startTour, setShowWelcomeModal } = useDemo();
   const { isOnline, pendingCount } = useOfflineSync();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+
+  const NAV_ITEMS = [...BASE_NAV_ITEMS, ...(isAdmin || userProfile?.role === "admin" ? ADMIN_NAV_ITEMS : [])];
 
   return (
     <div className="flex h-screen w-full bg-surface-50 dark:bg-surface-950 overflow-hidden font-sans">

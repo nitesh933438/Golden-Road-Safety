@@ -10,6 +10,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { Layout } from "./components/layout/Layout";
 import { Placeholder } from "./components/ui/Placeholder";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const SafeRide = React.lazy(() => import("./pages/SafeRide").then(m => ({ default: m.SafeRide })));
@@ -107,7 +108,11 @@ export default function App() {
                       <Route path="report" element={<SafeLazyRoute><ReportHazard /></SafeLazyRoute>} />
                       <Route path="training" element={<SafeLazyRoute><Training /></SafeLazyRoute>} />
                       <Route path="community" element={<SafeLazyRoute><Community /></SafeLazyRoute>} />
-                      <Route path="admin" element={<SafeLazyRoute><Admin /></SafeLazyRoute>} />
+                      <Route path="admin" element={
+                        <ProtectedRoute allowedRoles={["admin"]}>
+                          <SafeLazyRoute><Admin /></SafeLazyRoute>
+                        </ProtectedRoute>
+                      } />
                       <Route path="profile" element={<SafeLazyRoute><Profile /></SafeLazyRoute>} />
                       <Route path="notifications" element={<SafeLazyRoute><Notifications /></SafeLazyRoute>} />
                       <Route path="*" element={<NotFound />} />
