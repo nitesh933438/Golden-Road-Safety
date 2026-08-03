@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
 async function startServer() {
@@ -24,8 +23,7 @@ async function startServer() {
       const { messages, emergencyType } = req.body;
       const ai = new GoogleGenAI({ apiKey });
 
-      const systemInstruction = `You are a medical AI First Aid Assistant. 
-You provide immediate, step-by-step first aid instructions.
+      const systemInstruction = `You are a medical AI First Aid Assistant. You provide immediate, step-by-step first aid instructions.
 Current emergency context: ${emergencyType || 'Unknown'}.
 CRITICAL RULES:
 1. ALWAYS start with a clear, bold disclaimer that you are providing general first-aid guidance and NOT replacing professional medical care. Advise contacting emergency services immediately for life-threatening situations.
@@ -52,9 +50,14 @@ CRITICAL RULES:
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL === "1" || process.env.VERCEL_ENV === "production";
+  
+  if (!isProd) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

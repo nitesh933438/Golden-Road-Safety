@@ -96,7 +96,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
           setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         },
         () => {},
-        { timeout: 5000 }
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     }
   }, []);
@@ -161,7 +161,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
   const dispatchAutoSOS = useCallback((wasUserResponded: boolean) => {
     const emergencyId = `SOS-CRASH-${Math.floor(1000 + Math.random() * 9000)}`;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const mapsLink = `https://www.google.com/maps?q=${userCoords.lat},${userCoords.lng}`;
+    const mapsLink = `https://www.openstreetmap.org/?mlat=${userCoords.lat}&mlon=${userCoords.lng}#map=18/${userCoords.lat}/${userCoords.lng}`;
     const locationName = "Km 14 Expressway, Sector 62 Corridor";
 
     const contacts: EmergencyContactNotice[] = [

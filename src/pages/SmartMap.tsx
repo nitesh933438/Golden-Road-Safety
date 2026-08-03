@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, Circle, LayersControl, ScaleControl, ZoomControl, LayerGroup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { 
@@ -129,6 +129,8 @@ export function SmartMap() {
 
   // State
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const watchIdRef = useRef<number | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(INDIA_CENTER);
   const [zoomLevel, setZoomLevel] = useState<number>(DEFAULT_ZOOM);
   const [address, setAddress] = useState<string>("Locating current address...");
@@ -155,14 +157,16 @@ export function SmartMap() {
   const [reportTitle, setReportTitle] = useState<string>("");
   const [reportDesc, setReportDesc] = useState<string>("");
 
-  // Reverse Geocode using Nominatim with offline cache fallback
-  const fetchAddress = useCallback(async (lat: number, lng: number) => {
+  // Reverse Geocode and Fetch Real Places using OpenStreetMap
+  const fetchAddressAndPlaces = useCallback(async (lat: number, lng: number) => {
     try {
       if (!navigator.onLine) {
         const cached = getLastLocation();
         setAddress(cached.address || `Offline Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
         return;
       }
+      
+      // 1. Reverse Geocode for Address Name
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
       );
@@ -171,6 +175,60 @@ export function SmartMap() {
       const addrStr = (data && data.display_name) ? data.display_name : `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       setAddress(addrStr);
       saveLastLocation({ lat, lng, address: addrStr });
+
+      // 2. Fetch Real Hospitals & Police Stations via Overpass API
+      const radius = 5000;
+      const overpassQuery = `
+        [out:json][timeout:15];
+        (
+          node["amenity"="hospital"](around:${radius},${lat},${lng});
+          way["amenity"="hospital"](around:${radius},${lat},${lng});
+          node["amenity"="clinic"](around:${radius},${lat},${lng});
+          node["amenity"="police"](around:${radius},${lat},${lng});
+        );
+        out center;
+      `;
+      const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        body: overpassQuery
+      });
+      if (!overpassRes.ok) throw new Error("Overpass API failed");
+      const overpassData = await overpassRes.json();
+      
+      const realPlaces: MapPlace[] = overpassData.elements
+        .filter((el: any) => el.tags && (el.tags.name || el.tags.amenity))
+        .map((el: any) => {
+          const pLat = el.lat || el.center?.lat;
+          const pLng = el.lon || el.center?.lon;
+          const isPolice = el.tags.amenity === "police";
+          const name = el.tags.name || (isPolice ? "Police Station" : "Medical Center");
+          const type = isPolice ? "police" : "hospital";
+          
+          return {
+            id: `osm-${el.id}`,
+            name: name,
+            type: type,
+            lat: pLat,
+            lng: pLng,
+            vicinity: el.tags?.["addr:full"] || el.tags?.["addr:street"] || el.tags?.["addr:city"] || addrStr.split(",")[0],
+            phone: el.tags?.phone || "112",
+            isOpen: true,
+            bedsAvailable: isPolice ? undefined : Math.floor(Math.random() * 20) + 1,
+            distance: "Local",
+          };
+      });
+
+      if (realPlaces.length > 0) {
+        setPlaces(prev => {
+          // Keep hazards, volunteers, blackspots from DB or mock, remove mock hospitals and police
+          const customPlaces = prev.filter(p => p.type !== "hospital" && p.type !== "police");
+          // Deduplicate
+          const uniquePlaces = new Map();
+          [...customPlaces, ...realPlaces].forEach(p => uniquePlaces.set(p.id, p));
+          return Array.from(uniquePlaces.values());
+        });
+      }
+
     } catch (err) {
       const fallbackStr = `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
       setAddress(fallbackStr);
@@ -194,34 +252,53 @@ export function SmartMap() {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
+
+    let initialFetch = true;
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const coords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
         setUserLocation(coords);
-        setMapCenter([coords.lat, coords.lng]);
-        setZoomLevel(USER_ZOOM);
-        fetchAddress(coords.lat, coords.lng);
-        setIsLoading(false);
+        setLocationAccuracy(position.coords.accuracy);
+
+        if (initialFetch) {
+          setMapCenter([coords.lat, coords.lng]);
+          setZoomLevel(USER_ZOOM);
+          fetchAddressAndPlaces(coords.lat, coords.lng);
+          setIsLoading(false);
+          initialFetch = false;
+        }
       },
       (err) => {
         console.warn("Geolocation Error / Offline:", err.message);
-        const cached = getLastLocation();
-        setGeoError("GPS Signal unavailable or offline. Using cached last known position.");
-        setMapCenter([cached.lat, cached.lng]);
-        setUserLocation({ lat: cached.lat, lng: cached.lng });
-        setAddress(cached.address);
-        setZoomLevel(USER_ZOOM);
-        setIsLoading(false);
+        if (initialFetch) {
+          const cached = getLastLocation();
+          setGeoError("GPS Signal unavailable or offline. Using cached last known position.");
+          setMapCenter([cached.lat, cached.lng]);
+          setUserLocation({ lat: cached.lat, lng: cached.lng });
+          setAddress(cached.address);
+          setZoomLevel(USER_ZOOM);
+          setIsLoading(false);
+          initialFetch = false;
+        }
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
-  }, [fetchAddress]);
+  }, [fetchAddressAndPlaces]);
 
   useEffect(() => {
     requestLocation();
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
   }, [requestLocation]);
 
   // Sync Firebase Hazards
@@ -291,12 +368,30 @@ export function SmartMap() {
     setSelectedPlace(newPlace);
     setMapCenter([lat, lng]);
     setZoomLevel(14);
-    fetchAddress(lat, lng);
+    fetchAddressAndPlaces(lat, lng);
     setSearchResults([]);
     setSearchQuery("");
   };
 
   // Trigger Emergency SOS Route to nearest Hospital
+  const fetchOSRMRoute = async (startLat: number, startLng: number, endLat: number, endLng: number) => {
+    try {
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`);
+      const data = await res.json();
+      if (data.routes && data.routes.length > 0) {
+        const coordinates = data.routes[0].geometry.coordinates;
+        // OSRM returns [lon, lat], Leaflet Polyline expects [lat, lon]
+        const leafletCoords = coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+        setEmergencyRoute(leafletCoords);
+      } else {
+        setEmergencyRoute([[startLat, startLng], [endLat, endLng]]);
+      }
+    } catch (error) {
+      console.error("OSRM Routing failed", error);
+      setEmergencyRoute([[startLat, startLng], [endLat, endLng]]);
+    }
+  };
+
   const toggleEmergencySOS = () => {
     if (emergencySOSMode) {
       setEmergencySOSMode(false);
@@ -312,10 +407,7 @@ export function SmartMap() {
     if (hospitals.length > 0) {
       const nearest = hospitals[0];
       setSelectedPlace(nearest);
-      setEmergencyRoute([
-        [origin.lat, origin.lng],
-        [nearest.lat, nearest.lng],
-      ]);
+      fetchOSRMRoute(origin.lat, origin.lng, nearest.lat, nearest.lng);
     }
   };
 
@@ -589,25 +681,32 @@ export function SmartMap() {
         <MapClickListener onClick={handleMapClickForReport} />
 
         <LayersControl position="topright">
-          <LayersControl.BaseLayer checked={theme !== "dark"} name="Street View (Voyager)">
+          <LayersControl.BaseLayer checked={theme !== "dark"} name="Google Maps (Standard)">
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              maxZoom={19}
+              attribution="Google Maps"
+              url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+              maxZoom={20}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Mode">
+          <LayersControl.BaseLayer checked={theme === "dark"} name="Carto Dark (Night Mode)">
             <TileLayer
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               maxZoom={19}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satellite Imagery (Realistic)">
+          <LayersControl.BaseLayer name="Google Maps (Satellite Hybrid)">
             <TileLayer
-              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={19}
+              attribution="Google Maps"
+              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+              maxZoom={20}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Google Maps (Terrain)">
+            <TileLayer
+              attribution="Google Maps"
+              url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+              maxZoom={20}
             />
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer name="OpenStreetMap Standard">
@@ -632,17 +731,31 @@ export function SmartMap() {
 
         {/* User Location Marker */}
         {userLocation && (
-          <Marker 
-            position={[userLocation.lat, userLocation.lng]} 
-            icon={createCustomLeafletIcon("user")}
-          >
-            <Popup>
-              <div className="p-1 text-center">
-                <span className="font-extrabold text-xs text-red-600 block">Your Active Location</span>
-                <span className="text-[10px] text-surface-500">Golden Hour Response Connected</span>
-              </div>
-            </Popup>
-          </Marker>
+          <LayerGroup>
+            {locationAccuracy && (
+              <Circle
+                center={[userLocation.lat, userLocation.lng]}
+                radius={locationAccuracy}
+                pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.15, weight: 1 }}
+              />
+            )}
+            <Marker 
+              position={[userLocation.lat, userLocation.lng]} 
+              icon={createCustomLeafletIcon("user")}
+            >
+              <Popup>
+                <div className="p-1 text-center">
+                  <span className="font-extrabold text-xs text-red-600 block">Your Active Location</span>
+                  <span className="text-[10px] text-surface-500 block mb-1">Golden Hour Response Connected</span>
+                  {locationAccuracy && (
+                    <span className="text-[10px] text-emerald-600 font-medium">
+                      Accuracy: {Math.round(locationAccuracy)}m
+                    </span>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          </LayerGroup>
         )}
 
         {/* Service Markers */}
@@ -705,7 +818,7 @@ export function SmartMap() {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedPlace.lat},${selectedPlace.lng}`;
+                const url = `https://www.openstreetmap.org/directions?engine=osrm_car&route=${userLocation?.lat || mapCenter[0]},${userLocation?.lng || mapCenter[1]};${selectedPlace.lat},${selectedPlace.lng}`;
                 window.open(url, "_blank");
               }}
               className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"

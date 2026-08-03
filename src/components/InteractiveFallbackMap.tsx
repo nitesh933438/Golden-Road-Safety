@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, LayerGroup, LayersControl, ScaleControl, ZoomControl, LayerGroup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { 
@@ -118,6 +118,8 @@ export function InteractiveFallbackMap({
   const [mapCenter, setMapCenter] = useState<[number, number]>(INDIA_CENTER);
   const [zoomLevel, setZoomLevel] = useState<number>(INDIA_ZOOM);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(userLocation || null);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const watchIdRef = useRef<number | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [places, setPlaces] = useState<Place[]>(DEFAULT_INDIA_PLACES);
@@ -127,6 +129,61 @@ export function InteractiveFallbackMap({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Fetch Real Places via Overpass API
+  const fetchRealPlaces = async (lat: number, lng: number) => {
+    try {
+      const radius = 5000;
+      const overpassQuery = `
+        [out:json][timeout:15];
+        (
+          node["amenity"="hospital"](around:${radius},${lat},${lng});
+          way["amenity"="hospital"](around:${radius},${lat},${lng});
+          node["amenity"="clinic"](around:${radius},${lat},${lng});
+          node["amenity"="police"](around:${radius},${lat},${lng});
+        );
+        out center;
+      `;
+      const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        body: overpassQuery
+      });
+      if (!overpassRes.ok) throw new Error("Overpass API failed");
+      const overpassData = await overpassRes.json();
+      
+      const realPlaces: Place[] = overpassData.elements
+        .filter((el: any) => el.tags && (el.tags.name || el.tags.amenity))
+        .map((el: any) => {
+          const pLat = el.lat || el.center?.lat;
+          const pLng = el.lon || el.center?.lon;
+          const isPolice = el.tags.amenity === "police";
+          const name = el.tags.name || (isPolice ? "Police Station" : "Medical Center");
+          const type = isPolice ? "police" : "hospital";
+          
+          return {
+            id: `osm-${el.id}`,
+            name: name,
+            type: type,
+            lat: pLat,
+            lng: pLng,
+            vicinity: el.tags?.["addr:full"] || el.tags?.["addr:street"] || el.tags?.["addr:city"] || "Local Area",
+            phone: el.tags?.phone || "112",
+            isOpen: true,
+          };
+      });
+
+      if (realPlaces.length > 0) {
+        setPlaces(prev => {
+          const customPlaces = prev.filter(p => p.type !== "hospital" && p.type !== "police");
+          const uniquePlaces = new Map();
+          [...customPlaces, ...realPlaces].forEach(p => uniquePlaces.set(p.id, p));
+          return Array.from(uniquePlaces.values());
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch real places from Overpass API", err);
+    }
+  };
 
   // Handle Geolocation Request
   const requestUserLocation = () => {
@@ -141,34 +198,58 @@ export function InteractiveFallbackMap({
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
+
+    let initialFetch = true;
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setUserCoords(coords);
-        setMapCenter([coords.lat, coords.lng]);
-        setZoomLevel(USER_ZOOM);
-        setIsLoading(false);
+        setLocationAccuracy(pos.coords.accuracy);
+        
+        if (initialFetch) {
+          setMapCenter([coords.lat, coords.lng]);
+          setZoomLevel(USER_ZOOM);
+          fetchRealPlaces(coords.lat, coords.lng);
+          setIsLoading(false);
+          initialFetch = false;
+        }
       },
       (err) => {
         console.warn("Geolocation permission error or unavailable:", err.message);
-        let errorMsg = "Location permission denied or GPS unavailable. Centered on India Emergency Command Center.";
-        if (err.code === err.PERMISSION_DENIED) {
-          errorMsg = "Location permission was denied by browser. Centered map on India Command Center.";
+        if (initialFetch) {
+          let errorMsg = "Location permission denied or GPS unavailable. Centered on India Emergency Command Center.";
+          if (err.code === err.PERMISSION_DENIED) {
+            errorMsg = "Location permission was denied by browser. Centered map on India Command Center.";
+          }
+          setGeoError(errorMsg);
+          setMapCenter(INDIA_CENTER);
+          setZoomLevel(INDIA_ZOOM);
+          setIsLoading(false);
+          initialFetch = false;
         }
-        setGeoError(errorMsg);
-        setMapCenter(INDIA_CENTER);
-        setZoomLevel(INDIA_ZOOM);
-        setIsLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (userLocation) {
       setUserCoords(userLocation);
       setMapCenter([userLocation.lat, userLocation.lng]);
       setZoomLevel(USER_ZOOM);
+      fetchRealPlaces(userLocation.lat, userLocation.lng);
       setIsLoading(false);
     } else {
       requestUserLocation();
@@ -340,25 +421,32 @@ export function InteractiveFallbackMap({
         <MapClickHandler onClick={handleMapClick} />
 
         <LayersControl position="topright">
-          <LayersControl.BaseLayer checked={theme !== "dark"} name="Street View (Voyager)">
+          <LayersControl.BaseLayer checked={theme !== "dark"} name="Google Maps (Standard)">
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              maxZoom={19}
+              attribution="Google Maps"
+              url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+              maxZoom={20}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Mode">
+          <LayersControl.BaseLayer checked={theme === "dark"} name="Carto Dark (Night Mode)">
             <TileLayer
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               maxZoom={19}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satellite Imagery (Realistic)">
+          <LayersControl.BaseLayer name="Google Maps (Satellite Hybrid)">
             <TileLayer
-              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={19}
+              attribution="Google Maps"
+              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+              maxZoom={20}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Google Maps (Terrain)">
+            <TileLayer
+              attribution="Google Maps"
+              url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+              maxZoom={20}
             />
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer name="OpenStreetMap Standard">
@@ -375,17 +463,31 @@ export function InteractiveFallbackMap({
 
         {/* User GPS Location Marker */}
         {userCoords && (
-          <Marker 
-            position={[userCoords.lat, userCoords.lng]} 
-            icon={createCustomIcon("user")}
-          >
-            <Popup>
-              <div className="p-1 text-center">
-                <span className="font-bold text-xs text-red-600 block">Your Current Location</span>
-                <span className="text-[10px] text-gray-500">Emergency Dispatch Ready</span>
-              </div>
-            </Popup>
-          </Marker>
+          <LayerGroup>
+            {locationAccuracy && (
+              <Circle
+                center={[userCoords.lat, userCoords.lng]}
+                radius={locationAccuracy}
+                pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.15, weight: 1 }}
+              />
+            )}
+            <Marker 
+              position={[userCoords.lat, userCoords.lng]} 
+              icon={createCustomIcon("user")}
+            >
+              <Popup>
+                <div className="p-1 text-center">
+                  <span className="font-bold text-xs text-red-600 block">Your Current Location</span>
+                  <span className="text-[10px] text-gray-500 block mb-1">Emergency Dispatch Ready</span>
+                  {locationAccuracy && (
+                    <span className="text-[10px] text-emerald-600 font-medium">
+                      Accuracy: {Math.round(locationAccuracy)}m
+                    </span>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          </LayerGroup>
         )}
 
         {/* Emergency Places Markers */}
