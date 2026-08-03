@@ -71,7 +71,7 @@ export function GoodSamaritanHub() {
             <summary className="font-bold p-5 cursor-pointer list-none flex justify-between items-center">
               What if the police ask for my details?
               <span className="transition group-open:rotate-180">
-                <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
               </span>
             </summary>
             <div className="px-5 pb-5 text-surface-600 dark:text-surface-300">
@@ -82,7 +82,7 @@ export function GoodSamaritanHub() {
             <summary className="font-bold p-5 cursor-pointer list-none flex justify-between items-center">
               Do I get a reward for helping?
               <span className="transition group-open:rotate-180">
-                <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
               </span>
             </summary>
             <div className="px-5 pb-5 text-surface-600 dark:text-surface-300">

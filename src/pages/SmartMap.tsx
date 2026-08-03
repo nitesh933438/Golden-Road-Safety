@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { 
   ShieldAlert, AlertTriangle, Navigation, Info, X, MapPin, 
   HeartPulse, Shield, Zap, PhoneCall, Search, Loader2, 
   Building2, Users, Car, CheckCircle2, AlertCircle, Filter, Plus,
-  Sparkles, Stethoscope, RefreshCw, Radio
+  Sparkles, Stethoscope, RefreshCw, Radio, LocateFixed
 } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -48,10 +48,14 @@ const DEMO_PLACES: MapPlace[] = [
   { id: "hz2", name: "Accident Blackspot - Low Visibility Fog", type: "blackspot", lat: 19.0760, lng: 72.8777, vicinity: "Western Express Highway Flyover", status: "High Risk Corridor", distance: "3.1 km" },
 ];
 
+const iconCache: Record<string, L.DivIcon> = {};
+
 // Custom HTML DivIcon Generator for Leaflet
 const createCustomLeafletIcon = (type: MapPlace["type"]) => {
+  if (iconCache[type]) return iconCache[type];
+
   if (type === "user") {
-    return L.divIcon({
+    iconCache[type] = L.divIcon({
       className: "custom-leaflet-user-marker",
       html: `
         <div class="relative flex items-center justify-center">
@@ -64,6 +68,7 @@ const createCustomLeafletIcon = (type: MapPlace["type"]) => {
       iconSize: [32, 32],
       iconAnchor: [16, 16],
     });
+    return iconCache[type];
   }
 
   let colorBg = "bg-amber-500 border-amber-200";
@@ -86,7 +91,7 @@ const createCustomLeafletIcon = (type: MapPlace["type"]) => {
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`;
   }
 
-  return L.divIcon({
+  iconCache[type] = L.divIcon({
     className: "custom-leaflet-marker",
     html: `
       <div class="p-2 rounded-2xl border-2 shadow-xl flex items-center justify-center transition-transform hover:scale-125 ${colorBg}">
@@ -96,6 +101,7 @@ const createCustomLeafletIcon = (type: MapPlace["type"]) => {
     iconSize: [34, 34],
     iconAnchor: [17, 17],
   });
+  return iconCache[type];
 };
 
 // Leaflet Map Controller for flying smoothly to coordinates
@@ -353,13 +359,6 @@ export function SmartMap() {
     return p.type === filterType;
   });
 
-  // Tile layer URL based on Theme
-  const tileUrl = theme === "dark" 
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-
-  const tileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-
   return (
     <div className="flex flex-col h-[calc(100vh-6.5rem)] min-h-[580px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-md animate-in fade-in duration-500">
       
@@ -481,6 +480,17 @@ export function SmartMap() {
         </div>
       )}
 
+      {/* Locate Me Button */}
+      <div className="absolute bottom-24 left-4 z-[1000] pointer-events-auto">
+        <button
+          onClick={requestLocation}
+          className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl text-surface-900 dark:text-white p-3 rounded-2xl shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          title="Go to Current Location"
+        >
+          <LocateFixed className="w-6 h-6 text-amber-500" />
+        </button>
+      </div>
+
       {/* Category Filter Bar (Bottom Left Floating) */}
       <div className="absolute bottom-6 left-4 z-[1000] pointer-events-auto hidden sm:flex items-center gap-1.5 p-1.5 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl">
         {[
@@ -578,11 +588,39 @@ export function SmartMap() {
         <MapFlyController center={mapCenter} zoom={zoomLevel} />
         <MapClickListener onClick={handleMapClickForReport} />
 
-        <TileLayer
-          attribution={tileAttribution}
-          url={tileUrl}
-          maxZoom={19}
-        />
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked={theme !== "dark"} name="Street View (Voyager)">
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Mode">
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite Imagery (Realistic)">
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="OpenStreetMap Standard">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
+
+        <ZoomControl position="bottomright" />
+        <ScaleControl position="bottomleft" />
 
         {/* Emergency SOS Route Polyline */}
         {emergencySOSMode && emergencyRoute && (

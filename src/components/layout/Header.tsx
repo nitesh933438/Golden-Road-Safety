@@ -15,14 +15,6 @@ import { useDemo } from "../../context/DemoContext";
 import { SmartInput } from "../ui/SmartInput";
 import appLogo from "../../assets/images/goldenguard_app_logo_1785611320510.jpg";
 
-const LANGUAGES = [
-  { code: "en", name: "English", flag: "🇬🇧" },
-  { code: "hi", name: "हिंदी (Hindi)", flag: "🇮🇳" },
-  { code: "mr", name: "मराठी (Marathi)", flag: "🇮🇳" },
-  { code: "ta", name: "தமிழ் (Tamil)", flag: "🇮🇳" },
-  { code: "es", name: "Español", flag: "🇪🇸" },
-];
-
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Dashboard Overview",
   "/wallet": "Emergency Medical ID",
@@ -61,18 +53,12 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isLanguageOpen, setIsLanguageOpen] = useState(false);
-  const [selectedLang, setSelectedLang] = useState(() => {
-    return localStorage.getItem("gg_app_lang") || "en";
-  });
   const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "emergency">("all");
 
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  const languageRef = useRef<HTMLDivElement>(null);
 
   const activePageTitle = ROUTE_TITLES[location.pathname] || "GoldenGuard Platform";
-  const currentLangObj = LANGUAGES.find(l => l.code === selectedLang) || LANGUAGES[0];
 
   // Close popovers on click outside
   useEffect(() => {
@@ -83,9 +69,6 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setIsProfileOpen(false);
       }
-      if (languageRef.current && !languageRef.current.contains(e.target as Node)) {
-        setIsLanguageOpen(false);
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -93,12 +76,6 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
-  };
-
-  const handleSelectLanguage = (code: string) => {
-    setSelectedLang(code);
-    localStorage.setItem("gg_app_lang", code);
-    setIsLanguageOpen(false);
   };
 
   const filteredNotifications = notifications.filter(n => {
@@ -412,7 +389,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
                     </div>
                   </div>
 
-                  {/* Network Status & Language Selection Row */}
+                  {/* Network Status Row */}
                   <div className="p-2.5 bg-surface-50 dark:bg-surface-850/60 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-surface-400 tracking-wider">
@@ -439,23 +416,6 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
                           )}
                         </Link>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-                      {LANGUAGES.map((lang) => (
-                        <button
-                          key={lang.code}
-                          onClick={() => handleSelectLanguage(lang.code)}
-                          className={`px-2 py-1 rounded-lg text-xs font-bold shrink-0 flex items-center gap-1 transition-colors ${
-                            selectedLang === lang.code
-                              ? "bg-amber-500 text-black font-black"
-                              : "bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 border border-surface-200 dark:border-surface-700"
-                          }`}
-                        >
-                          <span>{lang.flag}</span>
-                          <span>{lang.name}</span>
-                        </button>
-                      ))}
                     </div>
                   </div>
 

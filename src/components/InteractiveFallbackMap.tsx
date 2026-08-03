@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { 
   ShieldAlert, Activity, Shield, MapPin, 
-  Search, Loader2, Navigation, PhoneCall, AlertTriangle, X, Building2, AlertCircle, RefreshCw
+  Search, Loader2, Navigation, PhoneCall, AlertTriangle, X, Building2, AlertCircle, RefreshCw, LocateFixed
 } from "lucide-react";
 import { useTheme } from "./theme/ThemeProvider";
 
@@ -36,13 +36,17 @@ const DEFAULT_INDIA_PLACES: Place[] = [
   { id: "hz2", name: "Oil Spill & Skidding Danger", type: "hazard", lat: 19.0760, lng: 72.8777, vicinity: "Western Express Highway Flyover", isOpen: true },
 ];
 
+const iconCache: Record<string, L.DivIcon> = {};
+
 // Helper to create custom Leaflet HTML DivIcons to prevent missing marker icon asset bugs in Vite
 const createCustomIcon = (type: Place["type"]) => {
+  if (iconCache[type]) return iconCache[type];
+
   let colorBg = "bg-amber-500";
   let iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
 
   if (type === "user") {
-    return L.divIcon({
+    iconCache[type] = L.divIcon({
       className: "custom-leaflet-user-marker",
       html: `
         <div class="relative flex items-center justify-center">
@@ -55,6 +59,7 @@ const createCustomIcon = (type: Place["type"]) => {
       iconSize: [28, 28],
       iconAnchor: [14, 14],
     });
+    return iconCache[type];
   }
 
   if (type === "hospital") {
@@ -68,7 +73,7 @@ const createCustomIcon = (type: Place["type"]) => {
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`;
   }
 
-  return L.divIcon({
+  iconCache[type] = L.divIcon({
     className: "custom-leaflet-marker",
     html: `
       <div class="p-2 rounded-2xl border-2 shadow-xl flex items-center justify-center transition-transform hover:scale-125 ${colorBg}">
@@ -78,6 +83,7 @@ const createCustomIcon = (type: Place["type"]) => {
     iconSize: [32, 32],
     iconAnchor: [16, 16],
   });
+  return iconCache[type];
 };
 
 // Component to programmatically re-center Leaflet Map
@@ -223,13 +229,6 @@ export function InteractiveFallbackMap({
     if (onMarkerSelect) onMarkerSelect(clickedPlace);
   };
 
-  // Tile layer URL based on dark/light theme
-  const tileLayerUrl = theme === "dark" 
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-
-  const tileAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-
   return (
     <div className="relative w-full h-full min-h-[450px] bg-surface-900 overflow-hidden rounded-3xl border border-surface-200 dark:border-surface-800 shadow-xl flex flex-col select-none">
       
@@ -318,6 +317,17 @@ export function InteractiveFallbackMap({
         </div>
       )}
 
+      {/* Locate Me Button */}
+      <div className="absolute bottom-6 left-4 z-[1000] pointer-events-auto">
+        <button
+          onClick={requestUserLocation}
+          className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl text-surface-900 dark:text-white p-3 rounded-2xl shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          title="Go to Current Location"
+        >
+          <LocateFixed className="w-6 h-6 text-amber-500" />
+        </button>
+      </div>
+
       {/* Leaflet React Map Component */}
       <MapContainer
         center={mapCenter}
@@ -329,11 +339,39 @@ export function InteractiveFallbackMap({
         <MapController center={mapCenter} zoom={zoomLevel} />
         <MapClickHandler onClick={handleMapClick} />
 
-        <TileLayer
-          attribution={tileAttribution}
-          url={tileLayerUrl}
-          maxZoom={19}
-        />
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked={theme !== "dark"} name="Street View (Voyager)">
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Mode">
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite Imagery (Realistic)">
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="OpenStreetMap Standard">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
+
+        <ZoomControl position="bottomright" />
+        <ScaleControl position="bottomleft" />
 
         {/* User GPS Location Marker */}
         {userCoords && (
