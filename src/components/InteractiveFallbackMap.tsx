@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, LayerGroup, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { 
   ShieldAlert, Activity, Shield, MapPin, 
-  Search, Loader2, Navigation, PhoneCall, AlertTriangle, X, Building2, AlertCircle, RefreshCw, LocateFixed
+  Search, Loader2, Navigation, PhoneCall, AlertTriangle, X, Building2, AlertCircle, RefreshCw, LocateFixed, Maximize
 } from "lucide-react";
 import { useTheme } from "./theme/ThemeProvider";
 
@@ -105,6 +108,52 @@ function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => v
   return null;
 }
 
+// Custom UI Overlays (Compass, Fullscreen)
+function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
+  const map = useMap();
+  const toggleFullscreen = () => {
+    const container = map.getContainer();
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const resetBearing = () => {
+    (map as any).setBearing && (map as any).setBearing(0);
+    map.setView(map.getCenter(), map.getZoom());
+  };
+
+  return (
+    <div className="leaflet-top leaflet-right mt-24 mr-2.5 flex flex-col gap-2 z-[1000]">
+      <button
+        onClick={toggleFullscreen}
+        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors pointer-events-auto"
+        title="Toggle Fullscreen"
+      >
+        <Maximize className="w-4 h-4" />
+      </button>
+      <button
+        onClick={resetBearing}
+        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors pointer-events-auto"
+        title="Reset Compass (North)"
+      >
+        <Navigation className="w-4 h-4" style={{ transform: 'rotate(45deg)' }} />
+      </button>
+      <button
+        onClick={onLocateMe}
+        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-blue-600 dark:text-blue-400 transition-colors pointer-events-auto"
+        title="My Location"
+      >
+        <LocateFixed className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
 export function InteractiveFallbackMap({ 
   userLocation,
   onMarkerSelect
@@ -190,8 +239,16 @@ export function InteractiveFallbackMap({
     setIsLoading(true);
     setGeoError(null);
 
+    if (!navigator.onLine) {
+      setGeoError("Offline mode: showing cached map.");
+      setMapCenter(INDIA_CENTER);
+      setZoomLevel(INDIA_ZOOM);
+      setIsLoading(false);
+      return;
+    }
+
     if (!navigator.geolocation) {
-      setGeoError("Geolocation is not supported by your browser. Displaying default India Command Hub.");
+      setGeoError("Location access is disabled. You can still search places or enable location later.");
       setMapCenter(INDIA_CENTER);
       setZoomLevel(INDIA_ZOOM);
       setIsLoading(false);
@@ -219,13 +276,19 @@ export function InteractiveFallbackMap({
         }
       },
       (err) => {
-        console.warn("Geolocation permission error or unavailable:", err.message);
+        console.warn("Geolocation Error Code:", err.code, err.message);
         if (initialFetch) {
-          let errorMsg = "Location permission denied or GPS unavailable. Centered on India Emergency Command Center.";
-          if (err.code === err.PERMISSION_DENIED) {
-            errorMsg = "Location permission was denied by browser. Centered map on India Command Center.";
+          if (!navigator.onLine) {
+            setGeoError("Offline mode: showing cached map.");
+          } else if (err.code === err.PERMISSION_DENIED) {
+            setGeoError("Location access is disabled. You can still search places or enable location later.");
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            setGeoError("Position unavailable. You can still search places or enable location later.");
+          } else if (err.code === err.TIMEOUT) {
+            setGeoError("Location request timed out. You can still search places or enable location later.");
+          } else {
+            setGeoError("Location access is disabled. You can still search places or enable location later.");
           }
-          setGeoError(errorMsg);
           setMapCenter(INDIA_CENTER);
           setZoomLevel(INDIA_ZOOM);
           setIsLoading(false);
@@ -237,12 +300,24 @@ export function InteractiveFallbackMap({
   };
 
   useEffect(() => {
+    const handleOffline = () => {
+      setGeoError("Offline mode: showing cached map.");
+    };
+    const handleOnline = () => {
+      if (geoError?.includes("Offline mode")) {
+        setGeoError(null);
+      }
+    };
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
     };
-  }, []);
+  }, [geoError]);
 
   useEffect(() => {
     if (userLocation) {
@@ -376,17 +451,28 @@ export function InteractiveFallbackMap({
 
       {/* Geolocation Error / Warning Banner */}
       {geoError && (
-        <div className="absolute top-20 left-4 right-4 z-[1000] max-w-lg mx-auto bg-amber-500/95 backdrop-blur-md text-surface-950 px-4 py-2.5 rounded-2xl shadow-xl border border-amber-400 flex items-center justify-between text-xs font-bold animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
+        <div className="absolute top-20 left-4 right-4 z-[1000] max-w-lg mx-auto bg-amber-500/95 backdrop-blur-md text-surface-950 px-4 py-3 rounded-2xl shadow-xl border border-amber-400 flex items-center justify-between text-xs font-bold animate-in fade-in slide-in-from-top-2 gap-3">
+          <div className="flex items-center gap-2 min-w-0">
             <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{geoError}</span>
+            <span className="truncate">{geoError}</span>
           </div>
-          <button 
-            onClick={() => setGeoError(null)}
-            className="p-1 hover:bg-black/10 rounded-lg transition-colors ml-2"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                setGeoError(null);
+                requestUserLocation();
+              }}
+              className="px-2.5 py-1 bg-surface-950 text-white rounded-xl text-[11px] font-extrabold hover:bg-surface-800 transition-colors shadow-sm"
+            >
+              Enable Location
+            </button>
+            <button 
+              onClick={() => setGeoError(null)}
+              className="p-1 hover:bg-black/10 rounded-lg transition-colors ml-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -419,13 +505,14 @@ export function InteractiveFallbackMap({
       >
         <MapController center={mapCenter} zoom={zoomLevel} />
         <MapClickHandler onClick={handleMapClick} />
+        <MapCustomControls onLocateMe={requestUserLocation} />
 
         <LayersControl position="topright">
-          <LayersControl.BaseLayer checked={theme !== "dark"} name="Google Maps (Standard)">
+          <LayersControl.BaseLayer checked={theme !== "dark"} name="OpenStreetMap Standard">
             <TileLayer
-              attribution="Google Maps"
-              url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-              maxZoom={20}
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
             />
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer checked={theme === "dark"} name="Carto Dark (Night Mode)">
@@ -435,31 +522,17 @@ export function InteractiveFallbackMap({
               maxZoom={19}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Google Maps (Satellite Hybrid)">
+          <LayersControl.BaseLayer name="OpenTopoMap">
             <TileLayer
-              attribution="Google Maps"
-              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-              maxZoom={20}
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Google Maps (Terrain)">
-            <TileLayer
-              attribution="Google Maps"
-              url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
-              maxZoom={20}
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="OpenStreetMap Standard">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
+              attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+              url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+              maxZoom={17}
             />
           </LayersControl.BaseLayer>
         </LayersControl>
 
         <ZoomControl position="bottomright" />
-        <ScaleControl position="bottomleft" />
+        <ScaleControl position="bottomleft" imperial={false} />
 
         {/* User GPS Location Marker */}
         {userCoords && (
@@ -490,32 +563,34 @@ export function InteractiveFallbackMap({
           </LayerGroup>
         )}
 
-        {/* Emergency Places Markers */}
-        {places.map((place) => (
-          <Marker
-            key={place.id}
-            position={[place.lat, place.lng]}
-            icon={createCustomIcon(place.type)}
-            eventHandlers={{
-              click: () => {
-                setSelectedPlace(place);
-                if (onMarkerSelect) onMarkerSelect(place);
-              }
-            }}
-          >
-            <Popup>
-              <div className="p-1 space-y-1">
-                <span className="font-bold text-xs block text-surface-900">{place.name}</span>
-                <span className="text-[10px] text-surface-500 block">{place.vicinity}</span>
-                {place.phone && (
-                  <a href={`tel:${place.phone}`} className="inline-block px-2 py-0.5 bg-emerald-600 text-white font-bold rounded text-[10px] mt-1">
-                    Call {place.phone}
-                  </a>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {/* Emergency Places Markers Clustered */}
+        <MarkerClusterGroup chunkedLoading maxClusterRadius={40}>
+          {places.map((place) => (
+            <Marker
+              key={place.id}
+              position={[place.lat, place.lng]}
+              icon={createCustomIcon(place.type)}
+              eventHandlers={{
+                click: () => {
+                  setSelectedPlace(place);
+                  if (onMarkerSelect) onMarkerSelect(place);
+                }
+              }}
+            >
+              <Popup>
+                <div className="p-1 space-y-1">
+                  <span className="font-bold text-xs block text-surface-900">{place.name}</span>
+                  <span className="text-[10px] text-surface-500 block">{place.vicinity}</span>
+                  {place.phone && (
+                    <a href={`tel:${place.phone}`} className="inline-block px-2 py-0.5 bg-emerald-600 text-white font-bold rounded text-[10px] mt-1">
+                      Call {place.phone}
+                    </a>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MarkerClusterGroup>
       </MapContainer>
 
       {/* Selected Marker Action Card */}
@@ -541,7 +616,11 @@ export function InteractiveFallbackMap({
           <div className="flex gap-2">
             <button 
               onClick={() => {
-                const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedPlace.lat},${selectedPlace.lng}`;
+                let url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=`;
+                if (userCoords) {
+                  url += `${userCoords.lat}%2C${userCoords.lng}%3B`;
+                }
+                url += `${selectedPlace.lat}%2C${selectedPlace.lng}`;
                 window.open(url, "_blank");
               }}
               className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
