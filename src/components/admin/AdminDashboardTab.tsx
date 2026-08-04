@@ -77,7 +77,7 @@ export function AdminDashboardTab() {
             </div>
             <div>
               <div className="flex justify-between text-sm font-bold mb-1">
-                <span>Active WebSocket Connections</span>
+                <span>Active Realtime Connections</span>
                 <span className="text-blue-500">1,204</span>
               </div>
               <div className="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full w-[60%]"></div></div>
