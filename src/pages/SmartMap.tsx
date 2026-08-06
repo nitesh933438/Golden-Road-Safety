@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, Circle, LayersControl, ScaleControl, ZoomControl, LayerGroup } from "react-leaflet";
+import { 
+  MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, 
+  Circle, LayersControl, ScaleControl, ZoomControl, LayerGroup 
+} from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -9,7 +12,9 @@ import {
   ShieldAlert, AlertTriangle, Navigation, Info, X, MapPin, 
   HeartPulse, Shield, Zap, PhoneCall, Search, Loader2, 
   Building2, Users, Car, CheckCircle2, AlertCircle, Filter, Plus,
-  Sparkles, Stethoscope, RefreshCw, Radio, LocateFixed, Maximize
+  Sparkles, Stethoscope, RefreshCw, Radio, LocateFixed, Maximize,
+  Compass, ZoomIn, ZoomOut, RotateCcw, Fuel, GraduationCap, Target,
+  Bike, Footprints, Layers
 } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -26,7 +31,7 @@ const USER_ZOOM = 14;
 export interface MapPlace {
   id: string;
   name: string;
-  type: "hospital" | "police" | "volunteer" | "hazard" | "blackspot" | "user" | "search";
+  type: "hospital" | "police" | "volunteer" | "hazard" | "blackspot" | "user" | "search" | "school" | "petrol" | "sos";
   lat: number;
   lng: number;
   vicinity: string;
@@ -37,7 +42,7 @@ export interface MapPlace {
   bedsAvailable?: number;
 }
 
-// Simulated High-Accuracy Emergency Services in Metro Regions for Demo / Initial State
+// Demo Places for fallback/initial state
 const DEMO_PLACES: MapPlace[] = [
   { id: "h1", name: "AIIMS Apex Trauma Center", type: "hospital", lat: 28.5672, lng: 77.2100, vicinity: "Sri Aurobindo Marg, New Delhi", phone: "108", isOpen: true, bedsAvailable: 14, distance: "1.2 km" },
   { id: "h2", name: "Max Super Specialty Trauma Bay", type: "hospital", lat: 28.5283, lng: 77.2185, vicinity: "Press Enclave Marg, Saket", phone: "108", isOpen: true, bedsAvailable: 8, distance: "3.5 km" },
@@ -49,11 +54,13 @@ const DEMO_PLACES: MapPlace[] = [
   { id: "v2", name: "Vol. Priya Nair (Paramedic Level 2)", type: "volunteer", lat: 19.0080, lng: 72.8470, vicinity: "Dadarr West Emergency Circle", phone: "+91 98123 45678", isOpen: true, status: "0.7 km away - En Route", distance: "0.7 km" },
   { id: "hz1", name: "Multi-Vehicle Collision & Oil Spill", type: "hazard", lat: 28.4595, lng: 77.0266, vicinity: "Delhi-Gurugram Expressway Km 14", status: "Active Hazard - Emergency Dispatched", distance: "5.2 km" },
   { id: "hz2", name: "Accident Blackspot - Low Visibility Fog", type: "blackspot", lat: 19.0760, lng: 72.8777, vicinity: "Western Express Highway Flyover", status: "High Risk Corridor", distance: "3.1 km" },
+  { id: "s1", name: "Delhi Public School First Aid Station", type: "school", lat: 28.5710, lng: 77.2180, vicinity: "Mathura Road, New Delhi", phone: "011-24351234", isOpen: true, distance: "1.5 km" },
+  { id: "f1", name: "Indian Oil 24/7 Expressway Fuel Station", type: "petrol", lat: 28.5500, lng: 77.2000, vicinity: "Ring Road Interchange", phone: "1800-233-3555", isOpen: true, distance: "2.0 km" },
 ];
 
 const iconCache: Record<string, L.DivIcon> = {};
 
-// Custom HTML DivIcon Generator for Leaflet
+// Custom Leaflet DivIcon Generator
 const createCustomLeafletIcon = (type: MapPlace["type"]) => {
   if (iconCache[type]) return iconCache[type];
 
@@ -86,9 +93,15 @@ const createCustomLeafletIcon = (type: MapPlace["type"]) => {
   } else if (type === "volunteer") {
     colorBg = "bg-emerald-600 border-emerald-200 shadow-emerald-500/30";
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
-  } else if (type === "blackspot") {
+  } else if (type === "blackspot" || type === "sos") {
     colorBg = "bg-purple-700 border-purple-200 shadow-purple-500/30";
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>`;
+  } else if (type === "school") {
+    colorBg = "bg-teal-600 border-teal-200 shadow-teal-500/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 01-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>`;
+  } else if (type === "petrol") {
+    colorBg = "bg-orange-600 border-orange-200 shadow-orange-500/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z"/><path stroke-linecap="round" stroke-linejoin="round" d="M18 10h2a1 1 0 011 1v4a1 1 0 01-1 1h-2"/></svg>`;
   } else if (type === "search") {
     colorBg = "bg-indigo-600 border-indigo-200 shadow-indigo-500/30";
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`;
@@ -107,16 +120,40 @@ const createCustomLeafletIcon = (type: MapPlace["type"]) => {
   return iconCache[type];
 };
 
-// Leaflet Map Controller for flying smoothly to coordinates
+// Leaflet Controller for smooth flying without _leaflet_pos runtime errors
 function MapFlyController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(center, zoom, { duration: 1.2 });
+    if (map && (map as any)._loaded && map.getContainer() && center && center[0] && center[1]) {
+      try {
+        map.flyTo(center, zoom, { duration: 1.2 });
+      } catch (err) {
+        console.warn("flyTo safely handled:", err);
+      }
+    }
   }, [center, zoom, map]);
   return null;
 }
 
-// Map Click Listener Component
+// Map Resizer to ensure map recalculates container dimensions on mount
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (map && map.getContainer()) {
+        try {
+          map.invalidateSize();
+        } catch (err) {
+          console.warn("invalidateSize safely handled:", err);
+        }
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+}
+
+// Map Click Listener
 function MapClickListener({ onClick }: { onClick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -126,47 +163,197 @@ function MapClickListener({ onClick }: { onClick: (lat: number, lng: number) => 
   return null;
 }
 
-// Custom UI Overlays (Compass, Fullscreen)
-function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
+// Fully Working Floating Map Control Buttons (Zoom, Locate, Recenter, Compass, Fullscreen, Reset View)
+function MapCustomControls({ 
+  onLocateMe, 
+  onResetView,
+  onRecenter,
+  userLocation
+}: { 
+  onLocateMe: () => void;
+  onResetView: () => void;
+  onRecenter: () => void;
+  userLocation: { lat: number; lng: number } | null;
+}) {
   const map = useMap();
-  const toggleFullscreen = () => {
-    const container = map.getContainer();
-    if (!document.fullscreenElement) {
-      container.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(map.getZoom());
+
+  useEffect(() => {
+    if (controlsRef.current) {
+      L.DomEvent.disableClickPropagation(controlsRef.current);
+      L.DomEvent.disableScrollPropagation(controlsRef.current);
+    }
+  }, []);
+
+  useMapEvents({
+    zoomend() {
+      try {
+        setCurrentZoom(map.getZoom());
+      } catch (e) {}
+    },
+  });
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { 
+      if (map.getZoom() < map.getMaxZoom()) {
+        map.zoomIn(); 
+      }
+    } catch (err) {}
+  };
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { 
+      if (map.getZoom() > map.getMinZoom()) {
+        map.zoomOut(); 
+      }
+    } catch (err) {}
+  };
+
+  const handleLocateMe = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (userLocation) {
+      try {
+        map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1.2 });
+      } catch (err) {}
+    }
+    onLocateMe();
+  };
+
+  const handleRecenter = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (userLocation) {
+      try {
+        map.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 1.2 });
+      } catch (err) {}
     } else {
-      document.exitFullscreen();
+      try {
+        map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
+      } catch (err) {}
+    }
+    onRecenter();
+  };
+
+  const handleResetView = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
+    } catch (err) {}
+    onResetView();
+  };
+
+  const toggleFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const container = map.getContainer();
+      if (!document.fullscreenElement) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen().catch(() => {});
+        } else if ((container as any).webkitRequestFullscreen) {
+          (container as any).webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn("Fullscreen toggle safely handled:", err);
     }
   };
 
-  const resetBearing = () => {
-    (map as any).setBearing && (map as any).setBearing(0); // If Leaflet-Rotate plugin is ever used
-    map.setView(map.getCenter(), map.getZoom()); // Re-centers visually
+  const resetBearing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if ((map as any).setBearing) {
+        (map as any).setBearing(0);
+      }
+      map.setView(map.getCenter(), map.getZoom());
+    } catch (err) {}
   };
 
+  const isMaxZoom = currentZoom >= map.getMaxZoom();
+  const isMinZoom = currentZoom <= map.getMinZoom();
+
   return (
-    <div className="leaflet-top leaflet-right mt-24 mr-2.5 flex flex-col gap-2 z-[1000]">
+    <div ref={controlsRef} className="leaflet-top leaflet-right mt-24 mr-3 flex flex-col gap-2 z-[1000] pointer-events-auto">
       <button
+        type="button"
+        onClick={handleZoomIn}
+        disabled={isMaxZoom}
+        className={`w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
+          isMaxZoom 
+            ? "opacity-40 cursor-not-allowed text-surface-400" 
+            : "hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-800 dark:text-surface-200"
+        }`}
+        title="Zoom In (+)"
+      >
+        <ZoomIn className="w-4 h-4" />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleZoomOut}
+        disabled={isMinZoom}
+        className={`w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
+          isMinZoom 
+            ? "opacity-40 cursor-not-allowed text-surface-400" 
+            : "hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-800 dark:text-surface-200"
+        }`}
+        title="Zoom Out (-)"
+      >
+        <ZoomOut className="w-4 h-4" />
+      </button>
+
+      <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-0.5" />
+
+      <button
+        type="button"
+        onClick={handleLocateMe}
+        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-blue-600 dark:text-blue-400 transition-colors"
+        title="My Location (GPS)"
+      >
+        <LocateFixed className="w-4 h-4" />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleRecenter}
+        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-amber-500 transition-colors"
+        title="Recenter Map"
+      >
+        <Target className="w-4 h-4" />
+      </button>
+
+      <button
+        type="button"
+        onClick={resetBearing}
+        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-surface-800 dark:text-surface-200 transition-colors"
+        title="Reset Compass (North)"
+      >
+        <Compass className="w-4 h-4" />
+      </button>
+
+      <button
+        type="button"
         onClick={toggleFullscreen}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors pointer-events-auto"
+        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-surface-800 dark:text-surface-200 transition-colors"
         title="Toggle Fullscreen"
       >
         <Maximize className="w-4 h-4" />
       </button>
+
       <button
-        onClick={resetBearing}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors pointer-events-auto"
-        title="Reset Compass (North)"
+        type="button"
+        onClick={handleResetView}
+        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-purple-500 transition-colors"
+        title="Reset View to India Default"
       >
-        <Navigation className="w-4 h-4" style={{ transform: 'rotate(45deg)' }} />
-      </button>
-      <button
-        onClick={onLocateMe}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-blue-600 dark:text-blue-400 transition-colors pointer-events-auto"
-        title="My Location"
-      >
-        <LocateFixed className="w-4 h-4" />
+        <RotateCcw className="w-4 h-4" />
       </button>
     </div>
   );
@@ -191,9 +378,17 @@ export function SmartMap() {
   const [filterType, setFilterType] = useState<string>("all");
   const [selectedPlace, setSelectedPlace] = useState<MapPlace | null>(null);
   
-  // Emergency Mode & Safe Route State
+  // OSRM Routing State
+  const [travelMode, setTravelMode] = useState<"driving" | "bike" | "foot">("driving");
+  const [activeRoute, setActiveRoute] = useState<{
+    coords: [number, number][];
+    distanceKm: number;
+    durationMins: number;
+    destinationName: string;
+    endLat: number;
+    endLng: number;
+  } | null>(null);
   const [emergencySOSMode, setEmergencySOSMode] = useState<boolean>(false);
-  const [emergencyRoute, setEmergencyRoute] = useState<[number, number][] | null>(null);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -206,16 +401,16 @@ export function SmartMap() {
   const [reportTitle, setReportTitle] = useState<string>("");
   const [reportDesc, setReportDesc] = useState<string>("");
 
-  // Reverse Geocode and Fetch Real Places using OpenStreetMap
+  // Reverse Geocode & Fetch Real Places via Overpass API
   const fetchAddressAndPlaces = useCallback(async (lat: number, lng: number) => {
     try {
       if (!navigator.onLine) {
         const cached = getLastLocation();
-        setAddress(cached.address || `Offline Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        setAddress(cached.address || `Offline: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
         return;
       }
       
-      // 1. Reverse Geocode for Address Name
+      // 1. Reverse Geocode with Nominatim
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
       );
@@ -225,8 +420,8 @@ export function SmartMap() {
       setAddress(addrStr);
       saveLastLocation({ lat, lng, address: addrStr });
 
-      // 2. Fetch Real Hospitals & Police Stations via Overpass API
-      const radius = 5000;
+      // 2. Fetch Real Hospitals, Police Stations, Schools, Petrol Stations via Overpass API
+      const radius = 6000;
       const overpassQuery = `
         [out:json][timeout:15];
         (
@@ -234,6 +429,8 @@ export function SmartMap() {
           way["amenity"="hospital"](around:${radius},${lat},${lng});
           node["amenity"="clinic"](around:${radius},${lat},${lng});
           node["amenity"="police"](around:${radius},${lat},${lng});
+          node["amenity"="school"](around:${radius},${lat},${lng});
+          node["amenity"="fuel"](around:${radius},${lat},${lng});
         );
         out center;
       `;
@@ -249,29 +446,41 @@ export function SmartMap() {
         .map((el: any) => {
           const pLat = el.lat || el.center?.lat;
           const pLng = el.lon || el.center?.lon;
-          const isPolice = el.tags.amenity === "police";
-          const name = el.tags.name || (isPolice ? "Police Station" : "Medical Center");
-          const type = isPolice ? "police" : "hospital";
+          const amenity = el.tags.amenity;
+          
+          let pType: MapPlace["type"] = "hospital";
+          let defaultName = "Medical Center";
+
+          if (amenity === "police") {
+            pType = "police";
+            defaultName = "Police Station";
+          } else if (amenity === "school") {
+            pType = "school";
+            defaultName = "School / Educational Institute";
+          } else if (amenity === "fuel") {
+            pType = "petrol";
+            defaultName = "Petrol Station";
+          }
+
+          const name = el.tags.name || defaultName;
           
           return {
             id: `osm-${el.id}`,
             name: name,
-            type: type,
+            type: pType,
             lat: pLat,
             lng: pLng,
             vicinity: el.tags?.["addr:full"] || el.tags?.["addr:street"] || el.tags?.["addr:city"] || addrStr.split(",")[0],
-            phone: el.tags?.phone || "112",
+            phone: el.tags?.phone || (pType === "police" ? "112" : pType === "hospital" ? "108" : undefined),
             isOpen: true,
-            bedsAvailable: isPolice ? undefined : Math.floor(Math.random() * 20) + 1,
-            distance: "Local",
+            bedsAvailable: pType === "hospital" ? Math.floor(Math.random() * 20) + 1 : undefined,
+            distance: "Nearby",
           };
       });
 
       if (realPlaces.length > 0) {
         setPlaces(prev => {
-          // Keep hazards, volunteers, blackspots from DB or mock, remove mock hospitals and police
-          const customPlaces = prev.filter(p => p.type !== "hospital" && p.type !== "police");
-          // Deduplicate
+          const customPlaces = prev.filter(p => p.type === "volunteer" || p.type === "hazard" || p.id.startsWith("fb-") || p.id.startsWith("report-"));
           const uniquePlaces = new Map();
           [...customPlaces, ...realPlaces].forEach(p => uniquePlaces.set(p.id, p));
           return Array.from(uniquePlaces.values());
@@ -285,7 +494,7 @@ export function SmartMap() {
     }
   }, []);
 
-  // Request User Geolocation
+  // Request User Geolocation with robust fallback
   const requestLocation = useCallback(() => {
     setIsLoading(true);
     setGeoError(null);
@@ -343,32 +552,17 @@ export function SmartMap() {
         if (initialFetch) {
           if (!navigator.onLine) {
             setGeoError("Offline mode: showing cached map.");
-            const cached = getLastLocation();
-            if (cached && cached.lat) {
-              setMapCenter([cached.lat, cached.lng]);
-              setUserLocation({ lat: cached.lat, lng: cached.lng });
-              setAddress(cached.address);
-            } else {
-              setMapCenter(INDIA_CENTER);
-              setZoomLevel(DEFAULT_ZOOM);
-            }
           } else if (err.code === err.PERMISSION_DENIED) {
             setGeoError("Location access is disabled. You can still search places or enable location later.");
-            setMapCenter(INDIA_CENTER);
-            setZoomLevel(DEFAULT_ZOOM);
           } else if (err.code === err.POSITION_UNAVAILABLE) {
             setGeoError("Position unavailable. You can still search places or enable location later.");
-            setMapCenter(INDIA_CENTER);
-            setZoomLevel(DEFAULT_ZOOM);
           } else if (err.code === err.TIMEOUT) {
             setGeoError("Location request timed out. You can still search places or enable location later.");
-            setMapCenter(INDIA_CENTER);
-            setZoomLevel(DEFAULT_ZOOM);
           } else {
             setGeoError("Location access is disabled. You can still search places or enable location later.");
-            setMapCenter(INDIA_CENTER);
-            setZoomLevel(DEFAULT_ZOOM);
           }
+          setMapCenter(INDIA_CENTER);
+          setZoomLevel(DEFAULT_ZOOM);
           setIsLoading(false);
           initialFetch = false;
         }
@@ -407,18 +601,18 @@ export function SmartMap() {
         const firebaseHazards: MapPlace[] = snapshot.docs.map((doc) => {
           const data = doc.data();
           return {
-            id: doc.id,
+            id: `fb-${doc.id}`,
             name: data.description || "Reported Road Hazard",
             type: data.type || "hazard",
             lat: data.lat,
             lng: data.lng,
-            vicinity: `Reported by user (${data.status || "active"})`,
+            vicinity: `Reported by citizen (${data.status || "active"})`,
             isOpen: true,
           };
         });
         
         setPlaces((prev) => {
-          const nonFirebase = prev.filter((p) => !p.id.startsWith("fb-") && !p.id.startsWith("demo-"));
+          const nonFirebase = prev.filter((p) => !p.id.startsWith("fb-"));
           return [...firebaseHazards, ...nonFirebase];
         });
       });
@@ -428,20 +622,20 @@ export function SmartMap() {
     }
   }, [demoMode]);
 
-  // OpenStreetMap Nominatim Autocomplete Search
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // OpenStreetMap Nominatim Search (Search Village, City, District, State, PIN, Hospital, Police, School, Petrol)
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=in`
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&extratags=1&q=${encodeURIComponent(searchQuery)}&limit=8&countrycodes=in`
       );
       const data = await res.json();
       setSearchResults(data);
     } catch (err) {
-      console.error("OpenStreetMap Search Failed:", err);
+      console.error("OpenStreetMap Nominatim Search Failed:", err);
     } finally {
       setIsSearching(false);
     }
@@ -451,10 +645,25 @@ export function SmartMap() {
     const lat = parseFloat(item.lat);
     const lng = parseFloat(item.lon);
     
+    let itemType: MapPlace["type"] = "search";
+    const typeStr = (item.type || "").toLowerCase();
+    const classStr = (item.class || "").toLowerCase();
+    
+    if (typeStr.includes("hospital") || typeStr.includes("clinic") || classStr.includes("healthcare")) {
+      itemType = "hospital";
+    } else if (typeStr.includes("police") || classStr.includes("police")) {
+      itemType = "police";
+    } else if (typeStr.includes("school") || typeStr.includes("college") || typeStr.includes("university")) {
+      itemType = "school";
+    } else if (typeStr.includes("fuel") || typeStr.includes("petrol")) {
+      itemType = "petrol";
+    }
+
+    const name = item.display_name.split(",")[0] || "Searched Location";
     const newPlace: MapPlace = {
       id: `search-${Date.now()}`,
-      name: item.display_name.split(",")[0] || "Searched Location",
-      type: "search",
+      name: name,
+      type: itemType,
       lat,
       lng,
       vicinity: item.display_name,
@@ -464,48 +673,91 @@ export function SmartMap() {
     setPlaces((prev) => [newPlace, ...prev]);
     setSelectedPlace(newPlace);
     setMapCenter([lat, lng]);
-    setZoomLevel(14);
+    setZoomLevel(15);
     fetchAddressAndPlaces(lat, lng);
     setSearchResults([]);
     setSearchQuery("");
   };
 
-  // Trigger Emergency SOS Route to nearest Hospital
-  const fetchOSRMRoute = async (startLat: number, startLng: number, endLat: number, endLng: number) => {
+  // Fetch Free OSRM Routing (Car, Bike, Walking)
+  const fetchOSRMRoute = async (
+    startLat: number, 
+    startLng: number, 
+    endLat: number, 
+    endLng: number, 
+    destName: string = "Target",
+    mode: "driving" | "bike" | "foot" = travelMode
+  ) => {
     try {
-      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`);
+      const res = await fetch(
+        `https://router.project-osrm.org/route/v1/${mode}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`
+      );
       const data = await res.json();
       if (data.routes && data.routes.length > 0) {
-        const coordinates = data.routes[0].geometry.coordinates;
-        // OSRM returns [lon, lat], Leaflet Polyline expects [lat, lon]
-        const leafletCoords = coordinates.map((coord: number[]) => [coord[1], coord[0]]);
-        setEmergencyRoute(leafletCoords);
+        const route = data.routes[0];
+        const coordinates = route.geometry.coordinates;
+        // Leaflet polyline expects [lat, lon]
+        const leafletCoords: [number, number][] = coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+        const distKm = parseFloat((route.distance / 1000).toFixed(1));
+        const durMins = Math.round(route.duration / 60);
+
+        setActiveRoute({
+          coords: leafletCoords,
+          distanceKm: distKm,
+          durationMins: durMins,
+          destinationName: destName,
+          endLat,
+          endLng,
+        });
       } else {
-        setEmergencyRoute([[startLat, startLng], [endLat, endLng]]);
+        setActiveRoute({
+          coords: [[startLat, startLng], [endLat, endLng]],
+          distanceKm: 0,
+          durationMins: 0,
+          destinationName: destName,
+          endLat,
+          endLng,
+        });
       }
     } catch (error) {
-      console.error("OSRM Routing failed", error);
-      setEmergencyRoute([[startLat, startLng], [endLat, endLng]]);
+      console.error("OSRM Routing Error:", error);
+      setActiveRoute({
+        coords: [[startLat, startLng], [endLat, endLng]],
+        distanceKm: 0,
+        durationMins: 0,
+        destinationName: destName,
+        endLat,
+        endLng,
+      });
     }
   };
 
+  // Handle Travel Mode Switch on active route
+  const changeTravelMode = (mode: "driving" | "bike" | "foot") => {
+    setTravelMode(mode);
+    if (activeRoute) {
+      const start = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
+      fetchOSRMRoute(start.lat, start.lng, activeRoute.endLat, activeRoute.endLng, activeRoute.destinationName, mode);
+    }
+  };
+
+  // Trigger Emergency SOS Route to nearest Hospital
   const toggleEmergencySOS = () => {
     if (emergencySOSMode) {
       setEmergencySOSMode(false);
-      setEmergencyRoute(null);
+      setActiveRoute(null);
       return;
     }
 
     setEmergencySOSMode(true);
     const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
     
-    // Find nearest hospital
+    // Find nearest hospital or fallback to first demo hospital
     const hospitals = places.filter((p) => p.type === "hospital");
-    if (hospitals.length > 0) {
-      const nearest = hospitals[0];
-      setSelectedPlace(nearest);
-      fetchOSRMRoute(origin.lat, origin.lng, nearest.lat, nearest.lng);
-    }
+    const targetHospital = hospitals.length > 0 ? hospitals[0] : DEMO_PLACES[0];
+    
+    setSelectedPlace(targetHospital);
+    fetchOSRMRoute(origin.lat, origin.lng, targetHospital.lat, targetHospital.lng, targetHospital.name, travelMode);
   };
 
   // Submit New Hazard Report
@@ -542,7 +794,7 @@ export function SmartMap() {
     setReportDesc("");
   };
 
-  // Filter Places
+  // Filter Places by Category
   const filteredPlaces = places.filter((p) => {
     if (filterType === "all") return true;
     return p.type === filterType;
@@ -551,10 +803,10 @@ export function SmartMap() {
   return (
     <div className="flex flex-col h-[calc(100vh-6.5rem)] min-h-[580px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-md animate-in fade-in duration-500">
       
-      {/* Top Floating Control Bar */}
+      {/* Top Floating Header & Search Bar */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pointer-events-none">
         
-        {/* Search Bar & Address Header */}
+        {/* Search Input & Address Header */}
         <div className="flex-1 max-w-lg pointer-events-auto flex flex-col gap-2">
           
           <form onSubmit={handleSearch} className="relative">
@@ -563,24 +815,25 @@ export function SmartMap() {
               onChange={(val) => {
                 setSearchQuery(val);
                 if (val.length > 2) {
-                  // Trigger live debounced Nominatim search
+                  // Trigger live Nominatim search
                   fetch(
-                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=in`
+                    `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(val)}&limit=6&countrycodes=in`
                   )
                     .then(res => res.json())
                     .then(data => setSearchResults(data))
                     .catch(() => {});
                 }
               }}
-              placeholder="Search city, hospital, or police station..."
+              placeholder="Search city, village, hospital, police, school, petrol pump..."
               historyKey="smartmap_search"
               suggestions={[
                 "AIIMS Trauma Center, Delhi",
                 "Max Super Specialty Hospital, Saket",
                 "KEM Hospital Emergency Unit, Mumbai",
-                "Central Highway Patrol Post",
+                "Connaught Place Central Patrol",
                 "Sector 7 Rapid Response Circle",
-                "Connaught Place Emergency Corridor"
+                "Indian Oil Petrol Pump",
+                "Delhi Public School"
               ]}
               showVoiceInput={true}
               enableAIIntent={true}
@@ -589,7 +842,7 @@ export function SmartMap() {
 
             {/* Nominatim Search Dropdown */}
             {searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 overflow-hidden max-h-60 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 overflow-hidden max-h-64 overflow-y-auto z-[1001]">
                 {searchResults.map((item, i) => (
                   <button
                     key={i}
@@ -608,7 +861,7 @@ export function SmartMap() {
             )}
           </form>
 
-          {/* Location Badge */}
+          {/* Current Address & Location Badge */}
           <div className="bg-white/90 dark:bg-surface-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-surface-200 dark:border-surface-700 shadow-lg flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
@@ -617,7 +870,7 @@ export function SmartMap() {
             <button
               onClick={requestLocation}
               className="p-1 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg text-surface-500 dark:text-surface-400 hover:text-amber-500 transition-colors shrink-0"
-              title="Recenter GPS"
+              title="Refresh GPS Location"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
@@ -656,7 +909,7 @@ export function SmartMap() {
 
       </div>
 
-      {/* Geolocation Warning / Error Banner */}
+      {/* Geolocation Warning / Friendly Banner */}
       {geoError && (
         <div className="absolute top-28 left-4 right-4 z-[1000] max-w-lg mx-auto bg-amber-500/95 backdrop-blur-md text-surface-950 px-4 py-3 rounded-2xl shadow-xl border border-amber-400 flex items-center justify-between text-xs font-bold animate-in fade-in gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -680,25 +933,82 @@ export function SmartMap() {
         </div>
       )}
 
-      {/* Locate Me Button */}
-      <div className="absolute bottom-24 left-4 z-[1000] pointer-events-auto">
-        <button
-          onClick={requestLocation}
-          className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl text-surface-900 dark:text-white p-3 rounded-2xl shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          title="Go to Current Location"
-        >
-          <LocateFixed className="w-6 h-6 text-amber-500" />
-        </button>
-      </div>
+      {/* Floating Active Route Information Panel */}
+      {activeRoute && (
+        <div className="absolute top-36 left-4 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 pointer-events-auto max-w-xs animate-in slide-in-from-left-4 duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Navigation className="w-4 h-4 text-amber-500 animate-pulse" />
+              <span className="font-extrabold text-xs text-surface-900 dark:text-white truncate max-w-[150px]">
+                {activeRoute.destinationName}
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveRoute(null)}
+              className="p-1 text-surface-400 hover:text-surface-700 dark:hover:text-white rounded-lg"
+              title="Clear Route"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between text-xs font-bold text-surface-600 dark:text-surface-300 mb-3 bg-surface-100 dark:bg-surface-800 p-2.5 rounded-xl">
+            <div>
+              <span className="text-[10px] uppercase block text-surface-400 font-extrabold">Distance</span>
+              <span className="text-sm font-black text-amber-500">{activeRoute.distanceKm} km</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] uppercase block text-surface-400 font-extrabold">Est. Time</span>
+              <span className="text-sm font-black text-emerald-500">{activeRoute.durationMins} mins</span>
+            </div>
+          </div>
+
+          {/* Travel Mode Selector (Car / Bike / Walk) */}
+          <div className="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
+            <button
+              onClick={() => changeTravelMode("driving")}
+              className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold flex items-center justify-center gap-1 transition-all ${
+                travelMode === "driving"
+                  ? "bg-amber-500 text-black shadow-sm"
+                  : "text-surface-500 hover:text-surface-900 dark:hover:text-white"
+              }`}
+            >
+              <Car className="w-3.5 h-3.5" /> Car
+            </button>
+            <button
+              onClick={() => changeTravelMode("bike")}
+              className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold flex items-center justify-center gap-1 transition-all ${
+                travelMode === "bike"
+                  ? "bg-amber-500 text-black shadow-sm"
+                  : "text-surface-500 hover:text-surface-900 dark:hover:text-white"
+              }`}
+            >
+              <Bike className="w-3.5 h-3.5" /> Bike
+            </button>
+            <button
+              onClick={() => changeTravelMode("foot")}
+              className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold flex items-center justify-center gap-1 transition-all ${
+                travelMode === "foot"
+                  ? "bg-amber-500 text-black shadow-sm"
+                  : "text-surface-500 hover:text-surface-900 dark:hover:text-white"
+              }`}
+            >
+              <Footprints className="w-3.5 h-3.5" /> Walk
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Category Filter Bar (Bottom Left Floating) */}
-      <div className="absolute bottom-6 left-4 z-[1000] pointer-events-auto hidden sm:flex items-center gap-1.5 p-1.5 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl">
+      <div className="absolute bottom-6 left-4 right-4 sm:right-auto z-[1000] pointer-events-auto flex items-center gap-1.5 p-1.5 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl max-w-[calc(100vw-2rem)] sm:max-w-[calc(100vw-12rem)] overflow-x-auto custom-scrollbar">
         {[
           { id: "all", label: "All Hubs", icon: MapPin },
           { id: "hospital", label: "Hospitals", icon: Building2 },
           { id: "police", label: "Police", icon: Shield },
           { id: "volunteer", label: "Volunteers", icon: Users },
           { id: "hazard", label: "Hazards", icon: AlertTriangle },
+          { id: "school", label: "Schools", icon: GraduationCap },
+          { id: "petrol", label: "Petrol", icon: Fuel },
         ].map((tab) => {
           const IconComp = tab.icon;
           const isActive = filterType === tab.id;
@@ -706,7 +1016,7 @@ export function SmartMap() {
             <button
               key={tab.id}
               onClick={() => setFilterType(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
                 isActive
                   ? "bg-amber-500 text-black shadow-md"
                   : "text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800"
@@ -779,24 +1089,46 @@ export function SmartMap() {
 
       {/* Leaflet OpenStreetMap Container */}
       <MapContainer
+        key="leaflet-smartmap-container"
         center={mapCenter}
         zoom={zoomLevel}
         scrollWheelZoom={true}
+        doubleClickZoom={true}
+        touchZoom={true}
+        dragging={true}
         className="w-full h-full z-0"
         zoomControl={false}
       >
         <MapFlyController center={mapCenter} zoom={zoomLevel} />
+        <MapResizer />
         <MapClickListener onClick={handleMapClickForReport} />
-        <MapCustomControls onLocateMe={() => {
-          if (userLocation) {
-            setMapCenter([userLocation.lat, userLocation.lng]);
-            setZoomLevel(16);
-          } else {
-            alert("Waiting for GPS location...");
-          }
-        }} />
+        <MapCustomControls 
+          userLocation={userLocation}
+          onLocateMe={() => {
+            if (userLocation) {
+              setMapCenter([userLocation.lat, userLocation.lng]);
+              setZoomLevel(16);
+            } else {
+              requestLocation();
+            }
+          }}
+          onRecenter={() => {
+            if (userLocation) {
+              setMapCenter([userLocation.lat, userLocation.lng]);
+              setZoomLevel(15);
+            } else {
+              setMapCenter(INDIA_CENTER);
+              setZoomLevel(DEFAULT_ZOOM);
+            }
+          }}
+          onResetView={() => {
+            setMapCenter(INDIA_CENTER);
+            setZoomLevel(DEFAULT_ZOOM);
+          }}
+        />
 
-        <LayersControl position="topright">
+        {/* Free Leaflet Layer Controls (Standard, Carto Dark, OpenTopo, Satellite) */}
+        <LayersControl position="bottomright">
           <LayersControl.BaseLayer checked={theme !== "dark"} name="OpenStreetMap Standard">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -813,25 +1145,36 @@ export function SmartMap() {
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer name="OpenTopoMap">
             <TileLayer
-              attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+              attribution='&copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
               url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
               maxZoom={17}
             />
           </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Esri Satellite">
+            <TileLayer
+              attribution='&copy; Esri World Imagery'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
         </LayersControl>
 
-        <ZoomControl position="bottomright" />
         <ScaleControl position="bottomleft" imperial={false} />
 
-        {/* Emergency SOS Route Polyline */}
-        {emergencySOSMode && emergencyRoute && (
+        {/* OSRM Route Line */}
+        {activeRoute && (
           <Polyline
-            positions={emergencyRoute}
-            pathOptions={{ color: "#ef4444", weight: 6, dashArray: "10 8", opacity: 0.9 }}
+            positions={activeRoute.coords}
+            pathOptions={{ 
+              color: travelMode === "driving" ? "#ef4444" : travelMode === "bike" ? "#10b981" : "#f59e0b", 
+              weight: 6, 
+              dashArray: "8 6", 
+              opacity: 0.9 
+            }}
           />
         )}
 
-        {/* User Location Marker */}
+        {/* User Location Marker & Circle */}
         {userLocation && (
           <LayerGroup>
             {locationAccuracy && (
@@ -851,7 +1194,7 @@ export function SmartMap() {
                   <span className="text-[10px] text-surface-500 block mb-1">Golden Hour Response Connected</span>
                   {locationAccuracy && (
                     <span className="text-[10px] text-emerald-600 font-medium">
-                      Accuracy: {Math.round(locationAccuracy)}m
+                      GPS Accuracy: {Math.round(locationAccuracy)}m
                     </span>
                   )}
                 </div>
@@ -860,8 +1203,8 @@ export function SmartMap() {
           </LayerGroup>
         )}
 
-        {/* Service Markers Clustered */}
-        <MarkerClusterGroup chunkedLoading maxClusterRadius={40}>
+        {/* Clustered Places & Emergency Markers */}
+        <MarkerClusterGroup chunkedLoading maxClusterRadius={45}>
           {filteredPlaces.map((place) => (
             <Marker
               key={place.id}
@@ -888,7 +1231,7 @@ export function SmartMap() {
 
       </MapContainer>
 
-      {/* Selected Marker Detail Sheet (Bottom Drawer) */}
+      {/* Selected Place Detail Sheet */}
       {selectedPlace && (
         <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl text-surface-900 dark:text-white p-5 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl animate-in slide-in-from-bottom-6 duration-300 pointer-events-auto">
           <div className="flex justify-between items-start mb-3">
@@ -896,7 +1239,9 @@ export function SmartMap() {
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                 selectedPlace.type === "hospital" ? "bg-red-500/20 text-red-500" :
                 selectedPlace.type === "police" ? "bg-blue-500/20 text-blue-500" :
-                selectedPlace.type === "volunteer" ? "bg-emerald-500/20 text-emerald-500" : "bg-amber-500/20 text-amber-500"
+                selectedPlace.type === "volunteer" ? "bg-emerald-500/20 text-emerald-500" :
+                selectedPlace.type === "school" ? "bg-teal-500/20 text-teal-500" :
+                selectedPlace.type === "petrol" ? "bg-orange-500/20 text-orange-500" : "bg-amber-500/20 text-amber-500"
               }`}>
                 {selectedPlace.type}
               </span>
@@ -922,8 +1267,8 @@ export function SmartMap() {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                const url = `https://www.openstreetmap.org/directions?engine=osrm_car&route=${userLocation?.lat || mapCenter[0]},${userLocation?.lng || mapCenter[1]};${selectedPlace.lat},${selectedPlace.lng}`;
-                window.open(url, "_blank");
+                const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
+                fetchOSRMRoute(origin.lat, origin.lng, selectedPlace.lat, selectedPlace.lng, selectedPlace.name, travelMode);
               }}
               className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
             >

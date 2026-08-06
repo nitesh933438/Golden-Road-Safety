@@ -89,12 +89,36 @@ const createCustomIcon = (type: Place["type"]) => {
   return iconCache[type];
 };
 
-// Component to programmatically re-center Leaflet Map
+// Component to programmatically re-center Leaflet Map safely without _leaflet_pos runtime errors
 function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(center, zoom, { duration: 1.5 });
+    if (map && (map as any)._loaded && map.getContainer() && center && center[0] && center[1]) {
+      try {
+        map.flyTo(center, zoom, { duration: 1.2 });
+      } catch (err) {
+        console.warn("flyTo safely handled:", err);
+      }
+    }
   }, [center, zoom, map]);
+  return null;
+}
+
+// Map Resizer to ensure map recalculates container dimensions on mount
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (map && map.getContainer()) {
+        try {
+          map.invalidateSize();
+        } catch (err) {
+          console.warn("invalidateSize safely handled:", err);
+        }
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [map]);
   return null;
 }
 
@@ -111,41 +135,72 @@ function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => v
 // Custom UI Overlays (Compass, Fullscreen)
 function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
   const map = useMap();
-  const toggleFullscreen = () => {
-    const container = map.getContainer();
-    if (!document.fullscreenElement) {
-      container.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
+  const controlsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (controlsRef.current) {
+      L.DomEvent.disableClickPropagation(controlsRef.current);
+      L.DomEvent.disableScrollPropagation(controlsRef.current);
     }
+  }, []);
+
+  const toggleFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const container = map.getContainer();
+      if (!document.fullscreenElement) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen().catch(() => {});
+        } else if ((container as any).webkitRequestFullscreen) {
+          (container as any).webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        }
+      }
+    } catch (err) {}
   };
 
-  const resetBearing = () => {
-    (map as any).setBearing && (map as any).setBearing(0);
-    map.setView(map.getCenter(), map.getZoom());
+  const resetBearing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if ((map as any).setBearing) {
+        (map as any).setBearing(0);
+      }
+      map.setView(map.getCenter(), map.getZoom());
+    } catch (err) {}
+  };
+
+  const handleLocateMe = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onLocateMe();
   };
 
   return (
-    <div className="leaflet-top leaflet-right mt-24 mr-2.5 flex flex-col gap-2 z-[1000]">
+    <div ref={controlsRef} className="leaflet-top leaflet-right mt-24 mr-2.5 flex flex-col gap-2 z-[1000] pointer-events-auto">
       <button
+        type="button"
         onClick={toggleFullscreen}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors pointer-events-auto"
+        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors"
         title="Toggle Fullscreen"
       >
         <Maximize className="w-4 h-4" />
       </button>
       <button
+        type="button"
         onClick={resetBearing}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors pointer-events-auto"
+        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors"
         title="Reset Compass (North)"
       >
         <Navigation className="w-4 h-4" style={{ transform: 'rotate(45deg)' }} />
       </button>
       <button
-        onClick={onLocateMe}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-blue-600 dark:text-blue-400 transition-colors pointer-events-auto"
+        type="button"
+        onClick={handleLocateMe}
+        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-blue-600 dark:text-blue-400 transition-colors"
         title="My Location"
       >
         <LocateFixed className="w-4 h-4" />
@@ -504,6 +559,7 @@ export function InteractiveFallbackMap({
         zoomControl={false}
       >
         <MapController center={mapCenter} zoom={zoomLevel} />
+        <MapResizer />
         <MapClickHandler onClick={handleMapClick} />
         <MapCustomControls onLocateMe={requestUserLocation} />
 

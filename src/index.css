@@ -35,6 +35,10 @@
 }
 
 @layer utilities {
+  .leaflet-div-icon {
+    background: transparent !important;
+    border: none !important;
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
