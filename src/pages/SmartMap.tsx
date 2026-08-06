@@ -5,9 +5,6 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import MarkerClusterGroup from 'react-leaflet-cluster';
-import "leaflet.markercluster/dist/MarkerCluster.css";
-import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { 
   ShieldAlert, AlertTriangle, Navigation, Info, X, MapPin, 
   HeartPulse, Shield, Zap, PhoneCall, Search, Loader2, 
@@ -1208,8 +1205,8 @@ export function SmartMap() {
           </LayerGroup>
         )}
 
-        {/* Clustered Places & Emergency Markers */}
-        <MarkerClusterGroup chunkedLoading maxClusterRadius={45}>
+        {/* Places & Emergency Markers */}
+        <LayerGroup>
           {filteredPlaces.map((place) => (
             <Marker
               key={place.id}
@@ -1232,7 +1229,7 @@ export function SmartMap() {
               </Popup>
             </Marker>
           ))}
-        </MarkerClusterGroup>
+        </LayerGroup>
 
       </MapContainer>
 

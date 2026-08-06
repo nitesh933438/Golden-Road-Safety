@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, LayerGroup, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import MarkerClusterGroup from 'react-leaflet-cluster';
-import "leaflet.markercluster/dist/MarkerCluster.css";
-import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { 
   ShieldAlert, Activity, Shield, MapPin, 
   Search, Loader2, Navigation, PhoneCall, AlertTriangle, X, Building2, AlertCircle, RefreshCw, LocateFixed, Maximize
@@ -661,8 +658,8 @@ export function InteractiveFallbackMap({
           </LayerGroup>
         )}
 
-        {/* Emergency Places Markers Clustered */}
-        <MarkerClusterGroup chunkedLoading maxClusterRadius={40}>
+        {/* Emergency Places Markers */}
+        <LayerGroup>
           {places.map((place) => (
             <Marker
               key={place.id}
@@ -688,7 +685,7 @@ export function InteractiveFallbackMap({
               </Popup>
             </Marker>
           ))}
-        </MarkerClusterGroup>
+        </LayerGroup>
       </MapContainer>
 
       {/* Selected Marker Action Card */}
