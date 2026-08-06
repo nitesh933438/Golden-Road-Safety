@@ -179,8 +179,51 @@ function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
     onLocateMe();
   };
 
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { 
+      if (map.getZoom() < map.getMaxZoom()) map.zoomIn(); 
+    } catch (err) {}
+  };
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { 
+      if (map.getZoom() > map.getMinZoom()) map.zoomOut(); 
+    } catch (err) {}
+  };
+
+  const isMaxZoom = map.getZoom() >= map.getMaxZoom();
+  const isMinZoom = map.getZoom() <= map.getMinZoom();
+
   return (
     <div ref={controlsRef} className="leaflet-top leaflet-right mt-24 mr-2.5 flex flex-col gap-2 z-[1000] pointer-events-auto">
+      <button
+        type="button"
+        onClick={handleZoomIn}
+        disabled={isMaxZoom}
+        className={`w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center shadow-md transition-colors ${
+          isMaxZoom ? "opacity-40 cursor-not-allowed text-surface-400" : "hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300"
+        }`}
+        title="Zoom In"
+      >
+        <span className="text-lg font-bold leading-none">+</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={handleZoomOut}
+        disabled={isMinZoom}
+        className={`w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center shadow-md transition-colors ${
+          isMinZoom ? "opacity-40 cursor-not-allowed text-surface-400" : "hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300"
+        }`}
+        title="Zoom Out"
+      >
+        <span className="text-lg font-bold leading-none">-</span>
+      </button>
+      
+      <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-1" />
+
       <button
         type="button"
         onClick={toggleFullscreen}
@@ -587,7 +630,6 @@ export function InteractiveFallbackMap({
           </LayersControl.BaseLayer>
         </LayersControl>
 
-        <ZoomControl position="bottomright" />
         <ScaleControl position="bottomleft" imperial={false} />
 
         {/* User GPS Location Marker */}

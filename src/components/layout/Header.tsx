@@ -5,7 +5,7 @@ import {
   User, CheckCircle2, ChevronDown, LogOut, Settings, 
   Bike, Award, Wifi, WifiOff, X, Sparkles, PhoneCall, 
   Check, Trash2, HeartPulse, Stethoscope, MapPin, Play,
-  ExternalLink, ArrowRight, ShieldCheck, Lock
+  ExternalLink, ArrowRight, ShieldCheck, Lock, Shield as ShieldIcon
 } from "lucide-react";
 import { useTheme } from "../theme/ThemeProvider";
 import { useNotifications, NotificationItem } from "../../context/NotificationContext";
@@ -13,7 +13,6 @@ import { useAuth } from "../../context/AuthContext";
 import { useOfflineSync } from "../../context/OfflineSyncContext";
 import { useDemo } from "../../context/DemoContext";
 import { SmartInput } from "../ui/SmartInput";
-import appLogo from "../../assets/images/goldenguard_app_logo_1785611320510.jpg";
 
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -102,13 +101,8 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
 
             {/* Brand Logo & Name */}
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="relative">
-                <img 
-                  src={appLogo} 
-                  alt="GoldenGuard Logo" 
-                  className="w-8 h-8 sm:w-9 sm:h-9 object-cover rounded-xl shadow-xs ring-2 ring-amber-500/30 group-hover:scale-105 transition-transform" 
-                  referrerPolicy="no-referrer"
-                />
+              <div className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500 text-white shadow-xs ring-2 ring-amber-500/30 group-hover:scale-105 transition-transform">
+                <ShieldIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-surface-900 rounded-full hidden sm:block"></span>
               </div>
               
@@ -524,7 +518,9 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
         <div className="fixed inset-0 z-50 bg-white/95 dark:bg-surface-950/95 backdrop-blur-2xl p-4 flex flex-col animate-in fade-in duration-200">
           <div className="flex items-center justify-between pb-4 border-b border-surface-200 dark:border-surface-800">
             <div className="flex items-center gap-2">
-              <img src={appLogo} alt="GoldenGuard" className="w-7 h-7 rounded-lg object-cover" />
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500 text-white">
+                 <ShieldIcon className="w-4 h-4" />
+              </div>
               <span className="font-black text-sm text-surface-900 dark:text-white">GoldenGuard Smart Search</span>
             </div>
             <button

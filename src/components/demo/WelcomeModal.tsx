@@ -1,9 +1,7 @@
 import React from "react";
-import { ShieldAlert, Play, LogIn, Info, Sparkles, HeartPulse, CheckCircle2, ArrowRight } from "lucide-react";
+import { ShieldAlert, Play, LogIn, Info, Sparkles, HeartPulse, CheckCircle2, ArrowRight, Shield as ShieldIcon } from "lucide-react";
 import { useDemo } from "../../context/DemoContext";
 import { useNavigate } from "react-router-dom";
-
-import appLogo from "../../assets/images/goldenguard_app_logo_1785611320510.jpg";
 
 export function WelcomeModal() {
   const { showWelcomeModal, setShowWelcomeModal, startTour, setDemoMode } = useDemo();
@@ -48,12 +46,9 @@ export function WelcomeModal() {
           </div>
 
           <div className="flex items-center gap-4 mb-2">
-            <img 
-              src={appLogo} 
-              alt="GoldenGuard Logo" 
-              className="w-14 h-14 rounded-2xl object-cover ring-4 ring-white/30 shadow-2xl shrink-0" 
-              referrerPolicy="no-referrer"
-            />
+            <div className="flex items-center justify-center w-14 h-14 bg-amber-500 rounded-2xl shadow-2xl shrink-0 ring-4 ring-white/30 text-white">
+              <ShieldIcon className="w-8 h-8" />
+            </div>
             <div>
               <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-none">
                 GoldenGuard

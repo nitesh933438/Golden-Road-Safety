@@ -34,10 +34,9 @@ import { GuidedDemoTour } from "../demo/GuidedDemoTour";
 import { AutoSOSModal } from "../crash/AutoSOSModal";
 import { CrashTopBanner } from "../crash/CrashTopBanner";
 import { SimulateCrashButton } from "../crash/SimulateCrashButton";
-import appLogo from "../../assets/images/goldenguard_app_logo_1785611320510.jpg";
 import { useAuth } from "../../context/AuthContext";
 
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, Shield as ShieldIcon } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -102,12 +101,9 @@ export function Layout() {
       >
         <div className="flex h-16 items-center px-6 border-b border-surface-800/60">
           <Link to="/" className="flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
-            <img 
-              src={appLogo} 
-              alt="GoldenGuard Logo" 
-              className="w-10 h-10 object-cover rounded-xl shadow-lg ring-2 ring-amber-500/40" 
-              referrerPolicy="no-referrer"
-            />
+            <div className="flex items-center justify-center w-10 h-10 bg-amber-500 text-white rounded-xl shadow-lg ring-2 ring-amber-500/40">
+              <ShieldIcon className="w-6 h-6" />
+            </div>
             <div>
               <span className="text-lg font-black tracking-tight text-white block leading-none">GoldenGuard</span>
               <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">Golden Hour Guardian</span>

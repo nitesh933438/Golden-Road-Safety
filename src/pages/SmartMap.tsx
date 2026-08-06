@@ -480,7 +480,13 @@ export function SmartMap() {
 
       if (realPlaces.length > 0) {
         setPlaces(prev => {
-          const customPlaces = prev.filter(p => p.type === "volunteer" || p.type === "hazard" || p.id.startsWith("fb-") || p.id.startsWith("report-"));
+          const customPlaces = prev.filter(p => 
+            p.type === "volunteer" || 
+            p.type === "hazard" || 
+            p.id.startsWith("fb-") || 
+            p.id.startsWith("report-") ||
+            p.id.startsWith("search-")
+          );
           const uniquePlaces = new Map();
           [...customPlaces, ...realPlaces].forEach(p => uniquePlaces.set(p.id, p));
           return Array.from(uniquePlaces.values());
@@ -577,20 +583,19 @@ export function SmartMap() {
       setGeoError("Offline mode: showing cached map.");
     };
     const handleOnline = () => {
-      if (geoError?.includes("Offline mode")) {
-        setGeoError(null);
-      }
+      setGeoError(prev => prev?.includes("Offline mode") ? null : prev);
     };
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
     };
-  }, [requestLocation, geoError]);
+  }, [requestLocation]);
 
   // Sync Firebase Hazards
   useEffect(() => {

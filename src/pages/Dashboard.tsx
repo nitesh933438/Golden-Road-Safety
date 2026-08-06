@@ -4,11 +4,9 @@ import {
   ShieldAlert, Activity, Users, AlertTriangle, 
   Map as MapIcon, Timer, Plus, Camera, Navigation, 
   HeartPulse, PhoneCall, FileText, ChevronRight,
-  Radio, Clock, CheckCircle2, ShieldCheck, Award, Stethoscope, Sparkles, Building2, Car, Bike
+  Radio, Clock, CheckCircle2, ShieldCheck, Award, Stethoscope, Sparkles, Building2, Car, Bike, Shield as ShieldIcon
 } from "lucide-react";
 import { EmergencySheet } from "../components/EmergencySheet";
-
-import appLogo from "../assets/images/goldenguard_app_logo_1785611320510.jpg";
 
 export function Dashboard() {
   const { demoMode } = useOutletContext<{ demoMode: boolean }>();
@@ -84,12 +82,9 @@ export function Dashboard() {
         <div className="relative z-20 p-8 sm:p-12 lg:p-14 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="max-w-2xl">
             <div className="flex items-center gap-3 mb-6">
-              <img 
-                src={appLogo} 
-                alt="GoldenGuard Official Logo" 
-                className="w-12 h-12 rounded-2xl object-cover ring-2 ring-amber-500/50 shadow-2xl"
-                referrerPolicy="no-referrer"
-              />
+              <div className="flex items-center justify-center w-12 h-12 bg-amber-500 text-white rounded-2xl shadow-2xl ring-2 ring-amber-500/50">
+                <ShieldIcon className="w-8 h-8" />
+              </div>
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5 animate-spin" />
                 Golden Hour Emergency Network Active

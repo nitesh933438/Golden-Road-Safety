@@ -11,10 +11,9 @@ import {
   Rocket,
   Layers,
   Globe,
-  Database
+  Database,
+  Shield as ShieldIcon
 } from "lucide-react";
-
-import appLogo from "../assets/images/goldenguard_app_logo_1785611320510.jpg";
 
 export function About() {
   const TECH_STACK = [
@@ -53,12 +52,9 @@ export function About() {
         
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="flex items-center gap-4 mb-2">
-            <img 
-              src={appLogo} 
-              alt="GoldenGuard Official Emblem" 
-              className="w-14 h-14 rounded-2xl object-cover ring-4 ring-amber-500/40 shadow-2xl shrink-0" 
-              referrerPolicy="no-referrer"
-            />
+            <div className="flex items-center justify-center w-14 h-14 bg-amber-500 text-white rounded-2xl shadow-2xl shrink-0 ring-4 ring-amber-500/40">
+              <ShieldIcon className="w-8 h-8" />
+            </div>
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider border border-amber-500/30 mb-1">
                 <Sparkles className="w-3.5 h-3.5" /> Hackathon Architectural Blueprint
