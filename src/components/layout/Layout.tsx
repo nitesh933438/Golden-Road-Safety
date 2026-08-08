@@ -119,7 +119,7 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="flex h-screen w-full bg-surface-950 overflow-hidden font-sans relative">
+    <div className="flex h-screen w-full bg-surface-50 dark:bg-surface-950 overflow-hidden font-sans relative">
       {/* Full-screen Fixed Animated Road Safety Background */}
       <RoadSafetyBackground />
 
@@ -303,7 +303,7 @@ export function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 bg-surface-950/60 backdrop-blur-[2px] h-full overflow-hidden relative z-10">
+      <div className="flex flex-col flex-1 min-w-0 bg-surface-50/80 dark:bg-surface-950/60 backdrop-blur-[2px] h-full overflow-hidden relative z-10">
         <CrashTopBanner />
 
         {/* Header */}

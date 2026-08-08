@@ -93,10 +93,18 @@ export function RoadSafetyAnimatedBackground() {
       const horizonY = height * 0.48;
       const vanishingX = width * 0.5;
 
+      const isDark = document.documentElement.classList.contains("dark");
+
       const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
-      skyGrad.addColorStop(0, "#01030a");
-      skyGrad.addColorStop(0.6, "#040918");
-      skyGrad.addColorStop(1, "#0a1329");
+      if (isDark) {
+        skyGrad.addColorStop(0, "#01030a");
+        skyGrad.addColorStop(0.6, "#040918");
+        skyGrad.addColorStop(1, "#0a1329");
+      } else {
+        skyGrad.addColorStop(0, "#f8fafc");
+        skyGrad.addColorStop(0.6, "#e2e8f0");
+        skyGrad.addColorStop(1, "#cbd5e1");
+      }
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, width, horizonY);
 

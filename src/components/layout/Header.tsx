@@ -76,7 +76,8 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
   }, []);
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    const isDark = document.documentElement.classList.contains("dark");
+    setTheme(isDark ? "light" : "dark");
   };
 
   const filteredNotifications = notifications.filter(n => {

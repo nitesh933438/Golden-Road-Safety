@@ -291,7 +291,7 @@ export function MedicalWallet() {
                 First responders and paramedics can scan this QR code directly from your printed badge or lockscreen to view your Medical ID instantly.
               </p>
 
-              <div className="p-4 bg-white rounded-2xl border border-surface-200 flex justify-center shadow-inner">
+              <div className="p-4 bg-white dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700 flex justify-center shadow-inner">
                 <QRCodeSVG value={emergencyViewUrl} size={160} level="M" />
               </div>
 
@@ -699,13 +699,13 @@ export function MedicalWallet() {
       {/* QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-surface-900 border border-surface-800 p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 text-center text-white shadow-2xl relative">
+          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 text-center text-surface-900 dark:text-white shadow-2xl relative">
             <div className="space-y-1">
-              <h3 className="text-xl font-black text-white">Emergency QR Badge</h3>
-              <p className="text-xs text-surface-400">Scan code with any standard smartphone camera to view medical parameters instantly.</p>
+              <h3 className="text-xl font-black text-surface-900 dark:text-white">Emergency QR Badge</h3>
+              <p className="text-xs text-surface-500 dark:text-surface-400">Scan code with any standard smartphone camera to view medical parameters instantly.</p>
             </div>
 
-            <div className="p-6 bg-white rounded-2xl inline-block mx-auto shadow-xl">
+            <div className="p-6 bg-white dark:bg-surface-800 rounded-2xl inline-block mx-auto shadow-xl border border-surface-200 dark:border-surface-700">
               <QRCodeSVG value={emergencyViewUrl} size={200} level="H" includeMargin={true} />
             </div>
 

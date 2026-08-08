@@ -78,12 +78,12 @@ export function EmergencyCallBanner({
         setStatusMessage("✓ Emergency alert sent successfully");
       } else {
         setSendingStatus("failed");
-        setStatusMessage("✕ Emergency alert could not be sent. Please call emergency services.");
+        setStatusMessage(`✕ ${data.message || "Emergency alert could not be sent. Please call emergency services."}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Automatic SOS Dispatch Error:", error);
       setSendingStatus("failed");
-      setStatusMessage("✕ Emergency alert could not be sent. Please call emergency services.");
+      setStatusMessage(`✕ Emergency alert could not be sent: ${error?.message || "Network error"}`);
     } finally {
       // Apply anti-spam cooldown (15 seconds)
       setCooldown(true);
