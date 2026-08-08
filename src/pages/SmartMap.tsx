@@ -5,6 +5,8 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import { 
   ShieldAlert, Navigation, Info, X, MapPin, 
   PhoneCall, Search, Loader2, Users, Car,

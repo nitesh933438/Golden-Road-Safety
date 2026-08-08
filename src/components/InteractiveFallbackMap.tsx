@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, LayerGroup, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import { 
   ShieldAlert, Activity, Shield, MapPin, 
   Search, Loader2, Navigation, PhoneCall, AlertTriangle, X, Building2, AlertCircle, RefreshCw, LocateFixed, Maximize
