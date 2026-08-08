@@ -10,6 +10,37 @@ async function startServer() {
 
   app.use(express.json());
 
+  // CORS Middleware for external domains (e.g. Vercel)
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      "https://golden-road-safety-git-main-nitesh933438-2748s-projects.vercel.app",
+      "https://ais-dev-ovmzp75riuv2xh7szzuj77-278316738541.asia-southeast1.run.app",
+      "https://ais-pre-ovmzp75riuv2xh7szzuj77-278316738541.asia-southeast1.run.app",
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ];
+
+    if (origin) {
+      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      } else {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+      }
+    } else {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
+
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });

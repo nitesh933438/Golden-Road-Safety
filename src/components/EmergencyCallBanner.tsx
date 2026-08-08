@@ -4,10 +4,12 @@ import {
   TEST_EMERGENCY_NUMBER, 
   TEST_EMERGENCY_LABEL, 
   triggerEmergencyCall, 
+  triggerEmergencySMS,
   generateSOSMessage, 
   copyTextToClipboard, 
   isMobileDevice 
 } from "../lib/emergencyCall";
+import { getApiUrl } from "../lib/api";
 
 interface EmergencyCallBannerProps {
   onCancel?: () => void;
@@ -59,7 +61,7 @@ export function EmergencyCallBanner({
     setStatusMessage("Sending emergency alert...");
 
     try {
-      const response = await fetch("/api/emergency/sos", {
+      const response = await fetch(getApiUrl("/api/emergency/sos"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -151,9 +153,18 @@ export function EmergencyCallBanner({
               </span>
             )}
             {sendingStatus === "failed" && (
-              <span className="block text-[11px] font-normal text-red-200/90">
-                Automatic dispatch encountered an issue. Please use Call Now or manual backup.
-              </span>
+              <div className="space-y-2 mt-1.5">
+                <span className="block text-[11px] font-normal text-red-200/90">
+                  Automatic dispatch encountered an issue (such as Twilio trial/template restrictions). You can trigger sending via your device's native SMS app instead.
+                </span>
+                <button
+                  onClick={() => triggerEmergencySMS(TEST_EMERGENCY_NUMBER, sosMessage)}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-black rounded-lg transition-all flex items-center gap-1.5 shadow-md active:scale-95"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Send SMS via Device (Manual Backup)</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -14,6 +14,7 @@ import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EME
 import { useAuth } from "../context/AuthContext";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { getApiUrl } from "../lib/api";
 
 export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const navigate = useNavigate();
@@ -102,7 +103,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
     let backendResult: any = null;
 
     try {
-      const response = await fetch("/api/emergency/sos", {
+      const response = await fetch(getApiUrl("/api/emergency/sos"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -129,7 +130,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
         location: coords || "Location unavailable",
         address: location,
         emergencyContact: TEST_EMERGENCY_NUMBER,
-        status: smsStatus === "SENT" ? "active" : "failed",
+        status: "active",
         smsStatus,
         emergencyType: type,
         createdAt: serverTimestamp(),

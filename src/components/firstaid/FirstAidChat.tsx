@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Mic, SquareSquare, Volume2, ShieldAlert, WifiOff } from "lucide-react";
 import { OFFLINE_AI_GUIDES } from "../../lib/offlineStore";
+import { getApiUrl } from "../../lib/api";
 
 export function FirstAidChat({ category }: { category: string | null }) {
   const [messages, setMessages] = useState<{ role: 'user' | 'model'; content: string }[]>([
@@ -107,7 +108,7 @@ ${matchedGuide.precautions}
     }
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, LogIn, Mail, Lock, User, ShieldCheck, CheckCircle2, AlertCircle, LogOut } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { getFriendlyAuthErrorMessage } from "../../lib/authUtils";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -34,13 +35,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       await loginWithGoogle();
       onClose();
     } catch (err: any) {
-      if (err.code === "auth/popup-closed-by-user") {
-         setError("Popup closed. If you are in the preview, please open the app in a new tab to use Google Sign-In, or use Email/Password.");
-      } else if (err.code === "auth/unauthorized-domain") {
-         setError("Domain not authorized for Google Sign-In. Please use Email/Password.");
-      } else {
-         setError(err.message || "Google Sign-In failed.");
-      }
+      setError(getFriendlyAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }

@@ -11,6 +11,7 @@ import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EME
 import { useAuth } from "../context/AuthContext";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { getApiUrl } from "../lib/api";
 
 export function SOS() {
   const { userProfile } = useAuth();
@@ -95,7 +96,7 @@ export function SOS() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
         
-        const response = await fetch("/api/emergency/sos", {
+        const response = await fetch(getApiUrl("/api/emergency/sos"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -133,21 +134,28 @@ export function SOS() {
         }
 
         if (!response.ok) {
-          throw new Error(data?.error || data?.message || `SOS request failed with status ${response.status}.`);
+          smsStatus = "FAILED";
+          apiSmsFailed = true;
+          const errorMsg = data?.error || data?.message || `SOS request failed with status ${response.status}.`;
+          console.warn("SOS API returned non-ok response:", errorMsg);
+          setSosError(`SMS notification could not be dispatched automatically: ${errorMsg}`);
+        } else {
+          smsStatus = data && data.success ? "SENT" : "FAILED";
+          if (smsStatus === "FAILED") {
+            apiSmsFailed = true;
+            setSosError(`SMS dispatch failed: ${data?.message || "Unknown error."}`);
+          }
         }
-
-        smsStatus = data && data.success ? "SENT" : "FAILED";
-        if (smsStatus === "FAILED") apiSmsFailed = true;
         console.log("SOS API response:", data);
       } catch (err: any) {
+        smsStatus = "FAILED";
+        apiSmsFailed = true;
         if (err.name === 'AbortError') {
           console.error("Backend SOS request timed out.");
-          setSosError("SOS server did not respond. Please try again.");
-          throw err;
+          setSosError("SOS server did not respond. SMS notification failed.");
         } else {
           console.error("Backend SOS request failed in SOS page:", err);
-          setSosError("SOS service is temporarily unavailable.");
-          throw err;
+          setSosError(`SOS SMS dispatch failed: ${err.message || "SOS service is temporarily unavailable."}`);
         }
       }
 
@@ -158,7 +166,7 @@ export function SOS() {
         coords: currentCoords || { lat: loc.lat, lng: loc.lng },
         severity: "CRITICAL",
         emergencyContact: TEST_EMERGENCY_NUMBER,
-        status: smsStatus === "SENT" ? "Active" : "Failed",
+        status: "active",
         smsStatus,
         type: "1-Tap SOS Emergency Dispatch",
         triggeredAt: new Date().toISOString(),

@@ -66,10 +66,15 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
           more_info: errMoreInfo,
         });
 
+        let friendlyMessage = `Emergency alert could not be sent: ${errMessage}`;
+        if (errMessage.toLowerCase().includes("template") || errMessage.toLowerCase().includes("trial")) {
+          friendlyMessage = `Twilio trial account restriction: Trial accounts can only use predefined SMS templates. Please use the "Send SMS via Device" manual backup option on your screen.`;
+        }
+
         return {
           success: false,
           status: "FAILED",
-          message: `Emergency alert could not be sent: ${errMessage}`,
+          message: friendlyMessage,
           providerResponse: data,
         };
       }

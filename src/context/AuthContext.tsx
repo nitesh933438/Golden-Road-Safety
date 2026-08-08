@@ -86,50 +86,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Listen to Firestore User Document in real-time
         const unsubDoc = onSnapshot(userRef, async (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data() as UserProfile;
-            
-            // Determine role: Google Login with ADMIN_EMAIL gets "admin". Otherwise preserve stored role from Firestore!
-            const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
-            const calculatedRole: AppRole = (isGoogleProvider && user.email === ADMIN_EMAIL) 
-              ? "admin" 
-              : (data.role || "user");
+          try {
+            if (snapshot.exists()) {
+              const data = snapshot.data() as UserProfile;
+              
+              // Determine role: Google Login with ADMIN_EMAIL gets "admin". Otherwise preserve stored role from Firestore!
+              const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
+              const calculatedRole: AppRole = (isGoogleProvider && user.email === ADMIN_EMAIL) 
+                ? "admin" 
+                : (data.role || "user");
 
-            setUserProfile({
-              ...data,
-              role: calculatedRole
-            });
-          } else {
-            // First time registration doc creation
-            const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
-            const assignedRole = (isGoogleProvider && user.email === ADMIN_EMAIL) ? "admin" : "user";
+              setUserProfile({
+                ...data,
+                role: calculatedRole
+              });
+            } else {
+              // First time registration doc creation
+              const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
+              const assignedRole = (isGoogleProvider && user.email === ADMIN_EMAIL) ? "admin" : "user";
 
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              name: user.displayName || user.email?.split("@")[0] || "Good Samaritan",
-              email: user.email || "",
-              phone: user.phoneNumber || "+91 98765 43210",
-              role: assignedRole,
-              provider: isGoogleProvider ? "google" : "password",
-              photoURL: user.photoURL || "",
-              city: "New Delhi",
-              state: "Delhi NCR",
-              bloodGroup: "O+",
-              createdAt: serverTimestamp(),
-              lastLogin: serverTimestamp(),
-              isOnline: true,
-              emergencyContacts: [
-                { name: "Family Emergency", phone: "+91 98765 00000", relation: "Family" }
-              ],
-              settings: {
-                notifications: true,
-                locationSharing: true,
-                autoSOS: true
-              }
-            };
+              const newProfile: UserProfile = {
+                uid: user.uid,
+                name: user.displayName || user.email?.split("@")[0] || "Good Samaritan",
+                email: user.email || "",
+                phone: user.phoneNumber || "+91 98765 43210",
+                role: assignedRole,
+                provider: isGoogleProvider ? "google" : "password",
+                photoURL: user.photoURL || "",
+                city: "New Delhi",
+                state: "Delhi NCR",
+                bloodGroup: "O+",
+                createdAt: serverTimestamp(),
+                lastLogin: serverTimestamp(),
+                isOnline: true,
+                emergencyContacts: [
+                  { name: "Family Emergency", phone: "+91 98765 00000", relation: "Family" }
+                ],
+                settings: {
+                  notifications: true,
+                  locationSharing: true,
+                  autoSOS: true
+                }
+              };
 
-            await setDoc(userRef, newProfile);
-            setUserProfile(newProfile);
+              await setDoc(userRef, newProfile);
+              setUserProfile(newProfile);
+            }
+          } catch (snapshotErr) {
+            console.error("Error setting/retrieving user profile in snapshot:", snapshotErr);
           }
         }, (err) => {
           console.warn("Firestore user snapshot note:", err.message);
@@ -185,8 +189,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           settings: { notifications: true, locationSharing: true, autoSOS: true }
         });
       } else {
+        const existingData = docSnap.data();
+        const existingRole = existingData?.role || "user";
+        const finalRole = (user.email === ADMIN_EMAIL) ? "admin" : existingRole;
         await updateDoc(userRef, {
-          role: assignedRole,
+          role: finalRole,
           provider: "google",
           lastLogin: serverTimestamp(),
           isOnline: true
