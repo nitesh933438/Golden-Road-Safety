@@ -431,24 +431,61 @@ export function InteractiveFallbackMap({
     }
   }, [userLocation]);
 
-  // Handle Nominatim Location Search
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // Handle Nominatim Location Search (Debounced)
+  const searchControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      handleSearch();
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) return;
+
+    if (searchControllerRef.current) {
+      searchControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    searchControllerRef.current = controller;
 
     setIsSearching(true);
+    setSearchError(null);
+    setHasSearched(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=10`, {
+        signal: controller.signal
+      });
+      if (!res.ok) throw new Error("API error");
       const data = await res.json();
       setSearchResults(data);
-    } catch (err) {
-      console.error("Failed to search OpenStreetMap:", err);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error("Failed to search OpenStreetMap:", err);
+        setSearchError("Search service temporarily unavailable.");
+      }
     } finally {
-      setIsSearching(false);
+      if (searchControllerRef.current === controller) {
+        setIsSearching(false);
+      }
     }
   };
 
   const selectSearchResult = (result: any) => {
+    setHasSearched(false);
+    setSearchError(null);
     const lat = parseFloat(result.lat);
     const lng = parseFloat(result.lon);
     
@@ -465,7 +502,7 @@ export function InteractiveFallbackMap({
     setPlaces(prev => [newPlace, ...prev]);
     setSelectedPlace(newPlace);
     setMapCenter([lat, lng]);
-    setZoomLevel(13);
+    setZoomLevel(15);
     setSearchResults([]);
     setSearchQuery("");
   };
@@ -501,7 +538,13 @@ export function InteractiveFallbackMap({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white/95 dark:bg-surface-900/95 backdrop-blur-md text-surface-900 dark:text-white pl-10 pr-10 py-3 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
             />
-            <Search className="w-4 h-4 text-surface-400 absolute left-3.5" />
+            <button 
+              type="submit"
+              className="absolute left-3.5 text-surface-400 hover:text-surface-600 focus:outline-none p-1 z-10"
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
             {isSearching ? (
               <Loader2 className="w-4 h-4 text-amber-500 absolute right-3.5 animate-spin" />
             ) : searchQuery && (
@@ -517,7 +560,7 @@ export function InteractiveFallbackMap({
 
           {/* Search Autocomplete Results */}
           {searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 overflow-hidden max-h-60 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 overflow-hidden max-h-60 overflow-y-auto z-[1010]">
               {searchResults.map((item, i) => (
                 <button
                   key={i}
@@ -532,6 +575,25 @@ export function InteractiveFallbackMap({
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {searchError && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 p-4 text-center z-[1010]">
+              <div className="text-red-500 text-xs font-bold mb-2">{searchError}</div>
+              <button 
+                type="button" 
+                onClick={handleSearch}
+                className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-lg"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!isSearching && hasSearched && searchResults.length === 0 && !searchError && searchQuery.trim().length >= 3 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 p-4 text-center z-[1010]">
+              <div className="text-surface-500 text-xs font-bold">No places found</div>
             </div>
           )}
         </form>

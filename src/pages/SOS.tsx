@@ -23,6 +23,8 @@ export function SOS() {
   const [medicalID, setMedicalID] = useState<MedicalIDData>(() => getLocalMedicalID());
   const { sensorActive, toggleSensorActive } = useCrashDetection();
   const { isOnline, queueItem } = useOfflineSync();
+  const [isProcessingSOS, setIsProcessingSOS] = useState(false);
+  const [sosError, setSosError] = useState<string | null>(null);
 
   useEffect(() => {
     setMedicalID(getLocalMedicalID());
@@ -32,94 +34,175 @@ export function SOS() {
   useEffect(() => {
     const searchParams = new URLSearchParams(pageLocation.search);
     if (searchParams.get("active") === "true" || searchParams.get("autoTrigger") === "true") {
-      activateEmergency();
+      if (!isProcessingSOS && !sosActive) {
+        activateEmergency();
+      }
     }
   }, [pageLocation.search]);
 
-  const fetchGPSLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setLocationError(null);
-        },
-        (err) => {
-          console.error("GPS Position Error:", err);
-          setLocationError("Location permission is unavailable.");
-          setCoords(null);
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    } else {
-      setLocationError("Location permission is unavailable.");
-      setCoords(null);
-    }
+  const getGPSLocationAsync = (): Promise<{lat: number, lng: number} | null> => {
+    return new Promise((resolve) => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude)) {
+              resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            } else {
+              resolve(null);
+            }
+          },
+          (err) => {
+            console.error("GPS Position Error:", err);
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      } else {
+        resolve(null);
+      }
+    });
   };
 
   const activateEmergency = async () => {
-    setSosActive(true);
-    fetchGPSLocation();
+    if (isProcessingSOS) return;
+    setIsProcessingSOS(true);
+    setSosError(null);
 
-    const sosMsg = generateSOSMessage({
-      userName: userProfile?.name || "GoldenGuard Test User",
-      coords,
-    });
-
-    let smsStatus = "PENDING";
     try {
-      const response = await fetch("/api/emergency/sos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: TEST_EMERGENCY_NUMBER,
-          latitude: coords ? coords.lat : "Location unavailable",
-          longitude: coords ? coords.lng : "Location unavailable",
-          timestamp: new Date().toISOString(),
-          message: sosMsg,
-        }),
-      });
-      const data = await response.json();
-      smsStatus = response.ok && data.success ? "SENT" : "FAILED";
-    } catch (err) {
-      console.error("Backend SOS request failed in SOS page:", err);
-      smsStatus = "FAILED";
-    }
-
-    const loc = getLastLocation();
-    const sosRecord = {
-      userId: userProfile?.uid || "anonymous",
-      location: loc.address,
-      coords: coords || { lat: loc.lat, lng: loc.lng },
-      severity: "CRITICAL",
-      emergencyContact: TEST_EMERGENCY_NUMBER,
-      status: smsStatus === "SENT" ? "Active" : "Failed",
-      smsStatus,
-      type: "1-Tap SOS Emergency Dispatch",
-      triggeredAt: new Date().toISOString(),
-    };
-
-    if (!isOnline) {
-      await queueItem("sos", sosRecord);
-      setOfflineSaved(true);
-    } else {
-      setOfflineSaved(false);
-      try {
-        await addDoc(collection(db, "emergencies"), {
-          ...sosRecord,
-          createdAt: serverTimestamp(),
-        });
-      } catch (e) {
-        console.error("Failed to write emergency to Firestore:", e);
+      let currentCoords = coords;
+      if (!currentCoords) {
+        const freshCoords = await getGPSLocationAsync();
+        if (freshCoords) {
+          currentCoords = freshCoords;
+          setCoords(freshCoords);
+          setLocationError(null);
+        } else {
+          setLocationError("Location permission is required to send SOS.");
+          throw new Error("Unable to determine a valid location.");
+        }
       }
+
+      const sosMsg = generateSOSMessage({
+        userName: userProfile?.name || "GoldenGuard Test User",
+        coords: currentCoords,
+      });
+
+      let smsStatus = "PENDING";
+      let data: any = null;
+      let apiSmsFailed = false;
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        
+        const response = await fetch("/api/emergency/sos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: TEST_EMERGENCY_NUMBER,
+            latitude: currentCoords ? currentCoords.lat : "Location unavailable",
+            longitude: currentCoords ? currentCoords.lng : "Location unavailable",
+            timestamp: new Date().toISOString(),
+            message: sosMsg,
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
+        const contentType = response.headers.get("content-type") || "";
+        
+        if (contentType.includes("application/json")) {
+          const text = await response.text();
+          if (text.trim()) {
+            try {
+              data = JSON.parse(text);
+            } catch (e) {
+              console.error("Invalid JSON returned by SOS API:", text);
+              throw new Error("SOS server returned invalid JSON.");
+            }
+          }
+        } else {
+          const text = await response.text();
+          console.error("SOS API returned non-JSON response:", {
+            status: response.status,
+            statusText: response.statusText,
+            body: text.substring(0, 500)
+          });
+          throw new Error(`SOS server returned an unexpected response (${response.status}).`);
+        }
+
+        if (!response.ok) {
+          throw new Error(data?.error || data?.message || `SOS request failed with status ${response.status}.`);
+        }
+
+        smsStatus = data && data.success ? "SENT" : "FAILED";
+        if (smsStatus === "FAILED") apiSmsFailed = true;
+        console.log("SOS API response:", data);
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.error("Backend SOS request timed out.");
+          setSosError("SOS server did not respond. Please try again.");
+          throw err;
+        } else {
+          console.error("Backend SOS request failed in SOS page:", err);
+          setSosError("SOS service is temporarily unavailable.");
+          throw err;
+        }
+      }
+
+      const loc = getLastLocation();
+      const sosRecord = {
+        userId: userProfile?.uid || "anonymous",
+        location: loc.address || "Location name temporarily unavailable.",
+        coords: currentCoords || { lat: loc.lat, lng: loc.lng },
+        severity: "CRITICAL",
+        emergencyContact: TEST_EMERGENCY_NUMBER,
+        status: smsStatus === "SENT" ? "Active" : "Failed",
+        smsStatus,
+        type: "1-Tap SOS Emergency Dispatch",
+        triggeredAt: new Date().toISOString(),
+      };
+
+      if (!isOnline) {
+        await queueItem("sos", sosRecord);
+        setOfflineSaved(true);
+        setSosActive(true);
+      } else {
+        setOfflineSaved(false);
+        try {
+          await addDoc(collection(db, "emergencies"), {
+            ...sosRecord,
+            createdAt: serverTimestamp(),
+          });
+          setSosActive(true);
+          if (apiSmsFailed) {
+            setSosError("Emergency record created, but SMS notification failed.");
+          }
+        } catch (e) {
+          console.error("Failed to write emergency to Firestore:", e);
+          setSosError("Unable to create the emergency record.");
+          throw e;
+        }
+      }
+    } catch (e: any) {
+      if (!sosError) {
+        setSosError(e.message || "Failed to process SOS.");
+      }
+    } finally {
+      setIsProcessingSOS(false);
     }
   };
 
   const toggleSOS = async () => {
     if (!sosActive) {
-      await activateEmergency();
+      if (!isProcessingSOS) {
+        await activateEmergency();
+      }
     } else {
       setSosActive(false);
       setOfflineSaved(false);
+      setSosError(null);
     }
   };
 
@@ -184,25 +267,48 @@ export function SOS() {
 
       <button 
         onClick={toggleSOS}
+        disabled={isProcessingSOS}
         className={`relative z-10 w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl ${
           sosActive 
             ? "bg-red-600 text-white shadow-red-600/50 scale-110" 
+            : isProcessingSOS
+            ? "bg-amber-500 text-black shadow-amber-500/50 scale-105 cursor-wait"
             : "bg-surface-100 dark:bg-surface-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:scale-105"
         }`}
       >
-        <ShieldAlert className={`w-16 h-16 sm:w-20 sm:h-20 ${sosActive ? "animate-pulse" : ""}`} />
+        <ShieldAlert className={`w-16 h-16 sm:w-20 sm:h-20 ${sosActive || isProcessingSOS ? "animate-pulse" : ""}`} />
       </button>
       
       <div className="space-y-3 relative z-10">
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-surface-900 dark:text-white">
-          {sosActive ? "Manual SOS Activated" : "Emergency SOS"}
+          {isProcessingSOS ? "Sending SOS..." : sosActive ? "Manual SOS Activated" : "Emergency SOS"}
         </h1>
         <p className="text-lg text-surface-600 dark:text-surface-400 max-w-lg mx-auto">
-          {sosActive 
+          {isProcessingSOS
+            ? "Acquiring location and alerting emergency responders..."
+            : sosActive 
             ? "Emergency contacts and nearby responders have been alerted. Stay calm, help is on the way." 
             : "If you are in immediate danger, tap the shield to broadcast your location to responders."}
         </p>
       </div>
+
+      {sosError && (
+        <div className="w-full bg-red-500/10 border border-red-500/50 p-4 rounded-xl flex items-center gap-3 text-left">
+          <AlertTriangle className="w-6 h-6 text-red-500 shrink-0" />
+          <div className="text-sm font-medium text-red-600 dark:text-red-400">
+            {sosError}
+          </div>
+        </div>
+      )}
+
+      {locationError && !sosError && (
+        <div className="w-full bg-amber-500/10 border border-amber-500/50 p-4 rounded-xl flex items-center gap-3 text-left">
+          <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />
+          <div className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            {locationError}
+          </div>
+        </div>
+      )}
 
       {sosActive && offlineSaved && (
         <div className="w-full bg-amber-500/10 border-2 border-amber-500/40 p-4 rounded-2xl flex items-center gap-3 text-left animate-in fade-in duration-300">

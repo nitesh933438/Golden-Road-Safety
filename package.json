@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "preview": "vite preview",
+    "start": "node dist/server.cjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "autoprefixer": "^10.4.21",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "firebase": "^12.17.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
@@ -39,5 +41,10 @@
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.23.11"
   }
 }

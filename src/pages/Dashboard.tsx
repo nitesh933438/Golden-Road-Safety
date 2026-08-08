@@ -8,6 +8,7 @@ import {
   Bell, TrendingUp, Zap, AlertCircle, Eye, ArrowUpRight, Check, Compass, RadioTower
 } from "lucide-react";
 import { EmergencySheet } from "../components/EmergencySheet";
+import { Logo } from "../components/ui/Logo";
 
 export function Dashboard() {
   const { demoMode } = useOutletContext<{ demoMode: boolean }>() || { demoMode: true };
@@ -144,9 +145,7 @@ export function Dashboard() {
         <div className="relative z-20 p-5 sm:p-7 lg:p-8 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
           <div className="max-w-3xl space-y-3">
             <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex items-center justify-center w-9 h-9 bg-gradient-to-br from-amber-400 to-amber-600 text-black rounded-xl shadow-lg ring-2 ring-amber-500/40 shrink-0">
-                <ShieldIcon className="w-5 h-5" />
-              </div>
+              <Logo size="sm" showWordmark={false} />
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5 animate-spin text-amber-400" />
                 Golden Hour Emergency Network Active

@@ -145,7 +145,7 @@ export function TrainerDashboard() {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as TrainerTab)}
+            onClick={() => { setActiveTab(tab.id as TrainerTab); setSearchQuery(""); }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === tab.id
                 ? "bg-amber-500 text-black shadow-md font-extrabold"
@@ -183,7 +183,11 @@ export function TrainerDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sessions.map((sess) => (
+              {sessions.filter(sess => 
+                sess.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                sess.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                sess.status.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map((sess) => (
                 <div key={sess.id} className="p-5 rounded-2xl bg-surface-50 dark:bg-surface-850 border border-surface-200 dark:border-surface-700/80 space-y-4 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">
@@ -228,10 +232,21 @@ export function TrainerDashboard() {
         {/* Tab 2: Trainees */}
         {activeTab === "trainees" && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="text-lg font-black text-surface-900 dark:text-white">Trainee Directory & Evaluation</h2>
                 <p className="text-xs text-surface-500">Track progress, review scores, and verify CPR skill readiness.</p>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+                <input
+                  type="text"
+                  placeholder="Search trainees..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500"
+                />
               </div>
             </div>
 
@@ -247,7 +262,11 @@ export function TrainerDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-100 dark:divide-surface-800">
-                  {trainees.map((trn) => (
+                  {trainees.filter(trn => 
+                    trn.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    trn.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    trn.course.toLowerCase().includes(searchQuery.toLowerCase())
+                  ).map((trn) => (
                     <tr key={trn.id} className="hover:bg-surface-50 dark:hover:bg-surface-850">
                       <td className="py-3 px-4">
                         <div className="font-bold text-surface-900 dark:text-white">{trn.name}</div>

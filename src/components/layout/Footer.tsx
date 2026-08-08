@@ -1,6 +1,6 @@
 import React from "react";
-import { ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Logo } from "../ui/Logo";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,12 +9,7 @@ export function Footer() {
     <footer className="mt-auto border-t border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 pt-12 pb-8 px-4 sm:px-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
         <div className="col-span-1 md:col-span-2 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500 text-white font-bold">
-              G
-            </div>
-            <span className="text-xl font-bold tracking-tight text-surface-900 dark:text-white">GoldenGuard</span>
-          </div>
+          <Logo size="md" />
           <p className="text-sm text-surface-500 dark:text-surface-400 max-w-sm">
             AI-Powered Road Safety & Golden Hour Response Platform. Empowering communities to save lives.
           </p>

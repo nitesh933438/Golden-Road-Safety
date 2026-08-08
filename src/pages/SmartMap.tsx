@@ -12,25 +12,26 @@ import {
   PhoneCall, Search, Loader2, Users, Car,
   Sparkles, Stethoscope, RefreshCw, Radio, LocateFixed, Maximize,
   Compass, ZoomIn, ZoomOut, Target, HeartPulse, Shield, Filter, Plus,
-  AlertTriangle
+  AlertTriangle, Flame, Building2, CheckCircle2, Phone, Award
 } from "lucide-react";
-import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useTheme } from "../components/theme/ThemeProvider";
 import { useOutletContext } from "react-router-dom";
-import { SmartInput } from "../components/ui/SmartInput";
-import { InteractiveFallbackMap } from "../components/InteractiveFallbackMap";
 
 // --- Types ---
 interface MapPlace {
   id: string;
   name: string;
-  type: "hospital" | "police" | "volunteer" | "hazard" | "user" | "search" | "petrol" | "school";
+  type: "hospital" | "police" | "volunteer" | "hazard" | "user" | "search" | "ambulance" | "fire" | "blood" | "pharmacy";
   lat: number;
   lng: number;
   vicinity?: string;
   phone?: string;
+  rating?: number;
+  isOpen?: boolean;
   bedsAvailable?: number;
+  distanceKm?: number;
 }
 
 interface RouteData {
@@ -43,8 +44,8 @@ interface RouteData {
 }
 
 // --- Constants ---
-const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
-const DEFAULT_ZOOM = 5;
+const INDIA_CENTER: [number, number] = [28.6139, 77.2090]; // New Delhi center for emergency responsiveness
+const DEFAULT_ZOOM = 13;
 
 // --- Icon Generator ---
 const iconCache: Record<string, L.DivIcon> = {};
@@ -56,14 +57,14 @@ const getCustomIcon = (type: MapPlace["type"]) => {
     iconCache[type] = L.divIcon({
       className: "custom-leaflet-user-marker",
       html: `<div class="relative flex items-center justify-center">
-          <div class="absolute w-12 h-12 bg-red-500/40 rounded-full animate-ping"></div>
-          <div class="w-8 h-8 bg-red-600 border-2 border-white rounded-full shadow-2xl flex items-center justify-center text-white">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+          <div class="absolute w-14 h-14 bg-red-500/40 rounded-full animate-ping"></div>
+          <div class="w-9 h-9 bg-red-600 border-2 border-white rounded-full shadow-2xl flex items-center justify-center text-white font-bold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
           </div>
         </div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -32],
+      iconSize: [36, 36],
+      iconAnchor: [18, 36],
+      popupAnchor: [0, -36],
     });
     return iconCache[type];
   }
@@ -77,6 +78,21 @@ const getCustomIcon = (type: MapPlace["type"]) => {
   } else if (type === "police") {
     colorBg = "bg-blue-600 border-blue-200 shadow-blue-500/30";
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+  } else if (type === "ambulance") {
+    colorBg = "bg-orange-600 border-orange-200 shadow-orange-500/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
+  } else if (type === "fire") {
+    colorBg = "bg-red-700 border-red-300 shadow-red-600/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.5 4 6.5 1.5 1.5 2 3 2 4.5a6 6 0 11-12 0c0-1 .25-2 .75-3z"/></svg>`;
+  } else if (type === "blood") {
+    colorBg = "bg-pink-600 border-pink-200 shadow-pink-500/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>`;
+  } else if (type === "pharmacy") {
+    colorBg = "bg-emerald-600 border-emerald-200 shadow-emerald-500/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M10.5 20H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v6"/><path d="M12 11h6"/><path d="M15 8v6"/><path d="M19 16l3 3-3 3"/><path d="M22 19h-6"/></svg>`;
+  } else if (type === "hazard") {
+    colorBg = "bg-amber-600 border-amber-200 shadow-amber-500/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
   } else if (type === "volunteer") {
     colorBg = "bg-emerald-500 border-emerald-200 shadow-emerald-500/30";
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`;
@@ -88,96 +104,226 @@ const getCustomIcon = (type: MapPlace["type"]) => {
   iconCache[type] = L.divIcon({
     className: "custom-leaflet-marker",
     html: `
-      <div class="p-2 rounded-2xl border-2 shadow-xl flex items-center justify-center transition-transform hover:scale-125 ${colorBg}">
+      <div class="p-2.5 rounded-2xl border-2 shadow-xl flex items-center justify-center transition-transform hover:scale-125 ${colorBg}">
         ${iconSvg}
       </div>
     `,
-    iconSize: [34, 34],
-    iconAnchor: [17, 34],
-    popupAnchor: [0, -34],
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
   });
   return iconCache[type];
 };
 
-// --- Mock Data ---
-const MOCK_PLACES: MapPlace[] = [
-  { id: "h1", name: "AIIMS Hospital", type: "hospital", lat: 28.5672, lng: 77.2100, vicinity: "Ansari Nagar, New Delhi", phone: "102", bedsAvailable: 12 },
-  { id: "p1", name: "Connaught Place Police Station", type: "police", lat: 28.6315, lng: 77.2167, vicinity: "Connaught Place, New Delhi", phone: "100" },
-  { id: "v1", name: "Ravi (Volunteer)", type: "volunteer", lat: 28.6139, lng: 77.2090, vicinity: "Ready to help", phone: "+91 98765 43210" },
+// --- Initial Emergency Services Dataset ---
+const INITIAL_PLACES: MapPlace[] = [
+  { id: "h1", name: "AIIMS Apex Trauma Centre", type: "hospital", lat: 28.5672, lng: 77.2100, vicinity: "Sri Aurobindo Marg, New Delhi", phone: "102", rating: 4.8, isOpen: true, bedsAvailable: 24 },
+  { id: "h2", name: "Safdarjung Hospital Emergency", type: "hospital", lat: 28.5703, lng: 77.2066, vicinity: "Ring Road, New Delhi", phone: "108", rating: 4.6, isOpen: true, bedsAvailable: 18 },
+  { id: "h3", name: "Max Super Speciality Hospital", type: "hospital", lat: 28.5244, lng: 77.2150, vicinity: "Press Enclave Rd, Saket", phone: "011-26515050", rating: 4.9, isOpen: true, bedsAvailable: 35 },
+  { id: "p1", name: "Connaught Place Central Police Station", type: "police", lat: 28.6315, lng: 77.2167, vicinity: "Sansad Marg, Connaught Place", phone: "100", rating: 4.5, isOpen: true },
+  { id: "p2", name: "South Campus Police Station", type: "police", lat: 28.5822, lng: 77.1650, vicinity: "Dhaula Kuan, New Delhi", phone: "112", rating: 4.4, isOpen: true },
+  { id: "a1", name: "Central Life Ambulance Dispatch", type: "ambulance", lat: 28.6100, lng: 77.2300, vicinity: "Connaught Lane Fleet Hub", phone: "108", rating: 4.9, isOpen: true },
+  { id: "f1", name: "Delhi Fire Service HQ", type: "fire", lat: 28.6280, lng: 77.2280, vicinity: "Connaught Circus, New Delhi", phone: "101", rating: 4.8, isOpen: true },
+  { id: "b1", name: "Red Cross Blood Bank Centre", type: "blood", lat: 28.6200, lng: 77.2150, vicinity: "Red Cross Road, New Delhi", phone: "011-23716441", rating: 4.7, isOpen: true },
+  { id: "ph1", name: "Apollo 24/7 Emergency Pharmacy", type: "pharmacy", lat: 28.6150, lng: 77.2100, vicinity: "Janpath Road, New Delhi", phone: "011-23321234", rating: 4.6, isOpen: true },
+  { id: "v1", name: "Dr. Vikram (Good Samaritan Responder)", type: "volunteer", lat: 28.6139, lng: 77.2090, vicinity: "Active First Aid Responder", phone: "+91 98765 43210", rating: 5.0, isOpen: true },
 ];
 
 export default function SmartMap() {
   const { theme } = useTheme();
-  const { hideSidebar } = useOutletContext<{ hideSidebar?: () => void }>() || {};
+  const context = useOutletContext<{ demoMode?: boolean; userRole?: string }>() || {};
+  const userRole = context.userRole || "user"; // "admin", "trainer", "user", "responder"
 
   // Refs & Map Instance
   const [map, setMap] = useState<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // States
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(INDIA_CENTER);
   const [zoomLevel, setZoomLevel] = useState<number>(DEFAULT_ZOOM);
-  const [address, setAddress] = useState<string>("Ready");
+  const [addressStatus, setAddressStatus] = useState<string>("Locating GPS...");
   const [geoError, setGeoError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   
-  const [places, setPlaces] = useState<MapPlace[]>(MOCK_PLACES);
+  const [places, setPlaces] = useState<MapPlace[]>(INITIAL_PLACES);
   const [firebaseHazards, setFirebaseHazards] = useState<MapPlace[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedPlace, setSelectedPlace] = useState<MapPlace | null>(null);
   
+  const handleCategorySelect = async (catId: string) => {
+    setSelectedCategory(catId);
+    if (catId === "all" || catId === "hazard" || catId === "volunteer") return;
+    
+    const centerLat = userLocation?.lat || mapCenter[0];
+    const centerLng = userLocation?.lng || mapCenter[1];
+
+    const overpassMap: Record<string, string> = {
+      hospital: '[amenity=hospital]',
+      police: '[amenity=police]',
+      fire: '[amenity=fire_station]',
+      pharmacy: '[amenity=pharmacy]',
+      blood: '[healthcare=blood_bank]',
+      ambulance: '[emergency=ambulance_station]'
+    };
+
+    const tag = overpassMap[catId];
+    if (!tag) return;
+
+    setIsSearching(true);
+    try {
+      const query = `[out:json];(node${tag}(around:5000,${centerLat},${centerLng});way${tag}(around:5000,${centerLat},${centerLng}););out center 10;`;
+      const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      const newPlaces: MapPlace[] = data.elements.map((el: any) => {
+        const pLat = el.lat || el.center?.lat;
+        const pLon = el.lon || el.center?.lon;
+        return {
+          id: `osm-${el.id}`,
+          name: el.tags?.name || `Unnamed ${catId}`,
+          type: catId as any,
+          lat: pLat,
+          lng: pLon,
+          vicinity: el.tags?.['addr:street'] || el.tags?.['addr:full'] || 'Unknown Address',
+          isOpen: true
+        };
+      }).filter((p: any) => p.lat && p.lng);
+
+      if (newPlaces.length > 0) {
+        setPlaces(prev => {
+          const filtered = prev.filter(p => !p.id.toString().startsWith("osm-") || p.type !== catId);
+          return [...filtered, ...newPlaces];
+        });
+      }
+    } catch (err) {
+      console.error("Overpass search failed:", err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  
   const [activeRoute, setActiveRoute] = useState<RouteData | null>(null);
-  const [travelMode, setTravelMode] = useState<"driving" | "bike" | "foot">("driving");
+  const [travelMode, setTravelMode] = useState<"driving" | "bicycling" | "walking">("driving");
   
   const [isSOSMode, setIsSOSMode] = useState(false);
   const [showHazardDialog, setShowHazardDialog] = useState(false);
-  const [reportType, setReportType] = useState("hazard");
+  const [reportType, setReportType] = useState<MapPlace["type"]>("hazard");
   const [reportDesc, setReportDesc] = useState("");
-
+  const [showTrafficLayer, setShowTrafficLayer] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
 
-  // Sync zoom state
+  // Sync zoom state and handle resize invalidation for sidebar, theme, and window changes
   useEffect(() => {
     if (!map) return;
     const onZoom = () => setCurrentZoom(map.getZoom());
     map.on('zoomend', onZoom);
-    return () => { map.off('zoomend', onZoom); };
-  }, [map]);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
+    const t1 = setTimeout(() => map.invalidateSize(), 50);
+    const t2 = setTimeout(() => map.invalidateSize(), 200);
+    const t3 = setTimeout(() => map.invalidateSize(), 500);
+
+    return () => {
+      map.off('zoomend', onZoom);
+      window.removeEventListener('resize', handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [map, theme]);
 
   // Request Location
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setGeoError("Geolocation is not supported by your browser");
+      setAddressStatus("GPS unsupported");
       return;
     }
     
-    setAddress("Locating you...");
+    setAddressStatus("Detecting real GPS location...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
+        const { latitude, longitude, accuracy } = pos.coords;
+        setUserLocation({ lat: latitude, lng: longitude, accuracy });
         setMapCenter([latitude, longitude]);
         setZoomLevel(15);
-        setAddress("Location Active");
+        setAddressStatus("GPS active (High Accuracy)");
+        setGeoError(null);
         if (map) {
           map.flyTo([latitude, longitude], 15, { duration: 1.5 });
         }
       },
       (err) => {
         setGeoError(err.message || "Location access denied");
-        setAddress("Location disabled");
+        setAddressStatus("GPS denied / Error");
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
     );
   }, [map]);
 
   useEffect(() => {
     requestLocation();
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setUserLocation({ lat: latitude, lng: longitude, accuracy });
+      },
+      (err) => {
+        console.warn("GPS watch notice:", err);
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [requestLocation]);
 
-  // Fetch Firebase Hazards
+  // Reverse Geocode user location using OpenStreetMap Nominatim
+  useEffect(() => {
+    if (!userLocation) return;
+    const fetchAddress = async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=jsonv2`, {
+          headers: {
+            'User-Agent': 'GoldenGuard-RoadSafetyApp'
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.display_name) {
+            setAddressStatus(data.display_name);
+          }
+        }
+      } catch (e) {
+        console.warn("Reverse geocode fetch notice:", e);
+      }
+    };
+    fetchAddress();
+  }, [userLocation?.lat, userLocation?.lng]);
+
+  // Fetch Firebase Hazards & Incidents
   useEffect(() => {
     try {
       const q = query(collection(db, "hazards"), orderBy("timestamp", "desc"));
@@ -186,41 +332,99 @@ export default function SmartMap() {
           const data = doc.data();
           return {
             id: `fb-${doc.id}`,
-            name: data.description || "Reported Road Hazard",
-            type: "hazard",
+            name: data.name || data.description || "Reported Road Hazard",
+            type: (data.type as MapPlace["type"]) || "hazard",
             lat: data.lat,
             lng: data.lng,
-            vicinity: `Reported on ${new Date(data.timestamp?.toDate()).toLocaleDateString()}`
+            vicinity: data.vicinity || `Reported: ${data.description || "Road Alert"}`,
+            phone: data.phone || "112",
+            rating: 4.5,
+            isOpen: true
           };
         });
         setFirebaseHazards(hazards);
+      }, (err) => {
+        console.warn("Firestore hazards sync notice:", err);
       });
       return () => unsubscribe();
     } catch (err) {
-      console.warn("Firebase Hazards Sync Error:", err);
+      console.warn("Firebase initialization notice:", err);
     }
   }, []);
 
-  // Search
+  // Calculate distance helper (Haversine)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return parseFloat((R * c).toFixed(1));
+  };
+
+  // Search places / Geocoding (Debounced)
+  const isSelectingRef = useRef(false);
+  const searchControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (isSelectingRef.current) {
+      isSelectingRef.current = false;
+      return;
+    }
+    
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      handleSearch();
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) return;
+
+    if (searchControllerRef.current) {
+      searchControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    searchControllerRef.current = controller;
 
     setIsSearching(true);
+    setSearchError(null);
+    setHasSearched(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&extratags=1&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=in`
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(searchQuery)}&limit=10`,
+        { signal: controller.signal }
       );
+      if (!res.ok) throw new Error("API error");
       const data = await res.json();
       setSearchResults(data);
-    } catch (err) {
-      console.error("Search failed", err);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error("Search failed", err);
+        setSearchError("Search service temporarily unavailable.");
+      }
     } finally {
-      setIsSearching(false);
+      if (searchControllerRef.current === controller) {
+        setIsSearching(false);
+      }
     }
   };
 
   const selectSearchResult = (item: any) => {
+    isSelectingRef.current = true;
+    setHasSearched(false);
+    setSearchError(null);
     const lat = parseFloat(item.lat);
     const lng = parseFloat(item.lon);
     const place: MapPlace = {
@@ -229,7 +433,9 @@ export default function SmartMap() {
       type: "search",
       lat,
       lng,
-      vicinity: item.display_name
+      vicinity: item.display_name,
+      rating: 4.7,
+      isOpen: true
     };
     
     setPlaces(prev => {
@@ -248,14 +454,15 @@ export default function SmartMap() {
     }
   };
 
-  // Routing
+  // Routing via OSRM
   const fetchOSRMRoute = async (
     startLat: number, startLng: number, 
     endLat: number, endLng: number, 
-    destName: string, mode: "driving" | "bike" | "foot"
+    destName: string, mode: "driving" | "bicycling" | "walking"
   ) => {
+    const osrmMode = mode === "bicycling" ? "bike" : mode === "walking" ? "foot" : "driving";
     try {
-      const res = await fetch(`https://router.project-osrm.org/route/v1/${mode}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`);
+      const res = await fetch(`https://router.project-osrm.org/route/v1/${osrmMode}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`);
       const data = await res.json();
       if (data.routes && data.routes.length > 0) {
         const route = data.routes[0];
@@ -275,7 +482,7 @@ export default function SmartMap() {
         
         if (map) {
           const bounds = L.latLngBounds(leafletCoords);
-          map.fitBounds(bounds, { padding: [50, 50] });
+          map.fitBounds(bounds, { padding: [60, 60] });
         }
       }
     } catch (err) {
@@ -283,7 +490,28 @@ export default function SmartMap() {
     }
   };
 
-  // SOS Mode
+  // Nearest Hospital Quick Action
+  const handleFindNearestHospital = () => {
+    const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
+    const hospitals = [...places, ...firebaseHazards].filter(p => p.type === "hospital");
+    if (hospitals.length === 0) return;
+
+    let nearest = hospitals[0];
+    let minDistance = calculateDistance(origin.lat, origin.lng, nearest.lat, nearest.lng);
+
+    hospitals.forEach(h => {
+      const d = calculateDistance(origin.lat, origin.lng, h.lat, h.lng);
+      if (d < minDistance) {
+        minDistance = d;
+        nearest = h;
+      }
+    });
+
+    setSelectedPlace(nearest);
+    fetchOSRMRoute(origin.lat, origin.lng, nearest.lat, nearest.lng, nearest.name, travelMode);
+  };
+
+  // SOS Mode Trigger
   const toggleSOS = () => {
     if (isSOSMode) {
       setIsSOSMode(false);
@@ -293,27 +521,62 @@ export default function SmartMap() {
     
     setIsSOSMode(true);
     const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
-    const hospital = places.find(p => p.type === "hospital") || MOCK_PLACES[0];
-    setSelectedPlace(hospital);
-    fetchOSRMRoute(origin.lat, origin.lng, hospital.lat, hospital.lng, hospital.name, "driving");
+    const hospitals = [...places, ...firebaseHazards].filter(p => p.type === "hospital");
+    const nearestHospital = hospitals[0] || INITIAL_PLACES[0];
+    
+    setSelectedPlace(nearestHospital);
+    fetchOSRMRoute(origin.lat, origin.lng, nearestHospital.lat, nearestHospital.lng, nearestHospital.name, "driving");
+    
+    if (map) {
+      map.flyTo([origin.lat, origin.lng], 16, { duration: 1.5 });
+    }
+  };
+
+  // Hazard Reporting Handler
+  const handleMapClickForReport = async (e: any) => {
+    if (showHazardDialog) {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      const newHazard: MapPlace = {
+        id: `hazard-report-${Date.now()}`,
+        name: reportDesc || `${reportType.toUpperCase()} Reported`,
+        type: reportType,
+        lat,
+        lng,
+        vicinity: `User Reported Location (${reportType})`,
+        phone: "112",
+        rating: 5.0,
+        isOpen: true
+      };
+
+      setPlaces(prev => [...prev, newHazard]);
+      setShowHazardDialog(false);
+      setReportDesc("");
+
+      try {
+        await addDoc(collection(db, "hazards"), {
+          name: newHazard.name,
+          type: reportType,
+          lat,
+          lng,
+          vicinity: newHazard.vicinity,
+          timestamp: new Date()
+        });
+      } catch (err) {
+        console.warn("Firestore hazard write notice:", err);
+      }
+    }
   };
 
   // Map Controls Handlers
-  const handleZoomIn = () => {
-    if (map && map.getZoom() < map.getMaxZoom()) map.zoomIn();
-  };
-  const handleZoomOut = () => {
-    if (map && map.getZoom() > map.getMinZoom()) map.zoomOut();
-  };
+  const handleZoomIn = () => { if (map) map.zoomIn(); };
+  const handleZoomOut = () => { if (map) map.zoomOut(); };
   const handleRecenter = () => {
     if (map && userLocation) {
-      map.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 1.2 });
+      map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1.2 });
     } else if (map) {
       map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
     }
-  };
-  const handleResetView = () => {
-    if (map) map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
   };
   const toggleFullscreen = () => {
     if (!mapContainerRef.current) return;
@@ -323,32 +586,16 @@ export default function SmartMap() {
       document.exitFullscreen().catch(() => {});
     }
   };
-  const resetBearing = () => {
-    if (map) map.setView(map.getCenter(), map.getZoom());
-  };
-  const handleMapClickForReport = (e: any) => {
-    if (showHazardDialog) {
-      const lat = e.latlng.lat;
-      const lng = e.latlng.lng;
-      const place: MapPlace = {
-        id: `hazard-${Date.now()}`,
-        name: "Reported Hazard",
-        type: "hazard",
-        lat,
-        lng,
-        vicinity: reportDesc || "Reported by you"
-      };
-      setPlaces(prev => [...prev, place]);
-      setShowHazardDialog(false);
-      setReportDesc("");
-      try { addDoc(collection(db, "hazards"), { ...place, timestamp: new Date() }); } catch(err) {}
-    }
-  };
 
-  const allMapPlaces = [...places, ...firebaseHazards];
+  // Filtered Places
+  const allPlacesList = [...places, ...firebaseHazards];
+  const filteredPlaces = allPlacesList.filter(p => {
+    if (selectedCategory === "all") return true;
+    return p.type === selectedCategory;
+  });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6.5rem)] min-h-[580px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-md" ref={mapContainerRef}>
+    <div className="flex flex-col h-[calc(100vh-6rem)] min-h-[620px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-xl" ref={mapContainerRef}>
       
       {/* Top Floating Header & Search Bar */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pointer-events-none">
@@ -360,13 +607,19 @@ export default function SmartMap() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search city, hospital, pincode..."
-              className="w-full bg-white/90 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 shadow-xl rounded-2xl pl-10 pr-12 py-3.5 text-sm focus:border-emerald-500 outline-none text-surface-900 dark:text-white"
+              placeholder="Search hospitals, police, address, hazards..."
+              className="w-full bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 shadow-2xl rounded-2xl pl-11 pr-12 py-3.5 text-sm focus:border-amber-500 outline-none text-surface-900 dark:text-white font-medium"
             />
-            <Search className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <button 
+              type="submit"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 hover:text-amber-600 focus:outline-none p-1 z-10"
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
             {isSearching && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
+                <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
               </div>
             )}
           </form>
@@ -378,9 +631,9 @@ export default function SmartMap() {
                   key={idx}
                   type="button"
                   onClick={() => selectSearchResult(item)}
-                  className="w-full text-left px-4 py-3 border-b border-surface-100 dark:border-surface-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-start gap-3"
+                  className="w-full text-left px-4 py-3 border-b border-surface-100 dark:border-surface-800 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-start gap-3"
                 >
-                  <MapPin className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                  <MapPin className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                   <div>
                     <div className="text-sm font-bold text-surface-900 dark:text-white line-clamp-1">{item.name || item.display_name.split(",")[0]}</div>
                     <div className="text-[10px] text-surface-500 line-clamp-1">{item.display_name}</div>
@@ -389,13 +642,40 @@ export default function SmartMap() {
               ))}
             </div>
           )}
+
+          {searchError && (
+            <div className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl shadow-2xl p-4 text-center">
+              <div className="text-red-500 text-sm font-bold mb-2">{searchError}</div>
+              <button 
+                type="button" 
+                onClick={handleSearch}
+                className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-lg"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!isSearching && hasSearched && searchResults.length === 0 && !searchError && searchQuery.trim().length >= 3 && (
+            <div className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl shadow-2xl p-4 text-center">
+              <div className="text-surface-500 text-sm font-bold">No places found</div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 pointer-events-auto self-end md:self-auto">
+        <div className="flex items-center gap-2.5 pointer-events-auto self-end md:self-auto">
+          <button
+            onClick={handleFindNearestHospital}
+            className="h-12 px-4 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl flex items-center justify-center shadow-xl text-surface-800 dark:text-white hover:border-red-500 transition-colors font-bold text-xs sm:text-sm gap-2"
+          >
+            <Stethoscope className="w-4 h-4 text-red-500" />
+            <span className="hidden sm:inline">Nearest Hospital</span>
+          </button>
+
           <button
             onClick={() => setShowHazardDialog(!showHazardDialog)}
-            className="h-12 px-4 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl flex items-center justify-center shadow-xl text-surface-700 dark:text-white hover:border-amber-500 transition-colors font-bold text-sm gap-2"
+            className="h-12 px-4 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl flex items-center justify-center shadow-xl text-surface-800 dark:text-white hover:border-amber-500 transition-colors font-bold text-xs sm:text-sm gap-2"
           >
             <ShieldAlert className="w-4 h-4 text-amber-500" />
             <span className="hidden sm:inline">Report Hazard</span>
@@ -403,54 +683,107 @@ export default function SmartMap() {
           
           <button
             onClick={toggleSOS}
-            className={`h-12 px-5 rounded-2xl flex items-center justify-center shadow-xl font-black text-sm gap-2 transition-all duration-300 ${
+            className={`h-12 px-5 rounded-2xl flex items-center justify-center shadow-xl font-black text-xs sm:text-sm gap-2 transition-all duration-300 ${
               isSOSMode 
                 ? "bg-red-600 text-white animate-pulse shadow-red-500/50 scale-105" 
                 : "bg-red-500 text-white hover:bg-red-600 hover:shadow-red-500/30"
             }`}
           >
             <HeartPulse className="w-5 h-5" />
-            <span className="hidden sm:inline">{isSOSMode ? "CANCEL SOS" : "EMERGENCY SOS"}</span>
+            <span>{isSOSMode ? "CANCEL SOS" : "EMERGENCY SOS"}</span>
           </button>
         </div>
       </div>
 
+      {/* Filter Chips Bar */}
+      <div className="absolute top-20 left-4 right-4 md:right-auto z-[999] flex items-center gap-1.5 overflow-x-auto pb-2 pointer-events-auto no-scrollbar">
+        {[
+          { id: "all", label: "All Pins", icon: Shield },
+          { id: "hospital", label: "Hospitals", icon: Stethoscope },
+          { id: "ambulance", label: "Ambulances", icon: Car },
+          { id: "police", label: "Police", icon: Shield },
+          { id: "fire", label: "Fire", icon: Flame },
+          { id: "blood", label: "Blood Bank", icon: HeartPulse },
+          { id: "pharmacy", label: "Pharmacy", icon: Building2 },
+          { id: "hazard", label: "Hazards", icon: AlertTriangle },
+        ].map((cat) => {
+          const Icon = cat.icon;
+          const isActive = selectedCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => handleCategorySelect(cat.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg backdrop-blur-md transition-all whitespace-nowrap ${
+                isActive
+                  ? "bg-amber-500 text-black shadow-amber-500/30 ring-2 ring-amber-400"
+                  : "bg-white/90 dark:bg-surface-900/90 text-surface-700 dark:text-surface-300 border border-surface-200 dark:border-surface-700 hover:border-amber-500"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Hazard Dialog Overlay */}
       {showHazardDialog && (
-        <div className="absolute top-24 left-4 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 rounded-3xl border border-amber-500/50 shadow-2xl w-72 pointer-events-auto">
+        <div className="absolute top-36 left-4 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-amber-500/50 shadow-2xl w-80 pointer-events-auto animate-in fade-in">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-extrabold text-amber-500 text-sm flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" /> Drop Hazard Pin
+            <h3 className="font-black text-amber-500 text-sm flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> Report Emergency Hazard
             </h3>
-            <button onClick={() => setShowHazardDialog(false)} className="text-surface-400 hover:text-surface-700 dark:hover:text-white">
+            <button onClick={() => setShowHazardDialog(false)} className="text-surface-400 hover:text-white">
               <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs text-surface-600 dark:text-surface-400 mb-3">Click anywhere on the map to place a hazard marker.</p>
+          <p className="text-xs text-surface-600 dark:text-surface-400 mb-3">Select category & click anywhere on map to pin.</p>
+          
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {[
+              { id: "hazard", label: "Road Hazard" },
+              { id: "police", label: "Accident/Police" },
+              { id: "ambulance", label: "Ambulance Req" },
+              { id: "fire", label: "Fire Emergency" },
+            ].map(t => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setReportType(t.id as MapPlace["type"])}
+                className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  reportType === t.id ? "bg-amber-500 text-black border-amber-400" : "bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 border-surface-200 dark:border-surface-700"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <input 
             type="text" 
-            placeholder="Description (e.g. Flooded road)" 
+            placeholder="Details (e.g., Pothole on Ring Road)" 
             value={reportDesc} 
             onChange={e => setReportDesc(e.target.value)}
-            className="w-full bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl px-3 py-2 text-xs mb-2"
+            className="w-full bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl px-3 py-2.5 text-xs mb-3 text-surface-900 dark:text-white focus:border-amber-500 outline-none"
           />
+          <div className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-3 py-2 rounded-xl text-center">
+            📍 Now click map location to publish pin
+          </div>
         </div>
       )}
 
-      {/* Custom Map Controls (Outside MapContainer to avoid Leaflet event stealing issues) */}
-      <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
-        <button onClick={handleZoomIn} disabled={map ? currentZoom >= map.getMaxZoom() : false} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors disabled:opacity-50"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
-        <button onClick={handleZoomOut} disabled={map ? currentZoom <= map.getMinZoom() : false} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors disabled:opacity-50"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
-        <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-1" />
-        <button onClick={requestLocation} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><LocateFixed className="w-4 h-4 text-blue-500" /></button>
-        <button onClick={handleRecenter} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><Target className="w-4 h-4 text-emerald-500" /></button>
-        <button onClick={resetBearing} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><Compass className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
-        <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-1" />
-        <button onClick={handleResetView} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><RefreshCw className="w-4 h-4 text-amber-500" /></button>
-        <button onClick={toggleFullscreen} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><Maximize className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+      {/* Floating Map Controls */}
+      <div className="absolute top-36 right-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
+        <button onClick={handleZoomIn} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+        <button onClick={handleZoomOut} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+        <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-0.5" />
+        <button onClick={requestLocation} title="My Location" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-blue-500 transition-colors"><LocateFixed className="w-4 h-4 text-blue-500" /></button>
+        <button onClick={handleRecenter} title="Recenter" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-emerald-500 transition-colors"><Target className="w-4 h-4 text-emerald-500" /></button>
+        <button onClick={() => setShowTrafficLayer(!showTrafficLayer)} title="Traffic Layer" className={`w-10 h-10 backdrop-blur-xl border rounded-xl flex items-center justify-center shadow-xl transition-colors ${showTrafficLayer ? "bg-red-500 text-white border-red-400" : "bg-white/95 dark:bg-surface-900/95 border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300"}`}><Radio className="w-4 h-4" /></button>
+        <button onClick={toggleFullscreen} title="Fullscreen" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><Maximize className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
       </div>
 
-      {/* Leaflet OpenStreetMap Container */}
+      {/* Leaflet Map Container */}
       <MapContainer
         ref={setMap}
         center={mapCenter}
@@ -460,17 +793,24 @@ export default function SmartMap() {
         zoomControl={false}
       >
         <LayersControl position="bottomleft">
-          <LayersControl.BaseLayer checked={theme !== "dark"} name="OpenStreetMap Standard">
+          <LayersControl.BaseLayer checked={theme !== "dark"} name="Roadmap (OpenStreetMap)">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               maxZoom={19}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer checked={theme === "dark"} name="Carto Dark (Night Mode)">
+          <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Tactical Map">
             <TileLayer
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite Imagery">
+            <TileLayer
+              attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-eGP, and the GIS User Community'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               maxZoom={19}
             />
           </LayersControl.BaseLayer>
@@ -481,18 +821,28 @@ export default function SmartMap() {
         {/* Click Handler */}
         <MapEventsHandler onClick={handleMapClickForReport} />
 
-        {/* User Location Marker */}
-        {userLocation && (
-          <Marker position={[userLocation.lat, userLocation.lng]} icon={getCustomIcon("user")}>
-            <Popup className="custom-popup">
-              <div className="font-extrabold text-sm">You are here</div>
-              <div className="text-[10px] text-surface-500">Live GPS Location</div>
-            </Popup>
-          </Marker>
+        {/* User Location Marker & Accuracy Circle */}
+        {userLocation && typeof userLocation.lat === 'number' && !isNaN(userLocation.lat) && typeof userLocation.lng === 'number' && !isNaN(userLocation.lng) && (
+          <>
+            <Circle 
+              center={[userLocation.lat, userLocation.lng]} 
+              radius={userLocation.accuracy || 30} 
+              pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.15, weight: 1 }}
+            />
+            <Marker position={[userLocation.lat, userLocation.lng]} icon={getCustomIcon("user")}>
+              <Popup className="custom-popup">
+                <div className="font-black text-sm text-surface-900">Your Current Location</div>
+                <div className="text-[10px] text-surface-500">{addressStatus}</div>
+                {userLocation.accuracy && (
+                  <div className="text-[10px] font-bold text-emerald-600 mt-1">Accuracy: ±{Math.round(userLocation.accuracy)} m</div>
+                )}
+              </Popup>
+            </Marker>
+          </>
         )}
 
-        {/* Places Markers */}
-        {allMapPlaces.map(place => (
+        {/* Filtered Emergency Places Markers */}
+        {filteredPlaces.filter(place => typeof place.lat === 'number' && !isNaN(place.lat) && typeof place.lng === 'number' && !isNaN(place.lng)).map(place => (
           <Marker 
             key={place.id} 
             position={[place.lat, place.lng]} 
@@ -505,8 +855,9 @@ export default function SmartMap() {
             }}
           >
             <Popup className="custom-popup">
-              <div className="font-extrabold text-sm">{place.name}</div>
+              <div className="font-black text-sm text-surface-900">{place.name}</div>
               <div className="text-[10px] text-surface-500">{place.vicinity}</div>
+              {place.phone && <div className="text-xs font-bold text-red-500 mt-1">Tel: {place.phone}</div>}
             </Popup>
           </Marker>
         ))}
@@ -515,39 +866,61 @@ export default function SmartMap() {
         {activeRoute && (
           <Polyline 
             positions={activeRoute.coords} 
-            color={isSOSMode ? "#EF4444" : "#10B981"} 
+            color={isSOSMode ? "#EF4444" : "#F59E0B"} 
             weight={6} 
-            opacity={0.8}
+            opacity={0.85}
             dashArray={isSOSMode ? "10, 10" : undefined}
           />
         )}
       </MapContainer>
 
-      {/* Selected Place Sheet */}
+      {/* Selected Place Details Card (Bottom Sheet / Side Panel) */}
       {selectedPlace && (
-        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl pointer-events-auto">
+        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom duration-300">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-500">
-                {selectedPlace.type}
-              </span>
-              <h3 className="font-extrabold text-base mt-1">{selectedPlace.name}</h3>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-500">
+                  {selectedPlace.type}
+                </span>
+                {selectedPlace.rating && (
+                  <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
+                    ★ {selectedPlace.rating}
+                  </span>
+                )}
+              </div>
+              <h3 className="font-black text-base mt-1 text-surface-900 dark:text-white">{selectedPlace.name}</h3>
             </div>
-            <button onClick={() => setSelectedPlace(null)} className="p-1"><X className="w-5 h-5 text-surface-400 hover:text-surface-700 dark:hover:text-white" /></button>
+            <button onClick={() => setSelectedPlace(null)} className="p-1.5 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <p className="text-xs text-surface-500 mb-4">{selectedPlace.vicinity}</p>
-          <div className="flex gap-2">
+
+          <p className="text-xs text-surface-500 dark:text-surface-400 mb-4">{selectedPlace.vicinity}</p>
+
+          {userLocation && (
+            <div className="mb-4 text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-2 rounded-xl">
+              <Navigation className="w-3.5 h-3.5" /> 
+              Distance: {calculateDistance(userLocation.lat, userLocation.lng, selectedPlace.lat, selectedPlace.lng)} km away
+            </div>
+          )}
+
+          <div className="flex gap-2.5">
             <button
               onClick={() => {
                 const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
                 fetchOSRMRoute(origin.lat, origin.lng, selectedPlace.lat, selectedPlace.lng, selectedPlace.name, travelMode);
               }}
-              className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
             >
-              <Navigation className="w-4 h-4" /> Navigate
+              <Navigation className="w-4 h-4" /> Get Route
             </button>
             {selectedPlace.phone && (
-              <a href={`tel:${selectedPlace.phone}`} className="px-4 py-3 bg-surface-100 dark:bg-surface-800 text-emerald-500 font-bold rounded-2xl border border-surface-200 dark:border-surface-700 flex items-center justify-center">
+              <a 
+                href={`tel:${selectedPlace.phone}`} 
+                className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-2xl flex items-center justify-center shadow-lg transition-colors"
+                title="Call Emergency"
+              >
                 <PhoneCall className="w-4 h-4" />
               </a>
             )}
@@ -557,27 +930,27 @@ export default function SmartMap() {
 
       {/* Active Route Info Panel */}
       {activeRoute && !selectedPlace && (
-        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-80 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 rounded-3xl border border-emerald-500/30 shadow-2xl pointer-events-auto">
+        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-88 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-amber-500/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom duration-300">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-emerald-500 font-extrabold text-sm">
-              <Navigation className="w-4 h-4" /> Navigating to {activeRoute.destinationName}
+            <div className="flex items-center gap-2 text-amber-500 font-black text-sm">
+              <Navigation className="w-4 h-4 animate-pulse" /> Emergency Route to {activeRoute.destinationName}
             </div>
-            <button onClick={() => setActiveRoute(null)}><X className="w-4 h-4 text-surface-400" /></button>
+            <button onClick={() => setActiveRoute(null)} className="text-surface-400 hover:text-white"><X className="w-4 h-4" /></button>
           </div>
-          <div className="flex gap-4 mb-3">
-            <div className="flex-1 bg-emerald-500/10 p-3 rounded-2xl">
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-surface-50 dark:bg-surface-800 p-3 rounded-2xl border border-surface-200 dark:border-surface-700">
               <div className="text-[10px] text-surface-500 font-bold uppercase">Distance</div>
-              <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{activeRoute.distanceKm} km</div>
+              <div className="text-lg font-black text-amber-500">{activeRoute.distanceKm} km</div>
             </div>
-            <div className="flex-1 bg-emerald-500/10 p-3 rounded-2xl">
-              <div className="text-[10px] text-surface-500 font-bold uppercase">Est. Time</div>
-              <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{activeRoute.durationMins} min</div>
+            <div className="bg-surface-50 dark:bg-surface-800 p-3 rounded-2xl border border-surface-200 dark:border-surface-700">
+              <div className="text-[10px] text-surface-500 font-bold uppercase">Est. Golden Hour Time</div>
+              <div className="text-lg font-black text-emerald-500">{activeRoute.durationMins} mins</div>
             </div>
           </div>
-          <div className="flex bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
-            <button onClick={() => setTravelMode("driving")} className={`flex-1 py-2 text-xs font-bold rounded-lg flex justify-center ${travelMode === "driving" ? "bg-white dark:bg-surface-700 shadow" : "text-surface-500"}`}><Car className="w-4 h-4" /></button>
-            <button onClick={() => setTravelMode("bike")} className={`flex-1 py-2 text-xs font-bold rounded-lg flex justify-center ${travelMode === "bike" ? "bg-white dark:bg-surface-700 shadow" : "text-surface-500"}`}><Sparkles className="w-4 h-4" /></button>
-            <button onClick={() => setTravelMode("foot")} className={`flex-1 py-2 text-xs font-bold rounded-lg flex justify-center ${travelMode === "foot" ? "bg-white dark:bg-surface-700 shadow" : "text-surface-500"}`}><Users className="w-4 h-4" /></button>
+          <div className="flex bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl">
+            <button onClick={() => setTravelMode("driving")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 ${travelMode === "driving" ? "bg-amber-500 text-black shadow" : "text-surface-500"}`}><Car className="w-3.5 h-3.5" /> Car</button>
+            <button onClick={() => setTravelMode("bicycling")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 ${travelMode === "bicycling" ? "bg-amber-500 text-black shadow" : "text-surface-500"}`}><Sparkles className="w-3.5 h-3.5" /> Bike</button>
+            <button onClick={() => setTravelMode("walking")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 ${travelMode === "walking" ? "bg-amber-500 text-black shadow" : "text-surface-500"}`}><Users className="w-3.5 h-3.5" /> Walk</button>
           </div>
         </div>
       )}
@@ -586,7 +959,7 @@ export default function SmartMap() {
   );
 }
 
-// Helper to handle map clicks
+// Helper to handle map clicks for reporting
 function MapEventsHandler({ onClick }: { onClick: (e: any) => void }) {
   useMapEvents({ click: onClick });
   return null;

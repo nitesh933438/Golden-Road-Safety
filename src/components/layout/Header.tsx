@@ -13,6 +13,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useOfflineSync } from "../../context/OfflineSyncContext";
 import { useDemo } from "../../context/DemoContext";
 import { SmartInput } from "../ui/SmartInput";
+import { Logo } from "../ui/Logo";
 import { triggerEmergencyCall, TEST_EMERGENCY_NUMBER } from "../../lib/emergencyCall";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -104,20 +105,8 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
             </button>
 
             {/* Brand Logo & Name */}
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500 text-white shadow-xs ring-2 ring-amber-500/30 group-hover:scale-105 transition-transform">
-                <ShieldIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-surface-900 rounded-full hidden sm:block"></span>
-              </div>
-              
-              <div className="hidden sm:flex items-center gap-1.5">
-                <span className="font-black text-base tracking-tight text-surface-900 dark:text-white leading-none">
-                  GoldenGuard
-                </span>
-                <span className="hidden md:inline-block px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[9px] font-black uppercase tracking-wider border border-amber-500/20">
-                  SOS
-                </span>
-              </div>
+            <Link to="/">
+              <Logo size="sm" />
             </Link>
 
             {/* Current Page Breadcrumb */}

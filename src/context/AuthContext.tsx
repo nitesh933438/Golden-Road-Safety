@@ -205,11 +205,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = result.user;
       
       const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
+      await setDoc(userRef, {
         provider: "password",
         lastLogin: serverTimestamp(),
         isOnline: true
-      }).catch(() => {});
+      }, { merge: true }).catch(() => {});
     } catch (error: any) {
       console.error("Email login error:", error);
       throw error;
@@ -220,9 +220,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setUserRole = async (targetUid: string, newRole: AppRole) => {
     try {
       const targetRef = doc(db, "users", targetUid);
-      await updateDoc(targetRef, {
-        role: newRole
-      });
+      await setDoc(targetRef, {
+        role: newRole,
+        uid: targetUid,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
 
       if (targetUid === currentUser?.uid) {
         setUserProfile((prev) => prev ? { ...prev, role: newRole } : null);

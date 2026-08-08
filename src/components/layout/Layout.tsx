@@ -31,6 +31,7 @@ import { useDemo } from "../../context/DemoContext";
 import { useOfflineSync } from "../../context/OfflineSyncContext";
 import { AuthModal } from "../auth/AuthModal";
 import { cn } from "../../lib/utils";
+import { Logo } from "../ui/Logo";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { WelcomeModal } from "../demo/WelcomeModal";
@@ -149,14 +150,8 @@ export function Layout() {
       >
         {/* Sidebar Header */}
         <div className="flex h-16 items-center justify-between px-5 border-b border-surface-800/80 bg-surface-900/50">
-          <Link to="/" className="flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
-            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 text-black rounded-xl shadow-lg ring-2 ring-amber-500/40">
-              <ShieldIcon className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-lg font-black tracking-tight text-white block leading-none">GoldenGuard</span>
-              <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">Golden Hour Guardian</span>
-            </div>
+          <Link to="/" onClick={() => setSidebarOpen(false)}>
+            <Logo size="md" />
           </Link>
           <button
             className="p-2 rounded-xl text-surface-400 hover:text-white hover:bg-surface-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50"

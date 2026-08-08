@@ -54,33 +54,32 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
 
       const data = await response.json();
 
-      if (response.ok && data.sid) {
-        return {
-          success: true,
-          status: "SENT",
-          message: "Emergency alert sent successfully",
-          providerResponse: data,
-        };
-      } else {
-        // Safely inspect Twilio error response without logging auth tokens or credentials
+      if (!response.ok) {
         const errCode = data.code || response.status;
-        const errMessage = data.message || "Twilio rejected message";
+        const errMessage = data.message || "Twilio request failed";
         const errMoreInfo = data.more_info || "https://www.twilio.com/docs/errors";
         
-        console.error("[Twilio Error Response]:", {
+        console.error("[Twilio SMS Dispatch Error]:", {
           code: errCode,
           message: errMessage,
-          status: data.status || response.status,
+          status: response.status,
           more_info: errMoreInfo,
         });
 
         return {
           success: false,
           status: "FAILED",
-          message: `Twilio Error (${errCode}): ${errMessage}. More info: ${errMoreInfo}`,
+          message: `Emergency alert could not be sent: ${errMessage}`,
           providerResponse: data,
         };
       }
+
+      return {
+        success: true,
+        status: "SENT",
+        message: "Emergency alert dispatched successfully via Twilio",
+        providerResponse: data,
+      };
     }
 
     // 2. Simulation / Test mode fallback when Twilio keys are not yet configured in development

@@ -2,6 +2,7 @@ import React from "react";
 import { ShieldAlert, Play, LogIn, Info, Sparkles, HeartPulse, CheckCircle2, ArrowRight, Shield as ShieldIcon } from "lucide-react";
 import { useDemo } from "../../context/DemoContext";
 import { useNavigate } from "react-router-dom";
+import { Logo } from "../ui/Logo";
 
 export function WelcomeModal() {
   const { showWelcomeModal, setShowWelcomeModal, startTour, setDemoMode } = useDemo();
@@ -45,16 +46,8 @@ export function WelcomeModal() {
             <Sparkles className="w-3.5 h-3.5" /> Hackathon Presentation Experience
           </div>
 
-          <div className="flex items-center gap-4 mb-2">
-            <div className="flex items-center justify-center w-14 h-14 bg-amber-500 rounded-2xl shadow-2xl shrink-0 ring-4 ring-white/30 text-white">
-              <ShieldIcon className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-none">
-                GoldenGuard
-              </h1>
-              <span className="text-xs font-bold text-amber-200 uppercase tracking-widest">Golden Hour Response Network</span>
-            </div>
+          <div className="mb-3">
+            <Logo size="lg" />
           </div>
           <p className="text-lg font-medium text-amber-100 max-w-xl leading-snug">
             AI-Powered Road Safety & Golden Hour Response Platform

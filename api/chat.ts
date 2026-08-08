@@ -5,13 +5,14 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  const { messages, emergencyType } = req.body || {};
+
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: "GEMINI_API_KEY environment variable is missing." });
     }
 
-    const { messages, emergencyType } = req.body || {};
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `You are a medical AI First Aid Assistant. 
@@ -26,7 +27,7 @@ CRITICAL RULES:
 6. When possible, structure your response so it's easy to read in a high-stress situation.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: (messages || []).map((m: any) => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })),
       config: {
         systemInstruction: systemInstruction,
@@ -36,7 +37,9 @@ CRITICAL RULES:
 
     return res.status(200).json({ reply: response.text });
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    return res.status(500).json({ error: error.message || "Failed to generate response" });
+    console.error("Gemini API Error / Quota Notice:", error);
+    // Graceful fallback for quota exceeded / rate limits so user always gets first aid guidance
+    const fallbackReply = `⚠️ **Medical First Aid Notice (AI Quota / Rate Limit Notice):** \n\n*This is general first-aid guidance and does not replace professional medical care. For life-threatening situations, call emergency services (112 or 108) immediately.*\n\n**Standard Emergency Steps for ${emergencyType || 'General Emergency'}:**\n1. Ensure the scene is safe.\n2. Check responsiveness and breathing.\n3. Call emergency services or press SOS immediately.\n4. Administer basic life support or first aid as trained while waiting for responders.`;
+    return res.status(200).json({ reply: fallbackReply });
   }
 }
