@@ -17,10 +17,12 @@ const SafeRide = React.lazy(() => import("./pages/SafeRide").then(m => ({ defaul
 const SOS = React.lazy(() => import("./pages/SOS").then(m => ({ default: m.SOS })));
 const SyncCenter = React.lazy(() => import("./pages/SyncCenter").then(m => ({ default: m.SyncCenter })));
 const FirstAid = React.lazy(() => import("./pages/FirstAid").then(m => ({ default: m.FirstAid })));
-const SmartMap = React.lazy(() => import("./pages/SmartMap").then(m => ({ default: m.SmartMap })));
+const SmartMap = React.lazy(() => import("./pages/SmartMap").then(m => ({ default: m.default })));
 const Training = React.lazy(() => import("./pages/Training").then(m => ({ default: m.Training })));
 const Community = React.lazy(() => import("./pages/Community").then(m => ({ default: m.Community })));
 const Admin = React.lazy(() => import("./pages/Admin").then(m => ({ default: m.Admin })));
+const TrainerDashboard = React.lazy(() => import("./pages/TrainerDashboard").then(m => ({ default: m.TrainerDashboard })));
+const AccessDenied = React.lazy(() => import("./pages/AccessDenied").then(m => ({ default: m.AccessDenied })));
 const Impact = React.lazy(() => import("./pages/Impact").then(m => ({ default: m.Impact })));
 const About = React.lazy(() => import("./pages/About").then(m => ({ default: m.About })));
 const Team = React.lazy(() => import("./pages/Team").then(m => ({ default: m.Team })));
@@ -107,12 +109,18 @@ export default function App() {
                       <Route path="team" element={<SafeLazyRoute><Team /></SafeLazyRoute>} />
                       <Route path="report" element={<SafeLazyRoute><ReportHazard /></SafeLazyRoute>} />
                       <Route path="training" element={<SafeLazyRoute><Training /></SafeLazyRoute>} />
+                      <Route path="trainer" element={
+                        <ProtectedRoute allowedRoles={["admin", "trainer"]}>
+                          <SafeLazyRoute><TrainerDashboard /></SafeLazyRoute>
+                        </ProtectedRoute>
+                      } />
                       <Route path="community" element={<SafeLazyRoute><Community /></SafeLazyRoute>} />
                       <Route path="admin" element={
                         <ProtectedRoute allowedRoles={["admin"]}>
                           <SafeLazyRoute><Admin /></SafeLazyRoute>
                         </ProtectedRoute>
                       } />
+                      <Route path="access-denied" element={<SafeLazyRoute><AccessDenied /></SafeLazyRoute>} />
                       <Route path="profile" element={<SafeLazyRoute><Profile /></SafeLazyRoute>} />
                       <Route path="notifications" element={<SafeLazyRoute><Notifications /></SafeLazyRoute>} />
                       <Route path="*" element={<NotFound />} />

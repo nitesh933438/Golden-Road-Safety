@@ -30,7 +30,7 @@ export function Team() {
       role: "Lead Full-Stack Developer",
       bio: "Specializes in React, TypeScript, and Firebase Firestore optimization for sub-second emergency response applications.",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300",
-      skills: ["React 18", "Firebase", "TypeScript", "Google Maps API"]
+      skills: ["React 18", "Firebase", "TypeScript", "Leaflet & OSM"]
     },
     {
       name: "Priya Sharma",

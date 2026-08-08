@@ -21,7 +21,7 @@ export function About() {
     { name: "Tailwind CSS & Motion", desc: "Modern styling, dark mode & smooth transitions", category: "UI/UX" },
     { name: "Gemini 1.5 Flash AI", desc: "Context-aware emergency triage & audio CPR metronome", category: "Artificial Intelligence" },
     { name: "Firebase Firestore & Auth", desc: "Real-time sync, secure security rules & auth state", category: "Backend" },
-    { name: "Google Maps Platform", desc: "Advanced markers, places API & real-time routing", category: "Location" },
+    { name: "Leaflet & OpenStreetMap", desc: "Interactive mapping, Nominatim geocoding & OSRM routing", category: "Location" },
     { name: "Service Worker PWA", desc: "Offline survival guides & cached emergency dispatch", category: "PWA & Offline" }
   ];
 

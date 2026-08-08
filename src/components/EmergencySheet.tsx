@@ -9,11 +9,15 @@ import { db } from "../lib/firebase";
 
 // Components for different views
 import { LiveEmergencyMap } from "./LiveEmergencyMap";
+import { EmergencyCallBanner } from "./EmergencyCallBanner";
+import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EMERGENCY_NUMBER } from "../lib/emergencyCall";
+import { useAuth } from "../context/AuthContext";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 
 export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const [step, setStep] = useState<"setup" | "active" | "summary">("setup");
   const [showRightsModal, setShowRightsModal] = useState(false);
   const [isPlayingSpeech, setIsPlayingSpeech] = useState(false);
@@ -24,6 +28,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState("Locating...");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Active State
   const [emergencyId, setEmergencyId] = useState<string | null>(null);
@@ -56,14 +61,19 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
           async (pos) => {
             const { latitude, longitude } = pos.coords;
             setCoords({ lat: latitude, lng: longitude });
-            // Ideally reverse geocode here. Mocking for now if no API Key loaded.
+            setLocationError(null);
             setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)} (Approximate Location)`);
           },
           (err) => {
-            console.error(err);
-            setLocation("Location unavailable");
-          }
+            console.error("GPS Error:", err);
+            setLocationError("Location permission is unavailable.");
+            setLocation("Location permission is unavailable.");
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
         );
+      } else {
+        setLocationError("Location permission is unavailable.");
+        setLocation("Location permission is unavailable.");
       }
     }
   }, [isOpen, step]);
@@ -83,23 +93,57 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
   }, [step, timelineProgress]);
 
   const handleSendSOS = async () => {
+    const sosMsg = generateSOSMessage({
+      userName: userProfile?.name || "GoldenGuard Test User",
+      coords,
+    });
+
+    let smsStatus = "PENDING";
+    let backendResult: any = null;
+
+    try {
+      const response = await fetch("/api/emergency/sos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: TEST_EMERGENCY_NUMBER,
+          latitude: coords ? coords.lat : "Location unavailable",
+          longitude: coords ? coords.lng : "Location unavailable",
+          timestamp: new Date().toISOString(),
+          message: sosMsg,
+        }),
+      });
+      backendResult = await response.json();
+      smsStatus = response.ok && backendResult.success ? "SENT" : "FAILED";
+    } catch (err) {
+      console.error("Backend SOS request failed:", err);
+      smsStatus = "FAILED";
+    }
+
     try {
       const docRef = await addDoc(collection(db, "emergencies"), {
+        userId: userProfile?.uid || "anonymous",
         type,
         severity,
         notes,
-        location: coords,
+        location: coords || "Location unavailable",
         address: location,
-        status: "active",
+        emergencyContact: TEST_EMERGENCY_NUMBER,
+        status: smsStatus === "SENT" ? "active" : "failed",
+        smsStatus,
+        emergencyType: type,
         createdAt: serverTimestamp(),
-        timeline: ["Location Captured", "Emergency Created"],
+        timeline: [
+          "Location Captured", 
+          "Emergency Incident Created", 
+          `Backend SOS SMS Status: ${smsStatus}`
+        ],
       });
       setEmergencyId(docRef.id);
       setStep("active");
       setTimelineProgress(2);
     } catch (error) {
-      console.error("Error creating emergency:", error);
-      // Even if it fails (e.g. permission issue in demo), we proceed to show the UI
+      console.error("Error creating emergency in Firestore:", error);
       setEmergencyId("DEMO-SOS-" + Math.floor(Math.random() * 10000));
       setStep("active");
     }
@@ -240,9 +284,18 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
 
           {/* STEP 2: ACTIVE EMERGENCY */}
           {step === "active" && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-              {/* Timeline & Status */}
-              <div className="lg:col-span-1 space-y-6 flex flex-col">
+            <div className="space-y-6">
+              {/* Prominent Emergency Call Action Banner */}
+              <EmergencyCallBanner 
+                coords={coords} 
+                locationError={locationError} 
+                userName={userProfile?.name || "GoldenGuard Test User"}
+                onCancel={() => setStep("setup")} 
+              />
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+                {/* Timeline & Status */}
+                <div className="lg:col-span-1 space-y-6 flex flex-col">
                 
                 {/* Stats */}
                 <div className="bg-white dark:bg-surface-800 rounded-2xl p-4 border border-surface-200 dark:border-surface-700 shadow-sm grid grid-cols-2 gap-4">
@@ -396,6 +449,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
 
               </div>
             </div>
+          </div>
           )}
 
           {/* STEP 3: POST EMERGENCY SUMMARY */}

@@ -1,107 +1,86 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
-  MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, 
-  Circle, LayersControl, ScaleControl, ZoomControl, LayerGroup 
+  MapContainer, TileLayer, Marker, Popup, Polyline, 
+  Circle, LayersControl, ScaleControl, ZoomControl, useMapEvents
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { 
-  ShieldAlert, AlertTriangle, Navigation, Info, X, MapPin, 
-  HeartPulse, Shield, Zap, PhoneCall, Search, Loader2, 
-  Building2, Users, Car, CheckCircle2, AlertCircle, Filter, Plus,
+  ShieldAlert, Navigation, Info, X, MapPin, 
+  PhoneCall, Search, Loader2, Users, Car,
   Sparkles, Stethoscope, RefreshCw, Radio, LocateFixed, Maximize,
-  Compass, ZoomIn, ZoomOut, RotateCcw, Fuel, GraduationCap, Target,
-  Bike, Footprints, Layers
+  Compass, ZoomIn, ZoomOut, Target, HeartPulse, Shield, Filter, Plus,
+  AlertTriangle
 } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useTheme } from "../components/theme/ThemeProvider";
 import { useOutletContext } from "react-router-dom";
-import { saveLastLocation, getLastLocation } from "../lib/offlineStore";
 import { SmartInput } from "../components/ui/SmartInput";
+import { InteractiveFallbackMap } from "../components/InteractiveFallbackMap";
 
-// Standard India Center coordinates for fallback
-const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
-const DEFAULT_ZOOM = 5;
-const USER_ZOOM = 14;
-
-export interface MapPlace {
+// --- Types ---
+interface MapPlace {
   id: string;
   name: string;
-  type: "hospital" | "police" | "volunteer" | "hazard" | "blackspot" | "user" | "search" | "school" | "petrol" | "sos";
+  type: "hospital" | "police" | "volunteer" | "hazard" | "user" | "search" | "petrol" | "school";
   lat: number;
   lng: number;
-  vicinity: string;
+  vicinity?: string;
   phone?: string;
-  isOpen?: boolean;
-  distance?: string;
-  status?: string;
   bedsAvailable?: number;
 }
 
-// Demo Places for fallback/initial state
-const DEMO_PLACES: MapPlace[] = [
-  { id: "h1", name: "AIIMS Apex Trauma Center", type: "hospital", lat: 28.5672, lng: 77.2100, vicinity: "Sri Aurobindo Marg, New Delhi", phone: "108", isOpen: true, bedsAvailable: 14, distance: "1.2 km" },
-  { id: "h2", name: "Max Super Specialty Trauma Bay", type: "hospital", lat: 28.5283, lng: 77.2185, vicinity: "Press Enclave Marg, Saket", phone: "108", isOpen: true, bedsAvailable: 8, distance: "3.5 km" },
-  { id: "h3", name: "KEM Hospital Emergency Unit", type: "hospital", lat: 19.0028, lng: 72.8425, vicinity: "Parel, Mumbai", phone: "108", isOpen: true, bedsAvailable: 22, distance: "2.1 km" },
-  { id: "h4", name: "Apollo Gleneagles Emergency", type: "hospital", lat: 22.5697, lng: 88.4005, vicinity: "EM Bypass, Kolkata", phone: "108", isOpen: true, bedsAvailable: 11, distance: "4.0 km" },
-  { id: "p1", name: "Central Highway Patrol Post 4", type: "police", lat: 28.6292, lng: 77.2197, vicinity: "Connaught Place Express Corridor", phone: "112", isOpen: true, status: "On-Patrol", distance: "0.8 km" },
-  { id: "p2", name: "Metro Highway Rapid Dispatch", type: "police", lat: 18.9438, lng: 72.8336, vicinity: "Fort Police Control Room, Mumbai", phone: "112", isOpen: true, status: "Active Dispatch", distance: "1.9 km" },
-  { id: "v1", name: "Vol. Rahul Verma (Certified CPR)", type: "volunteer", lat: 28.5690, lng: 77.2150, vicinity: "Sector 7 Rapid Response Unit", phone: "+91 98765 43210", isOpen: true, status: "0.4 km away - Ready", distance: "0.4 km" },
-  { id: "v2", name: "Vol. Priya Nair (Paramedic Level 2)", type: "volunteer", lat: 19.0080, lng: 72.8470, vicinity: "Dadarr West Emergency Circle", phone: "+91 98123 45678", isOpen: true, status: "0.7 km away - En Route", distance: "0.7 km" },
-  { id: "hz1", name: "Multi-Vehicle Collision & Oil Spill", type: "hazard", lat: 28.4595, lng: 77.0266, vicinity: "Delhi-Gurugram Expressway Km 14", status: "Active Hazard - Emergency Dispatched", distance: "5.2 km" },
-  { id: "hz2", name: "Accident Blackspot - Low Visibility Fog", type: "blackspot", lat: 19.0760, lng: 72.8777, vicinity: "Western Express Highway Flyover", status: "High Risk Corridor", distance: "3.1 km" },
-  { id: "s1", name: "Delhi Public School First Aid Station", type: "school", lat: 28.5710, lng: 77.2180, vicinity: "Mathura Road, New Delhi", phone: "011-24351234", isOpen: true, distance: "1.5 km" },
-  { id: "f1", name: "Indian Oil 24/7 Expressway Fuel Station", type: "petrol", lat: 28.5500, lng: 77.2000, vicinity: "Ring Road Interchange", phone: "1800-233-3555", isOpen: true, distance: "2.0 km" },
-];
+interface RouteData {
+  coords: [number, number][];
+  distanceKm: number;
+  durationMins: number;
+  destinationName: string;
+  endLat: number;
+  endLng: number;
+}
 
+// --- Constants ---
+const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
+const DEFAULT_ZOOM = 5;
+
+// --- Icon Generator ---
 const iconCache: Record<string, L.DivIcon> = {};
 
-// Custom Leaflet DivIcon Generator
-const createCustomLeafletIcon = (type: MapPlace["type"]) => {
+const getCustomIcon = (type: MapPlace["type"]) => {
   if (iconCache[type]) return iconCache[type];
 
   if (type === "user") {
     iconCache[type] = L.divIcon({
       className: "custom-leaflet-user-marker",
-      html: `
-        <div class="relative flex items-center justify-center">
+      html: `<div class="relative flex items-center justify-center">
           <div class="absolute w-12 h-12 bg-red-500/40 rounded-full animate-ping"></div>
           <div class="w-8 h-8 bg-red-600 border-2 border-white rounded-full shadow-2xl flex items-center justify-center text-white">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
           </div>
-        </div>
-      `,
+        </div>`,
       iconSize: [32, 32],
-      iconAnchor: [16, 16],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
     });
     return iconCache[type];
   }
 
-  let colorBg = "bg-amber-500 border-amber-200";
-  let iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+  let colorBg = "bg-amber-500 border-amber-200 shadow-amber-500/30";
+  let iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
 
   if (type === "hospital") {
     colorBg = "bg-red-600 border-red-200 shadow-red-500/30";
-    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0v-4a1 1 0 011-1h2a1 1 0 011 1v4m-6 0h6"/></svg>`;
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`;
   } else if (type === "police") {
     colorBg = "bg-blue-600 border-blue-200 shadow-blue-500/30";
-    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`;
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
   } else if (type === "volunteer") {
-    colorBg = "bg-emerald-600 border-emerald-200 shadow-emerald-500/30";
-    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
-  } else if (type === "blackspot" || type === "sos") {
-    colorBg = "bg-purple-700 border-purple-200 shadow-purple-500/30";
-    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01"/></svg>`;
-  } else if (type === "school") {
-    colorBg = "bg-teal-600 border-teal-200 shadow-teal-500/30";
-    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 01-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>`;
-  } else if (type === "petrol") {
-    colorBg = "bg-orange-600 border-orange-200 shadow-orange-500/30";
-    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z"/><path stroke-linecap="round" stroke-linejoin="round" d="M18 10h2a1 1 0 011 1v4a1 1 0 01-1 1h-2"/></svg>`;
+    colorBg = "bg-emerald-500 border-emerald-200 shadow-emerald-500/30";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`;
   } else if (type === "search") {
     colorBg = "bg-indigo-600 border-indigo-200 shadow-indigo-500/30";
-    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`;
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
   }
 
   iconCache[type] = L.divIcon({
@@ -112,519 +91,115 @@ const createCustomLeafletIcon = (type: MapPlace["type"]) => {
       </div>
     `,
     iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -34],
   });
   return iconCache[type];
 };
 
-// Leaflet Controller for smooth flying without _leaflet_pos runtime errors
-function MapFlyController({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap();
-  useEffect(() => {
-    if (map && (map as any)._loaded && map.getContainer() && center && center[0] && center[1]) {
-      try {
-        map.flyTo(center, zoom, { duration: 1.2 });
-      } catch (err) {
-        console.warn("flyTo safely handled:", err);
-      }
-    }
-  }, [center, zoom, map]);
-  return null;
-}
+// --- Mock Data ---
+const MOCK_PLACES: MapPlace[] = [
+  { id: "h1", name: "AIIMS Hospital", type: "hospital", lat: 28.5672, lng: 77.2100, vicinity: "Ansari Nagar, New Delhi", phone: "102", bedsAvailable: 12 },
+  { id: "p1", name: "Connaught Place Police Station", type: "police", lat: 28.6315, lng: 77.2167, vicinity: "Connaught Place, New Delhi", phone: "100" },
+  { id: "v1", name: "Ravi (Volunteer)", type: "volunteer", lat: 28.6139, lng: 77.2090, vicinity: "Ready to help", phone: "+91 98765 43210" },
+];
 
-// Map Resizer to ensure map recalculates container dimensions on mount
-function MapResizer() {
-  const map = useMap();
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (map && map.getContainer()) {
-        try {
-          map.invalidateSize();
-        } catch (err) {
-          console.warn("invalidateSize safely handled:", err);
-        }
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [map]);
-  return null;
-}
-
-// Map Click Listener
-function MapClickListener({ onClick }: { onClick: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(e) {
-      onClick(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-}
-
-// Fully Working Floating Map Control Buttons (Zoom, Locate, Recenter, Compass, Fullscreen, Reset View)
-function MapCustomControls({ 
-  onLocateMe, 
-  onResetView,
-  onRecenter,
-  userLocation
-}: { 
-  onLocateMe: () => void;
-  onResetView: () => void;
-  onRecenter: () => void;
-  userLocation: { lat: number; lng: number } | null;
-}) {
-  const map = useMap();
-  const controlsRef = useRef<HTMLDivElement>(null);
-  const [currentZoom, setCurrentZoom] = useState<number>(map.getZoom());
-
-  useEffect(() => {
-    if (controlsRef.current) {
-      L.DomEvent.disableClickPropagation(controlsRef.current);
-      L.DomEvent.disableScrollPropagation(controlsRef.current);
-    }
-  }, []);
-
-  useMapEvents({
-    zoomend() {
-      try {
-        setCurrentZoom(map.getZoom());
-      } catch (e) {}
-    },
-  });
-
-  const handleZoomIn = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try { 
-      if (map.getZoom() < map.getMaxZoom()) {
-        map.zoomIn(); 
-      }
-    } catch (err) {}
-  };
-
-  const handleZoomOut = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try { 
-      if (map.getZoom() > map.getMinZoom()) {
-        map.zoomOut(); 
-      }
-    } catch (err) {}
-  };
-
-  const handleLocateMe = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (userLocation) {
-      try {
-        map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1.2 });
-      } catch (err) {}
-    }
-    onLocateMe();
-  };
-
-  const handleRecenter = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (userLocation) {
-      try {
-        map.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 1.2 });
-      } catch (err) {}
-    } else {
-      try {
-        map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
-      } catch (err) {}
-    }
-    onRecenter();
-  };
-
-  const handleResetView = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
-    } catch (err) {}
-    onResetView();
-  };
-
-  const toggleFullscreen = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const container = map.getContainer();
-      if (!document.fullscreenElement) {
-        if (container.requestFullscreen) {
-          container.requestFullscreen().catch(() => {});
-        } else if ((container as any).webkitRequestFullscreen) {
-          (container as any).webkitRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        } else if ((document as any).webkitExitFullscreen) {
-          (document as any).webkitExitFullscreen();
-        }
-      }
-    } catch (err) {
-      console.warn("Fullscreen toggle safely handled:", err);
-    }
-  };
-
-  const resetBearing = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      if ((map as any).setBearing) {
-        (map as any).setBearing(0);
-      }
-      map.setView(map.getCenter(), map.getZoom());
-    } catch (err) {}
-  };
-
-  const isMaxZoom = currentZoom >= map.getMaxZoom();
-  const isMinZoom = currentZoom <= map.getMinZoom();
-
-  return (
-    <div ref={controlsRef} className="leaflet-top leaflet-right mt-24 mr-3 flex flex-col gap-2 z-[1000] pointer-events-auto">
-      <button
-        type="button"
-        onClick={handleZoomIn}
-        disabled={isMaxZoom}
-        className={`w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
-          isMaxZoom 
-            ? "opacity-40 cursor-not-allowed text-surface-400" 
-            : "hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-800 dark:text-surface-200"
-        }`}
-        title="Zoom In (+)"
-      >
-        <ZoomIn className="w-4 h-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={handleZoomOut}
-        disabled={isMinZoom}
-        className={`w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
-          isMinZoom 
-            ? "opacity-40 cursor-not-allowed text-surface-400" 
-            : "hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-800 dark:text-surface-200"
-        }`}
-        title="Zoom Out (-)"
-      >
-        <ZoomOut className="w-4 h-4" />
-      </button>
-
-      <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-0.5" />
-
-      <button
-        type="button"
-        onClick={handleLocateMe}
-        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-blue-600 dark:text-blue-400 transition-colors"
-        title="My Location (GPS)"
-      >
-        <LocateFixed className="w-4 h-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={handleRecenter}
-        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-amber-500 transition-colors"
-        title="Recenter Map"
-      >
-        <Target className="w-4 h-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={resetBearing}
-        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-surface-800 dark:text-surface-200 transition-colors"
-        title="Reset Compass (North)"
-      >
-        <Compass className="w-4 h-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={toggleFullscreen}
-        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-surface-800 dark:text-surface-200 transition-colors"
-        title="Toggle Fullscreen"
-      >
-        <Maximize className="w-4 h-4" />
-      </button>
-
-      <button
-        type="button"
-        onClick={handleResetView}
-        className="w-9 h-9 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-700 shadow-lg text-purple-500 transition-colors"
-        title="Reset View to India Default"
-      >
-        <RotateCcw className="w-4 h-4" />
-      </button>
-    </div>
-  );
-}
-
-export function SmartMap() {
+export default function SmartMap() {
   const { theme } = useTheme();
-  const { demoMode } = useOutletContext<{ demoMode: boolean }>();
+  const { hideSidebar } = useOutletContext<{ hideSidebar?: () => void }>() || {};
 
-  // State
+  // Refs & Map Instance
+  const [map, setMap] = useState<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  // States
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
-  const watchIdRef = useRef<number | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(INDIA_CENTER);
   const [zoomLevel, setZoomLevel] = useState<number>(DEFAULT_ZOOM);
-  const [address, setAddress] = useState<string>("Locating current address...");
+  const [address, setAddress] = useState<string>("Ready");
   const [geoError, setGeoError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   
-  // Places & Hazards State
-  const [places, setPlaces] = useState<MapPlace[]>(DEMO_PLACES);
-  const [filterType, setFilterType] = useState<string>("all");
+  const [places, setPlaces] = useState<MapPlace[]>(MOCK_PLACES);
+  const [firebaseHazards, setFirebaseHazards] = useState<MapPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<MapPlace | null>(null);
   
-  // OSRM Routing State
+  const [activeRoute, setActiveRoute] = useState<RouteData | null>(null);
   const [travelMode, setTravelMode] = useState<"driving" | "bike" | "foot">("driving");
-  const [activeRoute, setActiveRoute] = useState<{
-    coords: [number, number][];
-    distanceKm: number;
-    durationMins: number;
-    destinationName: string;
-    endLat: number;
-    endLng: number;
-  } | null>(null);
-  const [emergencySOSMode, setEmergencySOSMode] = useState<boolean>(false);
+  
+  const [isSOSMode, setIsSOSMode] = useState(false);
+  const [showHazardDialog, setShowHazardDialog] = useState(false);
+  const [reportType, setReportType] = useState("hazard");
+  const [reportDesc, setReportDesc] = useState("");
 
-  // Search State
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
 
-  // Hazard Reporting Modal State
-  const [isReporting, setIsReporting] = useState<boolean>(false);
-  const [reportType, setReportType] = useState<MapPlace["type"]>("hazard");
-  const [reportTitle, setReportTitle] = useState<string>("");
-  const [reportDesc, setReportDesc] = useState<string>("");
+  // Sync zoom state
+  useEffect(() => {
+    if (!map) return;
+    const onZoom = () => setCurrentZoom(map.getZoom());
+    map.on('zoomend', onZoom);
+    return () => { map.off('zoomend', onZoom); };
+  }, [map]);
 
-  // Reverse Geocode & Fetch Real Places via Overpass API
-  const fetchAddressAndPlaces = useCallback(async (lat: number, lng: number) => {
-    try {
-      if (!navigator.onLine) {
-        const cached = getLastLocation();
-        setAddress(cached.address || `Offline: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-        return;
-      }
-      
-      // 1. Reverse Geocode with Nominatim
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
-      );
-      if (!response.ok) throw new Error("Geocoding failed");
-      const data = await response.json();
-      const addrStr = (data && data.display_name) ? data.display_name : `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      setAddress(addrStr);
-      saveLastLocation({ lat, lng, address: addrStr });
-
-      // 2. Fetch Real Hospitals, Police Stations, Schools, Petrol Stations via Overpass API
-      const radius = 6000;
-      const overpassQuery = `
-        [out:json][timeout:15];
-        (
-          node["amenity"="hospital"](around:${radius},${lat},${lng});
-          way["amenity"="hospital"](around:${radius},${lat},${lng});
-          node["amenity"="clinic"](around:${radius},${lat},${lng});
-          node["amenity"="police"](around:${radius},${lat},${lng});
-          node["amenity"="school"](around:${radius},${lat},${lng});
-          node["amenity"="fuel"](around:${radius},${lat},${lng});
-        );
-        out center;
-      `;
-      const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST",
-        body: overpassQuery
-      });
-      if (!overpassRes.ok) throw new Error("Overpass API failed");
-      const overpassData = await overpassRes.json();
-      
-      const realPlaces: MapPlace[] = overpassData.elements
-        .filter((el: any) => el.tags && (el.tags.name || el.tags.amenity))
-        .map((el: any) => {
-          const pLat = el.lat || el.center?.lat;
-          const pLng = el.lon || el.center?.lon;
-          const amenity = el.tags.amenity;
-          
-          let pType: MapPlace["type"] = "hospital";
-          let defaultName = "Medical Center";
-
-          if (amenity === "police") {
-            pType = "police";
-            defaultName = "Police Station";
-          } else if (amenity === "school") {
-            pType = "school";
-            defaultName = "School / Educational Institute";
-          } else if (amenity === "fuel") {
-            pType = "petrol";
-            defaultName = "Petrol Station";
-          }
-
-          const name = el.tags.name || defaultName;
-          
-          return {
-            id: `osm-${el.id}`,
-            name: name,
-            type: pType,
-            lat: pLat,
-            lng: pLng,
-            vicinity: el.tags?.["addr:full"] || el.tags?.["addr:street"] || el.tags?.["addr:city"] || addrStr.split(",")[0],
-            phone: el.tags?.phone || (pType === "police" ? "112" : pType === "hospital" ? "108" : undefined),
-            isOpen: true,
-            bedsAvailable: pType === "hospital" ? Math.floor(Math.random() * 20) + 1 : undefined,
-            distance: "Nearby",
-          };
-      });
-
-      if (realPlaces.length > 0) {
-        setPlaces(prev => {
-          const customPlaces = prev.filter(p => 
-            p.type === "volunteer" || 
-            p.type === "hazard" || 
-            p.id.startsWith("fb-") || 
-            p.id.startsWith("report-") ||
-            p.id.startsWith("search-")
-          );
-          const uniquePlaces = new Map();
-          [...customPlaces, ...realPlaces].forEach(p => uniquePlaces.set(p.id, p));
-          return Array.from(uniquePlaces.values());
-        });
-      }
-
-    } catch (err) {
-      const fallbackStr = `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
-      setAddress(fallbackStr);
-      saveLastLocation({ lat, lng, address: fallbackStr });
-    }
-  }, []);
-
-  // Request User Geolocation with robust fallback
+  // Request Location
   const requestLocation = useCallback(() => {
-    setIsLoading(true);
-    setGeoError(null);
-
-    if (!navigator.onLine) {
-      const cached = getLastLocation();
-      setGeoError("Offline mode: showing cached map.");
-      if (cached && cached.lat && cached.lng) {
-        setMapCenter([cached.lat, cached.lng]);
-        setUserLocation({ lat: cached.lat, lng: cached.lng });
-        setAddress(cached.address || "Cached Location");
-        setZoomLevel(USER_ZOOM);
-      } else {
-        setMapCenter(INDIA_CENTER);
-        setZoomLevel(DEFAULT_ZOOM);
-        setAddress("Offline mode: showing cached map.");
-      }
-      setIsLoading(false);
-      return;
-    }
-
     if (!navigator.geolocation) {
-      setGeoError("Location access is disabled. You can still search places or enable location later.");
-      setMapCenter(INDIA_CENTER);
-      setZoomLevel(DEFAULT_ZOOM);
-      setIsLoading(false);
+      setGeoError("Geolocation is not supported by your browser");
       return;
     }
-
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
-
-    let initialFetch = true;
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const coords = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        setUserLocation(coords);
-        setLocationAccuracy(position.coords.accuracy);
-
-        if (initialFetch) {
-          setMapCenter([coords.lat, coords.lng]);
-          setZoomLevel(USER_ZOOM);
-          fetchAddressAndPlaces(coords.lat, coords.lng);
-          setIsLoading(false);
-          initialFetch = false;
+    
+    setAddress("Locating you...");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        setMapCenter([latitude, longitude]);
+        setZoomLevel(15);
+        setAddress("Location Active");
+        if (map) {
+          map.flyTo([latitude, longitude], 15, { duration: 1.5 });
         }
       },
       (err) => {
-        console.warn("Geolocation Error Code:", err.code, err.message);
-        if (initialFetch) {
-          if (!navigator.onLine) {
-            setGeoError("Offline mode: showing cached map.");
-          } else if (err.code === err.PERMISSION_DENIED) {
-            setGeoError("Location access is disabled. You can still search places or enable location later.");
-          } else if (err.code === err.POSITION_UNAVAILABLE) {
-            setGeoError("Position unavailable. You can still search places or enable location later.");
-          } else if (err.code === err.TIMEOUT) {
-            setGeoError("Location request timed out. You can still search places or enable location later.");
-          } else {
-            setGeoError("Location access is disabled. You can still search places or enable location later.");
-          }
-          setMapCenter(INDIA_CENTER);
-          setZoomLevel(DEFAULT_ZOOM);
-          setIsLoading(false);
-          initialFetch = false;
-        }
+        setGeoError(err.message || "Location access denied");
+        setAddress("Location disabled");
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
-  }, [fetchAddressAndPlaces]);
+  }, [map]);
 
   useEffect(() => {
     requestLocation();
-    const handleOffline = () => {
-      setGeoError("Offline mode: showing cached map.");
-    };
-    const handleOnline = () => {
-      setGeoError(prev => prev?.includes("Offline mode") ? null : prev);
-    };
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('online', handleOnline);
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('online', handleOnline);
-    };
   }, [requestLocation]);
 
-  // Sync Firebase Hazards
+  // Fetch Firebase Hazards
   useEffect(() => {
-    if (demoMode) return;
     try {
       const q = query(collection(db, "hazards"), orderBy("timestamp", "desc"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        const firebaseHazards: MapPlace[] = snapshot.docs.map((doc) => {
+        const hazards: MapPlace[] = snapshot.docs.map((doc) => {
           const data = doc.data();
           return {
             id: `fb-${doc.id}`,
             name: data.description || "Reported Road Hazard",
-            type: data.type || "hazard",
+            type: "hazard",
             lat: data.lat,
             lng: data.lng,
-            vicinity: `Reported by citizen (${data.status || "active"})`,
-            isOpen: true,
+            vicinity: `Reported on ${new Date(data.timestamp?.toDate()).toLocaleDateString()}`
           };
         });
-        
-        setPlaces((prev) => {
-          const nonFirebase = prev.filter((p) => !p.id.startsWith("fb-"));
-          return [...firebaseHazards, ...nonFirebase];
-        });
+        setFirebaseHazards(hazards);
       });
       return () => unsubscribe();
     } catch (err) {
       console.warn("Firebase Hazards Sync Error:", err);
     }
-  }, [demoMode]);
+  }, []);
 
-  // OpenStreetMap Nominatim Search (Search Village, City, District, State, PIN, Hospital, Police, School, Petrol)
+  // Search
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -632,12 +207,12 @@ export function SmartMap() {
     setIsSearching(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&extratags=1&q=${encodeURIComponent(searchQuery)}&limit=8&countrycodes=in`
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&extratags=1&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=in`
       );
       const data = await res.json();
       setSearchResults(data);
     } catch (err) {
-      console.error("OpenStreetMap Nominatim Search Failed:", err);
+      console.error("Search failed", err);
     } finally {
       setIsSearching(false);
     }
@@ -646,59 +221,43 @@ export function SmartMap() {
   const selectSearchResult = (item: any) => {
     const lat = parseFloat(item.lat);
     const lng = parseFloat(item.lon);
-    
-    let itemType: MapPlace["type"] = "search";
-    const typeStr = (item.type || "").toLowerCase();
-    const classStr = (item.class || "").toLowerCase();
-    
-    if (typeStr.includes("hospital") || typeStr.includes("clinic") || classStr.includes("healthcare")) {
-      itemType = "hospital";
-    } else if (typeStr.includes("police") || classStr.includes("police")) {
-      itemType = "police";
-    } else if (typeStr.includes("school") || typeStr.includes("college") || typeStr.includes("university")) {
-      itemType = "school";
-    } else if (typeStr.includes("fuel") || typeStr.includes("petrol")) {
-      itemType = "petrol";
-    }
-
-    const name = item.display_name.split(",")[0] || "Searched Location";
-    const newPlace: MapPlace = {
-      id: `search-${Date.now()}`,
-      name: name,
-      type: itemType,
+    const place: MapPlace = {
+      id: `search-${item.place_id}`,
+      name: item.name || item.display_name.split(",")[0],
+      type: "search",
       lat,
       lng,
-      vicinity: item.display_name,
-      isOpen: true,
+      vicinity: item.display_name
     };
-
-    setPlaces((prev) => [newPlace, ...prev]);
-    setSelectedPlace(newPlace);
+    
+    setPlaces(prev => {
+      const filtered = prev.filter(p => p.type !== "search");
+      return [...filtered, place];
+    });
+    
     setMapCenter([lat, lng]);
-    setZoomLevel(15);
-    fetchAddressAndPlaces(lat, lng);
+    setZoomLevel(16);
+    setSelectedPlace(place);
     setSearchResults([]);
-    setSearchQuery("");
+    setSearchQuery(place.name);
+    
+    if (map) {
+      map.flyTo([lat, lng], 16, { duration: 1.5 });
+    }
   };
 
-  // Fetch Free OSRM Routing (Car, Bike, Walking)
+  // Routing
   const fetchOSRMRoute = async (
-    startLat: number, 
-    startLng: number, 
-    endLat: number, 
-    endLng: number, 
-    destName: string = "Target",
-    mode: "driving" | "bike" | "foot" = travelMode
+    startLat: number, startLng: number, 
+    endLat: number, endLng: number, 
+    destName: string, mode: "driving" | "bike" | "foot"
   ) => {
     try {
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/${mode}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`
-      );
+      const res = await fetch(`https://router.project-osrm.org/route/v1/${mode}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`);
       const data = await res.json();
       if (data.routes && data.routes.length > 0) {
         const route = data.routes[0];
         const coordinates = route.geometry.coordinates;
-        // Leaflet polyline expects [lat, lon]
         const leafletCoords: [number, number][] = coordinates.map((coord: number[]) => [coord[1], coord[0]]);
         const distKm = parseFloat((route.distance / 1000).toFixed(1));
         const durMins = Math.round(route.duration / 60);
@@ -711,426 +270,194 @@ export function SmartMap() {
           endLat,
           endLng,
         });
-      } else {
-        setActiveRoute({
-          coords: [[startLat, startLng], [endLat, endLng]],
-          distanceKm: 0,
-          durationMins: 0,
-          destinationName: destName,
-          endLat,
-          endLng,
-        });
+        
+        if (map) {
+          const bounds = L.latLngBounds(leafletCoords);
+          map.fitBounds(bounds, { padding: [50, 50] });
+        }
       }
-    } catch (error) {
-      console.error("OSRM Routing Error:", error);
-      setActiveRoute({
-        coords: [[startLat, startLng], [endLat, endLng]],
-        distanceKm: 0,
-        durationMins: 0,
-        destinationName: destName,
-        endLat,
-        endLng,
-      });
+    } catch (err) {
+      console.error("Routing Error:", err);
     }
   };
 
-  // Handle Travel Mode Switch on active route
-  const changeTravelMode = (mode: "driving" | "bike" | "foot") => {
-    setTravelMode(mode);
-    if (activeRoute) {
-      const start = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
-      fetchOSRMRoute(start.lat, start.lng, activeRoute.endLat, activeRoute.endLng, activeRoute.destinationName, mode);
-    }
-  };
-
-  // Trigger Emergency SOS Route to nearest Hospital
-  const toggleEmergencySOS = () => {
-    if (emergencySOSMode) {
-      setEmergencySOSMode(false);
+  // SOS Mode
+  const toggleSOS = () => {
+    if (isSOSMode) {
+      setIsSOSMode(false);
       setActiveRoute(null);
       return;
     }
-
-    setEmergencySOSMode(true);
+    
+    setIsSOSMode(true);
     const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
-    
-    // Find nearest hospital or fallback to first demo hospital
-    const hospitals = places.filter((p) => p.type === "hospital");
-    const targetHospital = hospitals.length > 0 ? hospitals[0] : DEMO_PLACES[0];
-    
-    setSelectedPlace(targetHospital);
-    fetchOSRMRoute(origin.lat, origin.lng, targetHospital.lat, targetHospital.lng, targetHospital.name, travelMode);
+    const hospital = places.find(p => p.type === "hospital") || MOCK_PLACES[0];
+    setSelectedPlace(hospital);
+    fetchOSRMRoute(origin.lat, origin.lng, hospital.lat, hospital.lng, hospital.name, "driving");
   };
 
-  // Submit New Hazard Report
-  const handleMapClickForReport = (lat: number, lng: number) => {
-    if (!isReporting) return;
-
-    const newHazard: MapPlace = {
-      id: `report-${Date.now()}`,
-      name: reportTitle || "Citizen Reported Hazard",
-      type: reportType,
-      lat,
-      lng,
-      vicinity: reportDesc || `Pinned location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-      isOpen: true,
-      status: "Active Alert",
-    };
-
-    if (!demoMode) {
-      addDoc(collection(db, "hazards"), {
-        type: reportType,
-        description: reportTitle || "Road Hazard",
-        details: reportDesc,
+  // Map Controls Handlers
+  const handleZoomIn = () => {
+    if (map && map.getZoom() < map.getMaxZoom()) map.zoomIn();
+  };
+  const handleZoomOut = () => {
+    if (map && map.getZoom() > map.getMinZoom()) map.zoomOut();
+  };
+  const handleRecenter = () => {
+    if (map && userLocation) {
+      map.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 1.2 });
+    } else if (map) {
+      map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
+    }
+  };
+  const handleResetView = () => {
+    if (map) map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
+  };
+  const toggleFullscreen = () => {
+    if (!mapContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      mapContainerRef.current.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+  const resetBearing = () => {
+    if (map) map.setView(map.getCenter(), map.getZoom());
+  };
+  const handleMapClickForReport = (e: any) => {
+    if (showHazardDialog) {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      const place: MapPlace = {
+        id: `hazard-${Date.now()}`,
+        name: "Reported Hazard",
+        type: "hazard",
         lat,
         lng,
-        timestamp: new Date(),
-        status: "active",
-      }).catch((err) => console.error("Firebase Add Error:", err));
+        vicinity: reportDesc || "Reported by you"
+      };
+      setPlaces(prev => [...prev, place]);
+      setShowHazardDialog(false);
+      setReportDesc("");
+      try { addDoc(collection(db, "hazards"), { ...place, timestamp: new Date() }); } catch(err) {}
     }
-
-    setPlaces((prev) => [newHazard, ...prev]);
-    setSelectedPlace(newHazard);
-    setIsReporting(false);
-    setReportTitle("");
-    setReportDesc("");
   };
 
-  // Filter Places by Category
-  const filteredPlaces = places.filter((p) => {
-    if (filterType === "all") return true;
-    return p.type === filterType;
-  });
+  const allMapPlaces = [...places, ...firebaseHazards];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6.5rem)] min-h-[580px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-md animate-in fade-in duration-500">
+    <div className="flex flex-col h-[calc(100vh-6.5rem)] min-h-[580px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-md" ref={mapContainerRef}>
       
       {/* Top Floating Header & Search Bar */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pointer-events-none">
         
-        {/* Search Input & Address Header */}
+        {/* Search */}
         <div className="flex-1 max-w-lg pointer-events-auto flex flex-col gap-2">
-          
           <form onSubmit={handleSearch} className="relative">
-            <SmartInput
+            <input
+              type="text"
               value={searchQuery}
-              onChange={(val) => {
-                setSearchQuery(val);
-                if (val.length > 2) {
-                  // Trigger live Nominatim search
-                  fetch(
-                    `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(val)}&limit=6&countrycodes=in`
-                  )
-                    .then(res => res.json())
-                    .then(data => setSearchResults(data))
-                    .catch(() => {});
-                }
-              }}
-              placeholder="Search city, village, hospital, police, school, petrol pump..."
-              historyKey="smartmap_search"
-              suggestions={[
-                "AIIMS Trauma Center, Delhi",
-                "Max Super Specialty Hospital, Saket",
-                "KEM Hospital Emergency Unit, Mumbai",
-                "Connaught Place Central Patrol",
-                "Sector 7 Rapid Response Circle",
-                "Indian Oil Petrol Pump",
-                "Delhi Public School"
-              ]}
-              showVoiceInput={true}
-              enableAIIntent={true}
-              inputClassName="py-2.5 text-xs bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 shadow-xl"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search city, hospital, pincode..."
+              className="w-full bg-white/90 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 shadow-xl rounded-2xl pl-10 pr-12 py-3.5 text-sm focus:border-emerald-500 outline-none text-surface-900 dark:text-white"
             />
-
-            {/* Nominatim Search Dropdown */}
-            {searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 overflow-hidden max-h-64 overflow-y-auto z-[1001]">
-                {searchResults.map((item, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => selectSearchResult(item)}
-                    className="w-full text-left p-3 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border-b border-surface-100 dark:border-surface-800/50 last:border-0 flex items-start gap-2.5"
-                  >
-                    <MapPin className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-xs font-bold text-surface-900 dark:text-white leading-snug">{item.display_name.split(",")[0]}</div>
-                      <div className="text-[10px] text-surface-500 truncate max-w-xs">{item.display_name}</div>
-                    </div>
-                  </button>
-                ))}
+            <Search className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            {isSearching && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
               </div>
             )}
           </form>
 
-          {/* Current Address & Location Badge */}
-          <div className="bg-white/90 dark:bg-surface-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-surface-200 dark:border-surface-700 shadow-lg flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
-              <p className="text-[11px] font-extrabold text-surface-700 dark:text-surface-300 truncate">{address}</p>
+          {searchResults.length > 0 && (
+            <div className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+              {searchResults.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => selectSearchResult(item)}
+                  className="w-full text-left px-4 py-3 border-b border-surface-100 dark:border-surface-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-start gap-3"
+                >
+                  <MapPin className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="text-sm font-bold text-surface-900 dark:text-white line-clamp-1">{item.name || item.display_name.split(",")[0]}</div>
+                    <div className="text-[10px] text-surface-500 line-clamp-1">{item.display_name}</div>
+                  </div>
+                </button>
+              ))}
             </div>
-            <button
-              onClick={requestLocation}
-              className="p-1 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg text-surface-500 dark:text-surface-400 hover:text-amber-500 transition-colors shrink-0"
-              title="Refresh GPS Location"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
+          )}
         </div>
 
-        {/* Action Buttons: Emergency SOS & Report Hazard */}
-        <div className="pointer-events-auto flex items-center gap-2.5 self-end md:self-auto">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 pointer-events-auto self-end md:self-auto">
+          <button
+            onClick={() => setShowHazardDialog(!showHazardDialog)}
+            className="h-12 px-4 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl flex items-center justify-center shadow-xl text-surface-700 dark:text-white hover:border-amber-500 transition-colors font-bold text-sm gap-2"
+          >
+            <ShieldAlert className="w-4 h-4 text-amber-500" />
+            <span className="hidden sm:inline">Report Hazard</span>
+          </button>
           
           <button
-            onClick={toggleEmergencySOS}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl shadow-xl font-black text-xs sm:text-sm transition-all ${
-              emergencySOSMode
-                ? "bg-red-600 text-white shadow-red-500/50 scale-105 animate-pulse"
-                : "bg-red-500 hover:bg-red-600 text-white shadow-red-500/30"
+            onClick={toggleSOS}
+            className={`h-12 px-5 rounded-2xl flex items-center justify-center shadow-xl font-black text-sm gap-2 transition-all duration-300 ${
+              isSOSMode 
+                ? "bg-red-600 text-white animate-pulse shadow-red-500/50 scale-105" 
+                : "bg-red-500 text-white hover:bg-red-600 hover:shadow-red-500/30"
             }`}
           >
-            <ShieldAlert className="w-5 h-5" />
-            {emergencySOSMode ? "CANCEL SOS ROUTE" : "EMERGENCY SOS"}
+            <HeartPulse className="w-5 h-5" />
+            <span className="hidden sm:inline">{isSOSMode ? "CANCEL SOS" : "EMERGENCY SOS"}</span>
           </button>
-
-          <button
-            onClick={() => setIsReporting(!isReporting)}
-            className={`flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl font-bold text-xs sm:text-sm transition-all ${
-              isReporting
-                ? "bg-amber-500 text-black shadow-amber-500/30"
-                : "bg-white dark:bg-surface-900 text-surface-900 dark:text-white border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800"
-            }`}
-          >
-            {isReporting ? <X className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
-            {isReporting ? "Cancel" : "Report Hazard"}
-          </button>
-
         </div>
-
       </div>
 
-      {/* Geolocation Warning / Friendly Banner */}
-      {geoError && (
-        <div className="absolute top-28 left-4 right-4 z-[1000] max-w-lg mx-auto bg-amber-500/95 backdrop-blur-md text-surface-950 px-4 py-3 rounded-2xl shadow-xl border border-amber-400 flex items-center justify-between text-xs font-bold animate-in fade-in gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span className="truncate">{geoError}</span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                setGeoError(null);
-                requestLocation();
-              }}
-              className="px-2.5 py-1 bg-surface-950 text-white rounded-xl text-[11px] font-extrabold hover:bg-surface-800 transition-colors shadow-sm"
-            >
-              Enable Location
-            </button>
-            <button onClick={() => setGeoError(null)} className="p-1 hover:bg-black/10 rounded-lg">
+      {/* Hazard Dialog Overlay */}
+      {showHazardDialog && (
+        <div className="absolute top-24 left-4 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 rounded-3xl border border-amber-500/50 shadow-2xl w-72 pointer-events-auto">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-extrabold text-amber-500 text-sm flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> Drop Hazard Pin
+            </h3>
+            <button onClick={() => setShowHazardDialog(false)} className="text-surface-400 hover:text-surface-700 dark:hover:text-white">
               <X className="w-4 h-4" />
             </button>
           </div>
+          <p className="text-xs text-surface-600 dark:text-surface-400 mb-3">Click anywhere on the map to place a hazard marker.</p>
+          <input 
+            type="text" 
+            placeholder="Description (e.g. Flooded road)" 
+            value={reportDesc} 
+            onChange={e => setReportDesc(e.target.value)}
+            className="w-full bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl px-3 py-2 text-xs mb-2"
+          />
         </div>
       )}
 
-      {/* Floating Active Route Information Panel */}
-      {activeRoute && (
-        <div className="absolute top-36 left-4 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 pointer-events-auto max-w-xs animate-in slide-in-from-left-4 duration-300">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Navigation className="w-4 h-4 text-amber-500 animate-pulse" />
-              <span className="font-extrabold text-xs text-surface-900 dark:text-white truncate max-w-[150px]">
-                {activeRoute.destinationName}
-              </span>
-            </div>
-            <button
-              onClick={() => setActiveRoute(null)}
-              className="p-1 text-surface-400 hover:text-surface-700 dark:hover:text-white rounded-lg"
-              title="Clear Route"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between text-xs font-bold text-surface-600 dark:text-surface-300 mb-3 bg-surface-100 dark:bg-surface-800 p-2.5 rounded-xl">
-            <div>
-              <span className="text-[10px] uppercase block text-surface-400 font-extrabold">Distance</span>
-              <span className="text-sm font-black text-amber-500">{activeRoute.distanceKm} km</span>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] uppercase block text-surface-400 font-extrabold">Est. Time</span>
-              <span className="text-sm font-black text-emerald-500">{activeRoute.durationMins} mins</span>
-            </div>
-          </div>
-
-          {/* Travel Mode Selector (Car / Bike / Walk) */}
-          <div className="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
-            <button
-              onClick={() => changeTravelMode("driving")}
-              className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold flex items-center justify-center gap-1 transition-all ${
-                travelMode === "driving"
-                  ? "bg-amber-500 text-black shadow-sm"
-                  : "text-surface-500 hover:text-surface-900 dark:hover:text-white"
-              }`}
-            >
-              <Car className="w-3.5 h-3.5" /> Car
-            </button>
-            <button
-              onClick={() => changeTravelMode("bike")}
-              className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold flex items-center justify-center gap-1 transition-all ${
-                travelMode === "bike"
-                  ? "bg-amber-500 text-black shadow-sm"
-                  : "text-surface-500 hover:text-surface-900 dark:hover:text-white"
-              }`}
-            >
-              <Bike className="w-3.5 h-3.5" /> Bike
-            </button>
-            <button
-              onClick={() => changeTravelMode("foot")}
-              className={`flex-1 py-1 rounded-lg text-[11px] font-extrabold flex items-center justify-center gap-1 transition-all ${
-                travelMode === "foot"
-                  ? "bg-amber-500 text-black shadow-sm"
-                  : "text-surface-500 hover:text-surface-900 dark:hover:text-white"
-              }`}
-            >
-              <Footprints className="w-3.5 h-3.5" /> Walk
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Category Filter Bar (Bottom Left Floating) */}
-      <div className="absolute bottom-6 left-4 right-4 sm:right-auto z-[1000] pointer-events-auto flex items-center gap-1.5 p-1.5 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl max-w-[calc(100vw-2rem)] sm:max-w-[calc(100vw-12rem)] overflow-x-auto custom-scrollbar">
-        {[
-          { id: "all", label: "All Hubs", icon: MapPin },
-          { id: "hospital", label: "Hospitals", icon: Building2 },
-          { id: "police", label: "Police", icon: Shield },
-          { id: "volunteer", label: "Volunteers", icon: Users },
-          { id: "hazard", label: "Hazards", icon: AlertTriangle },
-          { id: "school", label: "Schools", icon: GraduationCap },
-          { id: "petrol", label: "Petrol", icon: Fuel },
-        ].map((tab) => {
-          const IconComp = tab.icon;
-          const isActive = filterType === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setFilterType(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
-                isActive
-                  ? "bg-amber-500 text-black shadow-md"
-                  : "text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800"
-              }`}
-            >
-              <IconComp className="w-3.5 h-3.5" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* Custom Map Controls (Outside MapContainer to avoid Leaflet event stealing issues) */}
+      <div className="absolute top-24 right-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
+        <button onClick={handleZoomIn} disabled={map ? currentZoom >= map.getMaxZoom() : false} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors disabled:opacity-50"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+        <button onClick={handleZoomOut} disabled={map ? currentZoom <= map.getMinZoom() : false} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors disabled:opacity-50"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+        <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-1" />
+        <button onClick={requestLocation} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><LocateFixed className="w-4 h-4 text-blue-500" /></button>
+        <button onClick={handleRecenter} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><Target className="w-4 h-4 text-emerald-500" /></button>
+        <button onClick={resetBearing} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><Compass className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+        <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-1" />
+        <button onClick={handleResetView} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><RefreshCw className="w-4 h-4 text-amber-500" /></button>
+        <button onClick={toggleFullscreen} className="w-10 h-10 bg-white/90 dark:bg-surface-900/90 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"><Maximize className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
       </div>
-
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 z-[1001] bg-surface-950/60 backdrop-blur-sm flex flex-col items-center justify-center text-white space-y-3">
-          <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
-          <p className="text-xs font-bold tracking-wider uppercase text-surface-300">Loading OpenStreetMap Emergency Layer...</p>
-        </div>
-      )}
-
-      {/* Hazard Report Input Card */}
-      {isReporting && (
-        <div className="absolute top-28 right-4 z-[1000] w-80 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 pointer-events-auto animate-in slide-in-from-right-4 duration-300">
-          <h4 className="font-black text-sm text-surface-900 dark:text-white mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-            Report Road Hazard or Blackspot
-          </h4>
-          
-          <div className="space-y-3">
-            <div>
-              <label className="text-[10px] font-extrabold uppercase text-surface-400 block mb-1">Hazard Category</label>
-              <select
-                value={reportType}
-                onChange={(e) => setReportType(e.target.value as any)}
-                className="w-full bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl px-3 py-2 text-xs font-bold text-surface-900 dark:text-white focus:outline-none focus:border-amber-500"
-              >
-                <option value="hazard">Road Accident / Hazard</option>
-                <option value="blackspot">High-Risk Blackspot</option>
-                <option value="volunteer">Volunteer Station</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-extrabold uppercase text-surface-400 block mb-1">Title / Summary</label>
-              <input
-                type="text"
-                placeholder="e.g. Oil Spill on Highway Flyover"
-                value={reportTitle}
-                onChange={(e) => setReportTitle(e.target.value)}
-                className="w-full bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl px-3 py-2 text-xs font-semibold text-surface-900 dark:text-white focus:outline-none focus:border-amber-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-extrabold uppercase text-surface-400 block mb-1">Description</label>
-              <textarea
-                placeholder="Describe road conditions..."
-                value={reportDesc}
-                onChange={(e) => setReportDesc(e.target.value)}
-                className="w-full bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl px-3 py-2 text-xs font-medium text-surface-900 dark:text-white focus:outline-none focus:border-amber-500 h-16 resize-none"
-              />
-            </div>
-
-            <p className="text-[11px] font-bold text-amber-500 bg-amber-500/10 p-2 rounded-xl">
-              👉 Click anywhere on the map to pin this hazard location.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Leaflet OpenStreetMap Container */}
       <MapContainer
-        key="leaflet-smartmap-container"
+        ref={setMap}
         center={mapCenter}
         zoom={zoomLevel}
         scrollWheelZoom={true}
-        doubleClickZoom={true}
-        touchZoom={true}
-        dragging={true}
         className="w-full h-full z-0"
         zoomControl={false}
       >
-        <MapFlyController center={mapCenter} zoom={zoomLevel} />
-        <MapResizer />
-        <MapClickListener onClick={handleMapClickForReport} />
-        <MapCustomControls 
-          userLocation={userLocation}
-          onLocateMe={() => {
-            if (userLocation) {
-              setMapCenter([userLocation.lat, userLocation.lng]);
-              setZoomLevel(16);
-            } else {
-              requestLocation();
-            }
-          }}
-          onRecenter={() => {
-            if (userLocation) {
-              setMapCenter([userLocation.lat, userLocation.lng]);
-              setZoomLevel(15);
-            } else {
-              setMapCenter(INDIA_CENTER);
-              setZoomLevel(DEFAULT_ZOOM);
-            }
-          }}
-          onResetView={() => {
-            setMapCenter(INDIA_CENTER);
-            setZoomLevel(DEFAULT_ZOOM);
-          }}
-        />
-
-        {/* Free Leaflet Layer Controls (Standard, Carto Dark, OpenTopo, Satellite) */}
-        <LayersControl position="bottomright">
+        <LayersControl position="bottomleft">
           <LayersControl.BaseLayer checked={theme !== "dark"} name="OpenStreetMap Standard">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -1145,127 +472,68 @@ export function SmartMap() {
               maxZoom={19}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="OpenTopoMap">
-            <TileLayer
-              attribution='&copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
-              url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-              maxZoom={17}
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Esri Satellite">
-            <TileLayer
-              attribution='&copy; Esri World Imagery'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={19}
-            />
-          </LayersControl.BaseLayer>
         </LayersControl>
 
         <ScaleControl position="bottomleft" imperial={false} />
+        
+        {/* Click Handler */}
+        <MapEventsHandler onClick={handleMapClickForReport} />
 
-        {/* OSRM Route Line */}
-        {activeRoute && (
-          <Polyline
-            positions={activeRoute.coords}
-            pathOptions={{ 
-              color: travelMode === "driving" ? "#ef4444" : travelMode === "bike" ? "#10b981" : "#f59e0b", 
-              weight: 6, 
-              dashArray: "8 6", 
-              opacity: 0.9 
+        {/* User Location Marker */}
+        {userLocation && (
+          <Marker position={[userLocation.lat, userLocation.lng]} icon={getCustomIcon("user")}>
+            <Popup className="custom-popup">
+              <div className="font-extrabold text-sm">You are here</div>
+              <div className="text-[10px] text-surface-500">Live GPS Location</div>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Places Markers */}
+        {allMapPlaces.map(place => (
+          <Marker 
+            key={place.id} 
+            position={[place.lat, place.lng]} 
+            icon={getCustomIcon(place.type)}
+            eventHandlers={{
+              click: () => {
+                setSelectedPlace(place);
+                if (map) map.flyTo([place.lat, place.lng], 16, { duration: 1.2 });
+              }
             }}
+          >
+            <Popup className="custom-popup">
+              <div className="font-extrabold text-sm">{place.name}</div>
+              <div className="text-[10px] text-surface-500">{place.vicinity}</div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Active Route Polyline */}
+        {activeRoute && (
+          <Polyline 
+            positions={activeRoute.coords} 
+            color={isSOSMode ? "#EF4444" : "#10B981"} 
+            weight={6} 
+            opacity={0.8}
+            dashArray={isSOSMode ? "10, 10" : undefined}
           />
         )}
-
-        {/* User Location Marker & Circle */}
-        {userLocation && (
-          <LayerGroup>
-            {locationAccuracy && (
-              <Circle
-                center={[userLocation.lat, userLocation.lng]}
-                radius={locationAccuracy}
-                pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.15, weight: 1 }}
-              />
-            )}
-            <Marker 
-              position={[userLocation.lat, userLocation.lng]} 
-              icon={createCustomLeafletIcon("user")}
-            >
-              <Popup>
-                <div className="p-1 text-center">
-                  <span className="font-extrabold text-xs text-red-600 block">Your Active Location</span>
-                  <span className="text-[10px] text-surface-500 block mb-1">Golden Hour Response Connected</span>
-                  {locationAccuracy && (
-                    <span className="text-[10px] text-emerald-600 font-medium">
-                      GPS Accuracy: {Math.round(locationAccuracy)}m
-                    </span>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          </LayerGroup>
-        )}
-
-        {/* Places & Emergency Markers */}
-        <LayerGroup>
-          {filteredPlaces.map((place) => (
-            <Marker
-              key={place.id}
-              position={[place.lat, place.lng]}
-              icon={createCustomLeafletIcon(place.type)}
-              eventHandlers={{
-                click: () => setSelectedPlace(place),
-              }}
-            >
-              <Popup>
-                <div className="p-1 space-y-1">
-                  <span className="font-extrabold text-xs block text-surface-900">{place.name}</span>
-                  <span className="text-[10px] text-surface-500 block">{place.vicinity}</span>
-                  {place.phone && (
-                    <a href={`tel:${place.phone}`} className="inline-block px-2.5 py-1 bg-emerald-600 text-white font-bold rounded-lg text-[10px] mt-1">
-                      Call {place.phone}
-                    </a>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </LayerGroup>
-
       </MapContainer>
 
-      {/* Selected Place Detail Sheet */}
+      {/* Selected Place Sheet */}
       {selectedPlace && (
-        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl text-surface-900 dark:text-white p-5 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl animate-in slide-in-from-bottom-6 duration-300 pointer-events-auto">
+        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl pointer-events-auto">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                selectedPlace.type === "hospital" ? "bg-red-500/20 text-red-500" :
-                selectedPlace.type === "police" ? "bg-blue-500/20 text-blue-500" :
-                selectedPlace.type === "volunteer" ? "bg-emerald-500/20 text-emerald-500" :
-                selectedPlace.type === "school" ? "bg-teal-500/20 text-teal-500" :
-                selectedPlace.type === "petrol" ? "bg-orange-500/20 text-orange-500" : "bg-amber-500/20 text-amber-500"
-              }`}>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-500">
                 {selectedPlace.type}
               </span>
-              <h3 className="font-extrabold text-base sm:text-lg mt-1 leading-snug">{selectedPlace.name}</h3>
+              <h3 className="font-extrabold text-base mt-1">{selectedPlace.name}</h3>
             </div>
-            <button 
-              onClick={() => setSelectedPlace(null)}
-              className="text-surface-400 hover:text-surface-700 dark:hover:text-white p-1 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <button onClick={() => setSelectedPlace(null)} className="p-1"><X className="w-5 h-5 text-surface-400 hover:text-surface-700 dark:hover:text-white" /></button>
           </div>
-
-          <p className="text-xs text-surface-500 dark:text-surface-300 mb-4 leading-relaxed">{selectedPlace.vicinity}</p>
-
-          {selectedPlace.bedsAvailable !== undefined && (
-            <div className="mb-4 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <span>ICU & Trauma Beds</span>
-              <span>{selectedPlace.bedsAvailable} Available</span>
-            </div>
-          )}
-
+          <p className="text-xs text-surface-500 mb-4">{selectedPlace.vicinity}</p>
           <div className="flex gap-2">
             <button
               onClick={() => {
@@ -1274,22 +542,50 @@ export function SmartMap() {
               }}
               className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
             >
-              <Navigation className="w-4 h-4" />
-              Navigate Route
+              <Navigation className="w-4 h-4" /> Navigate
             </button>
             {selectedPlace.phone && (
-              <a
-                href={`tel:${selectedPlace.phone}`}
-                className="px-4 py-3 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-900 dark:text-white font-bold rounded-2xl text-xs flex items-center gap-2 border border-surface-200 dark:border-surface-700 transition-colors"
-              >
-                <PhoneCall className="w-4 h-4 text-emerald-500" />
-                Call
+              <a href={`tel:${selectedPlace.phone}`} className="px-4 py-3 bg-surface-100 dark:bg-surface-800 text-emerald-500 font-bold rounded-2xl border border-surface-200 dark:border-surface-700 flex items-center justify-center">
+                <PhoneCall className="w-4 h-4" />
               </a>
             )}
           </div>
         </div>
       )}
 
+      {/* Active Route Info Panel */}
+      {activeRoute && !selectedPlace && (
+        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-80 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 rounded-3xl border border-emerald-500/30 shadow-2xl pointer-events-auto">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-emerald-500 font-extrabold text-sm">
+              <Navigation className="w-4 h-4" /> Navigating to {activeRoute.destinationName}
+            </div>
+            <button onClick={() => setActiveRoute(null)}><X className="w-4 h-4 text-surface-400" /></button>
+          </div>
+          <div className="flex gap-4 mb-3">
+            <div className="flex-1 bg-emerald-500/10 p-3 rounded-2xl">
+              <div className="text-[10px] text-surface-500 font-bold uppercase">Distance</div>
+              <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{activeRoute.distanceKm} km</div>
+            </div>
+            <div className="flex-1 bg-emerald-500/10 p-3 rounded-2xl">
+              <div className="text-[10px] text-surface-500 font-bold uppercase">Est. Time</div>
+              <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{activeRoute.durationMins} min</div>
+            </div>
+          </div>
+          <div className="flex bg-surface-100 dark:bg-surface-800 p-1 rounded-xl">
+            <button onClick={() => setTravelMode("driving")} className={`flex-1 py-2 text-xs font-bold rounded-lg flex justify-center ${travelMode === "driving" ? "bg-white dark:bg-surface-700 shadow" : "text-surface-500"}`}><Car className="w-4 h-4" /></button>
+            <button onClick={() => setTravelMode("bike")} className={`flex-1 py-2 text-xs font-bold rounded-lg flex justify-center ${travelMode === "bike" ? "bg-white dark:bg-surface-700 shadow" : "text-surface-500"}`}><Sparkles className="w-4 h-4" /></button>
+            <button onClick={() => setTravelMode("foot")} className={`flex-1 py-2 text-xs font-bold rounded-lg flex justify-center ${travelMode === "foot" ? "bg-white dark:bg-surface-700 shadow" : "text-surface-500"}`}><Users className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
+}
+
+// Helper to handle map clicks
+function MapEventsHandler({ onClick }: { onClick: (e: any) => void }) {
+  useMapEvents({ click: onClick });
+  return null;
 }

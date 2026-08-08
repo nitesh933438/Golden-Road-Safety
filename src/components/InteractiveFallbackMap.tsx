@@ -97,6 +97,9 @@ function MapController({ center, zoom }: { center: [number, number]; zoom: numbe
         console.warn("flyTo safely handled:", err);
       }
     }
+    return () => {
+      try { if (map) map.stop(); } catch (err) {}
+    };
   }, [center, zoom, map]);
   return null;
 }
@@ -136,7 +139,7 @@ function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
 
   useEffect(() => {
     if (controlsRef.current) {
-      L.DomEvent.disableClickPropagation(controlsRef.current);
+      // L.DomEvent.disableClickPropagation(controlsRef.current);
       L.DomEvent.disableScrollPropagation(controlsRef.current);
     }
   }, []);
@@ -197,7 +200,7 @@ function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
     <div ref={controlsRef} className="leaflet-top leaflet-right mt-24 mr-2.5 flex flex-col gap-2 z-[1000] pointer-events-auto">
       <button
         type="button"
-        onClick={handleZoomIn}
+        onPointerDownCapture={handleZoomIn} onClickCapture={handleZoomIn}
         disabled={isMaxZoom}
         className={`w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center shadow-md transition-colors ${
           isMaxZoom ? "opacity-40 cursor-not-allowed text-surface-400" : "hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300"
@@ -209,7 +212,7 @@ function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
 
       <button
         type="button"
-        onClick={handleZoomOut}
+        onPointerDownCapture={handleZoomOut} onClickCapture={handleZoomOut}
         disabled={isMinZoom}
         className={`w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center shadow-md transition-colors ${
           isMinZoom ? "opacity-40 cursor-not-allowed text-surface-400" : "hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300"
@@ -223,7 +226,7 @@ function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
 
       <button
         type="button"
-        onClick={toggleFullscreen}
+        onPointerDownCapture={toggleFullscreen} onClickCapture={toggleFullscreen}
         className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors"
         title="Toggle Fullscreen"
       >
@@ -231,7 +234,7 @@ function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
       </button>
       <button
         type="button"
-        onClick={resetBearing}
+        onPointerDownCapture={resetBearing} onClickCapture={resetBearing}
         className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors"
         title="Reset Compass (North)"
       >
@@ -239,7 +242,7 @@ function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
       </button>
       <button
         type="button"
-        onClick={handleLocateMe}
+        onPointerDownCapture={handleLocateMe} onClickCapture={handleLocateMe}
         className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-blue-600 dark:text-blue-400 transition-colors"
         title="My Location"
       >

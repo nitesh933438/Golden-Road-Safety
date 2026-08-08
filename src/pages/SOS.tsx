@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { ShieldAlert, Phone, AlertTriangle, MapPin, Activity, CheckCircle2, Zap, Car, ToggleLeft, ToggleRight, Radio, Shield, WifiOff, CloudUpload, Heart, Stethoscope, User, Lock, Eye } from "lucide-react";
-import { useOutletContext, Link } from "react-router-dom";
+import { ShieldAlert, Phone, AlertTriangle, MapPin, Activity, CheckCircle2, Zap, Car, ToggleLeft, ToggleRight, Radio, Shield, WifiOff, CloudUpload, Heart, Stethoscope, User, Lock, Eye, PhoneCall } from "lucide-react";
+import { useOutletContext, Link, useLocation } from "react-router-dom";
 import { useCrashDetection } from "../context/CrashDetectionContext";
 import { SimulateCrashButton } from "../components/crash/SimulateCrashButton";
 import { useOfflineSync } from "../context/OfflineSyncContext";
 import { getLastLocation } from "../lib/offlineStore";
 import { getLocalMedicalID, MedicalIDData } from "../lib/medicalIdStore";
+import { EmergencyCallBanner } from "../components/EmergencyCallBanner";
+import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EMERGENCY_NUMBER } from "../lib/emergencyCall";
+import { useAuth } from "../context/AuthContext";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 export function SOS() {
+  const { userProfile } = useAuth();
   const { demoMode } = useOutletContext<{ demoMode: boolean }>();
+  const pageLocation = useLocation();
   const [sosActive, setSosActive] = useState(false);
   const [offlineSaved, setOfflineSaved] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [medicalID, setMedicalID] = useState<MedicalIDData>(() => getLocalMedicalID());
   const { sensorActive, toggleSensorActive } = useCrashDetection();
   const { isOnline, queueItem } = useOfflineSync();
@@ -19,28 +28,97 @@ export function SOS() {
     setMedicalID(getLocalMedicalID());
   }, [sosActive]);
 
-  const toggleSOS = async () => {
-    const nextActive = !sosActive;
-    setSosActive(nextActive);
+  // Check URL params for auto-triggering SOS (e.g., from 1-TAP SOS header link)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(pageLocation.search);
+    if (searchParams.get("active") === "true" || searchParams.get("autoTrigger") === "true") {
+      activateEmergency();
+    }
+  }, [pageLocation.search]);
 
-    if (nextActive) {
-      const loc = getLastLocation();
-      const sosRecord = {
-        location: loc.address,
-        coords: { lat: loc.lat, lng: loc.lng },
-        severity: "CRITICAL",
-        status: isOnline ? "Active" : "Pending Sync",
-        type: "Manual SOS Alert",
-        triggeredAt: new Date().toISOString()
-      };
-
-      if (!isOnline) {
-        await queueItem("sos", sosRecord);
-        setOfflineSaved(true);
-      } else {
-        setOfflineSaved(false);
-      }
+  const fetchGPSLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setLocationError(null);
+        },
+        (err) => {
+          console.error("GPS Position Error:", err);
+          setLocationError("Location permission is unavailable.");
+          setCoords(null);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
     } else {
+      setLocationError("Location permission is unavailable.");
+      setCoords(null);
+    }
+  };
+
+  const activateEmergency = async () => {
+    setSosActive(true);
+    fetchGPSLocation();
+
+    const sosMsg = generateSOSMessage({
+      userName: userProfile?.name || "GoldenGuard Test User",
+      coords,
+    });
+
+    let smsStatus = "PENDING";
+    try {
+      const response = await fetch("/api/emergency/sos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: TEST_EMERGENCY_NUMBER,
+          latitude: coords ? coords.lat : "Location unavailable",
+          longitude: coords ? coords.lng : "Location unavailable",
+          timestamp: new Date().toISOString(),
+          message: sosMsg,
+        }),
+      });
+      const data = await response.json();
+      smsStatus = response.ok && data.success ? "SENT" : "FAILED";
+    } catch (err) {
+      console.error("Backend SOS request failed in SOS page:", err);
+      smsStatus = "FAILED";
+    }
+
+    const loc = getLastLocation();
+    const sosRecord = {
+      userId: userProfile?.uid || "anonymous",
+      location: loc.address,
+      coords: coords || { lat: loc.lat, lng: loc.lng },
+      severity: "CRITICAL",
+      emergencyContact: TEST_EMERGENCY_NUMBER,
+      status: smsStatus === "SENT" ? "Active" : "Failed",
+      smsStatus,
+      type: "1-Tap SOS Emergency Dispatch",
+      triggeredAt: new Date().toISOString(),
+    };
+
+    if (!isOnline) {
+      await queueItem("sos", sosRecord);
+      setOfflineSaved(true);
+    } else {
+      setOfflineSaved(false);
+      try {
+        await addDoc(collection(db, "emergencies"), {
+          ...sosRecord,
+          createdAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error("Failed to write emergency to Firestore:", e);
+      }
+    }
+  };
+
+  const toggleSOS = async () => {
+    if (!sosActive) {
+      await activateEmergency();
+    } else {
+      setSosActive(false);
       setOfflineSaved(false);
     }
   };
@@ -89,6 +167,16 @@ export function SOS() {
           <SimulateCrashButton variant="primary" className="shrink-0" />
         </div>
       </div>
+
+      {sosActive && (
+        <EmergencyCallBanner 
+          coords={coords} 
+          locationError={locationError} 
+          userName={userProfile?.name || "GoldenGuard Test User"}
+          onCancel={() => setSosActive(false)} 
+          className="my-4"
+        />
+      )}
 
       {sosActive ? (
         <div className="w-48 h-48 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 flex items-center justify-center animate-ping absolute opacity-50"></div>
@@ -220,7 +308,19 @@ export function SOS() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-8 relative z-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mt-8 relative z-10">
+        <a 
+          href={`tel:${TEST_EMERGENCY_NUMBER}`}
+          onClick={(e) => {
+            triggerEmergencyCall(TEST_EMERGENCY_NUMBER);
+          }}
+          className="flex flex-col items-center gap-3 p-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white rounded-2xl transition-all shadow-xl ring-2 ring-amber-400/40 hover:-translate-y-1 sm:col-span-1"
+        >
+          <PhoneCall className="w-8 h-8 animate-bounce text-amber-300" />
+          <div className="font-black text-xl">9334387983</div>
+          <div className="text-xs font-extrabold uppercase tracking-wider text-amber-200">Test Emergency Contact</div>
+        </a>
+
         <a 
           href="tel:108"
           onClick={(e) => {
@@ -229,11 +329,11 @@ export function SOS() {
               alert("Dialing 108 (National Ambulance)... Direct line connected to regional dispatch.");
             }
           }}
-          className="flex flex-col items-center gap-3 p-6 bg-red-600 hover:bg-red-700 text-white rounded-2xl transition-all shadow-lg shadow-red-600/20 hover:-translate-y-1"
+          className="flex flex-col items-center gap-3 p-6 bg-surface-900 dark:bg-surface-800 hover:bg-surface-800 text-white rounded-2xl transition-all shadow-lg hover:-translate-y-1"
         >
-          <Phone className="w-8 h-8 animate-bounce" />
+          <Phone className="w-7 h-7 text-red-400" />
           <div className="font-bold text-lg">Call 108</div>
-          <div className="text-sm text-red-200">National Ambulance</div>
+          <div className="text-xs text-surface-300">National Ambulance</div>
         </a>
 
         <a 
@@ -244,11 +344,11 @@ export function SOS() {
               alert("Dialing 112 (General Emergency Helpline)... Priority dispatch initiated.");
             }
           }}
-          className="flex flex-col items-center gap-3 p-6 bg-surface-900 hover:bg-surface-800 dark:bg-white dark:hover:bg-surface-100 dark:text-surface-900 text-white rounded-2xl transition-all shadow-lg hover:-translate-y-1"
+          className="flex flex-col items-center gap-3 p-6 bg-surface-900 dark:bg-surface-800 hover:bg-surface-800 text-white rounded-2xl transition-all shadow-lg hover:-translate-y-1"
         >
-          <Phone className="w-8 h-8" />
+          <Phone className="w-7 h-7 text-blue-400" />
           <div className="font-bold text-lg">Call 112</div>
-          <div className="text-sm opacity-80">General Emergency</div>
+          <div className="text-xs text-surface-300">General Helpline</div>
         </a>
       </div>
     </div>

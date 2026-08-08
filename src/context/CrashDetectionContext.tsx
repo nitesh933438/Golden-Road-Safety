@@ -228,23 +228,24 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
   useEffect(() => {
     if (isCrashDetected && countdown > 0 && !unconsciousMode) {
       countdownTimerRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(countdownTimerRef.current!);
-            setUnconsciousMode(true);
-            dispatchAutoSOS(false);
-            return 0;
-          }
-          playUrgentBeep(prev % 2 === 0 ? 880 : 1040, 0.12);
-          return prev - 1;
-        });
+        setCountdown((prev) => Math.max(0, prev - 1));
       }, 1000);
     }
 
     return () => {
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     };
-  }, [isCrashDetected, countdown, unconsciousMode, dispatchAutoSOS]);
+  }, [isCrashDetected, unconsciousMode]);
+
+  // Handle countdown reaching zero or playing urgent beep
+  useEffect(() => {
+    if (isCrashDetected && countdown === 0 && !unconsciousMode && !activeEmergency) {
+      setUnconsciousMode(true);
+      dispatchAutoSOS(false);
+    } else if (countdown > 0 && countdown < 15 && isCrashDetected && !unconsciousMode) {
+      playUrgentBeep(countdown % 2 === 0 ? 880 : 1040, 0.12);
+    }
+  }, [countdown, isCrashDetected, unconsciousMode, activeEmergency, dispatchAutoSOS]);
 
   // Trigger Crash Simulation (Hackathon Demo)
   const triggerCrashSimulation = (reason = "Simulated High-Speed Vehicle Impact") => {

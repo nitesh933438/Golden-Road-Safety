@@ -34,7 +34,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       await loginWithGoogle();
       onClose();
     } catch (err: any) {
-      setError(err.message || "Google Sign-In failed.");
+      if (err.code === "auth/popup-closed-by-user") {
+         setError("Popup closed. If you are in the preview, please open the app in a new tab to use Google Sign-In, or use Email/Password.");
+      } else if (err.code === "auth/unauthorized-domain") {
+         setError("Domain not authorized for Google Sign-In. Please use Email/Password.");
+      } else {
+         setError(err.message || "Google Sign-In failed.");
+      }
     } finally {
       setLoading(false);
     }
@@ -54,7 +60,15 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       }
       onClose();
     } catch (err: any) {
-      setError(err.message || "Authentication error");
+      if (err.code === 'auth/invalid-credential') {
+        setError("Invalid email or password.");
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError("Email already in use. Please sign in instead.");
+      } else if (err.code === 'auth/weak-password') {
+        setError("Password should be at least 6 characters.");
+      } else {
+        setError(err.message || "Authentication error");
+      }
     } finally {
       setLoading(false);
     }

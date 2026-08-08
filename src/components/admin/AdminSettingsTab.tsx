@@ -42,10 +42,6 @@ export function AdminSettingsTab() {
             </h3>
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">Google Maps API Key</label>
-                <input type="password" defaultValue="************************" className="w-full px-4 py-2.5 bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm" />
-              </div>
-              <div className="space-y-2">
                 <label className="text-xs font-bold text-surface-500 uppercase tracking-wider">SMS Gateway Token (Twilio)</label>
                 <input type="password" defaultValue="************************" className="w-full px-4 py-2.5 bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm" />
               </div>

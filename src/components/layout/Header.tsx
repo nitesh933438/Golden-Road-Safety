@@ -13,6 +13,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useOfflineSync } from "../../context/OfflineSyncContext";
 import { useDemo } from "../../context/DemoContext";
 import { SmartInput } from "../ui/SmartInput";
+import { triggerEmergencyCall, TEST_EMERGENCY_NUMBER } from "../../lib/emergencyCall";
 
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -36,9 +37,10 @@ const ROUTE_TITLES: Record<string, string> = {
 interface HeaderProps {
   onOpenSidebar: () => void;
   onOpenAuthModal: () => void;
+  isSidebarOpen?: boolean;
 }
 
-export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
+export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: HeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -90,11 +92,12 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
           
           {/* ==================== LEFT SIDE ==================== */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Hamburger Button (Mobile / Tablet) */}
+            {/* Hamburger Button (All Devices) */}
             <button
               onClick={onOpenSidebar}
-              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 lg:hidden focus:outline-none transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-colors"
               aria-label="Open Navigation Menu"
+              aria-expanded={isSidebarOpen}
             >
               <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
@@ -162,11 +165,14 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
 
             {/* Quick 1-Tap SOS Button */}
             <Link
-              to="/sos"
+              to="/sos?active=true"
+              onClick={() => {
+                triggerEmergencyCall(TEST_EMERGENCY_NUMBER);
+              }}
               className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs shadow-xs hover:scale-105 transition-all shrink-0"
               title="Trigger 1-Tap SOS Emergency Dispatch"
             >
-              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
               <span className="hidden sm:inline">1-TAP SOS</span>
               <span className="sm:hidden text-[10px]">SOS</span>
             </Link>
@@ -450,6 +456,17 @@ export function Header({ onOpenSidebar, onOpenAuthModal }: HeaderProps) {
                       <Award className="w-4 h-4 text-emerald-500" />
                       <span>First Aid Certificates & Badges</span>
                     </Link>
+
+                    {(isAdmin || userProfile?.role === "trainer") && (
+                      <Link
+                        to="/trainer"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                      >
+                        <Award className="w-4 h-4" />
+                        <span>Trainer Command Center</span>
+                      </Link>
+                    )}
 
                     {isAdmin && (
                       <Link

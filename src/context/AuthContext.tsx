@@ -12,12 +12,14 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp, onSnapshot } from "fir
 import { auth, googleProvider, db } from "../lib/firebase";
 import { uploadToCloudinary } from "../lib/cloudinary";
 
+export type AppRole = "admin" | "trainer" | "user" | "volunteer" | "police" | "hospital" | "responder";
+
 export interface UserProfile {
   uid: string;
   name: string;
   email: string;
   phone: string;
-  role: "admin" | "volunteer" | "user";
+  role: AppRole;
   provider: "google" | "password";
   photoURL: string;
   city: string;
@@ -39,12 +41,15 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   isAdmin: boolean;
+  isTrainer: boolean;
+  isUser: boolean;
   isGoogleAdmin: boolean;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfileData: (updates: Partial<UserProfile>, photoFile?: File) => Promise<void>;
+  setUserRole: (targetUid: string, newRole: AppRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,11 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (snapshot.exists()) {
             const data = snapshot.data() as UserProfile;
             
-            // Enforce Strict Admin Exclusivity: Only Google Login with ADMIN_EMAIL gets admin
+            // Determine role: Google Login with ADMIN_EMAIL gets "admin". Otherwise preserve stored role from Firestore!
             const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
-            const calculatedRole = (isGoogleProvider && user.email === ADMIN_EMAIL) 
+            const calculatedRole: AppRole = (isGoogleProvider && user.email === ADMIN_EMAIL) 
               ? "admin" 
-              : (data.role === "admin" ? "user" : data.role || "user");
+              : (data.role || "user");
 
             setUserProfile({
               ...data,
@@ -199,16 +204,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await signInWithEmailAndPassword(auth, email, pass);
       const user = result.user;
       
-      // Strict Check: Email/password login MUST NOT become admin, even for ADMIN_EMAIL
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
-        role: "user", // Force role to user if logged in via password
         provider: "password",
         lastLogin: serverTimestamp(),
         isOnline: true
       }).catch(() => {});
     } catch (error: any) {
       console.error("Email login error:", error);
+      throw error;
+    }
+  };
+
+  // Set User Role (Admin management action)
+  const setUserRole = async (targetUid: string, newRole: AppRole) => {
+    try {
+      const targetRef = doc(db, "users", targetUid);
+      await updateDoc(targetRef, {
+        role: newRole
+      });
+
+      if (targetUid === currentUser?.uid) {
+        setUserProfile((prev) => prev ? { ...prev, role: newRole } : null);
+      }
+    } catch (error) {
+      console.error("Error setting user role:", error);
       throw error;
     }
   };
@@ -268,10 +288,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       photoURL = await uploadToCloudinary(photoFile, "profiles");
     }
 
-    const computedRole: "user" | "volunteer" | "admin" = 
+    const computedRole: AppRole = 
       userProfile?.role === "admin" 
         ? "admin" 
-        : (updates.role && updates.role !== "admin" ? (updates.role as "user" | "volunteer") : userProfile?.role || "user");
+        : (updates.role && updates.role !== "admin" ? updates.role : userProfile?.role || "user");
 
     const finalUpdates = {
       ...updates,
@@ -289,11 +309,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isGoogleAdmin = !!(
     currentUser && 
     currentUser.email === ADMIN_EMAIL && 
-    currentUser.providerData.some((p) => p.providerId === "google.com") &&
-    userProfile?.role === "admin"
+    currentUser.providerData.some((p) => p.providerId === "google.com")
   );
 
-  const isAdmin = isGoogleAdmin;
+  const currentRole = userProfile?.role || "user";
+  const isAdmin = isGoogleAdmin || currentRole === "admin";
+  const isTrainer = currentRole === "trainer" || isAdmin;
+  const isUser = true; // Everyone has citizen capabilities
 
   return (
     <AuthContext.Provider
@@ -302,12 +324,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userProfile,
         loading,
         isAdmin,
+        isTrainer,
+        isUser,
         isGoogleAdmin,
         loginWithGoogle,
         loginWithEmail,
         signupWithEmail,
         logout,
-        updateProfileData
+        updateProfileData,
+        setUserRole
       }}
     >
       {children}

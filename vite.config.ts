@@ -61,6 +61,10 @@ const vercelApiPlugin = () => ({
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss(), vercelApiPlugin()],
+  define: {
+    'process.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(process.env.VITE_GOOGLE_MAPS_API_KEY || ''),
+    'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(process.env.GOOGLE_MAPS_PLATFORM_KEY || '')
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),
