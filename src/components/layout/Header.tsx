@@ -97,21 +97,21 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
             {/* Hamburger Button (All Devices) */}
             <button
               onClick={onOpenSidebar}
-              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-colors"
+              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Open Navigation Menu"
               aria-expanded={isSidebarOpen}
             >
               <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
-            {/* Brand Logo & Name */}
-            <Link to="/">
+            {/* Brand Logo & Name (Always Visible) */}
+            <Link to="/" className="flex items-center">
               <Logo size="sm" />
             </Link>
 
-            {/* Current Page Breadcrumb */}
-            <div className="hidden xl:flex items-center gap-2 pl-3 border-l border-surface-200 dark:border-surface-800 ml-1">
-              <span className="text-xs font-bold text-surface-700 dark:text-surface-300">
+            {/* Current Page Breadcrumb (Hidden on extra small viewports) */}
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-surface-200 dark:border-surface-800 ml-1">
+              <span className="text-sm font-extrabold text-surface-800 dark:text-surface-200 truncate max-w-[150px] lg:max-w-[280px]">
                 {activePageTitle}
               </span>
             </div>

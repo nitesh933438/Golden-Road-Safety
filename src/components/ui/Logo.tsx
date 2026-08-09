@@ -14,10 +14,10 @@ export function Logo({
   variant = "auto",
 }: LogoProps) {
   const sizeMap = {
-    sm: { icon: "w-7 h-7", text: "text-base", badge: "p-1.5" },
-    md: { icon: "w-9 h-9", text: "text-xl", badge: "p-2" },
-    lg: { icon: "w-12 h-12", text: "text-2xl", badge: "p-2.5" },
-    xl: { icon: "w-16 h-16", text: "text-4xl", badge: "p-3" },
+    sm: { icon: "w-6 h-6 sm:w-7 sm:h-7", text: "text-xs sm:text-sm md:text-base", badge: "p-1 sm:p-1.5" },
+    md: { icon: "w-8 h-8 sm:w-9 sm:h-9", text: "text-base sm:text-xl", badge: "p-1.5 sm:p-2" },
+    lg: { icon: "w-10 h-10 sm:w-12 sm:h-12", text: "text-xl sm:text-2xl", badge: "p-2 sm:p-2.5" },
+    xl: { icon: "w-12 h-12 sm:w-16 sm:h-16", text: "text-2xl sm:text-4xl", badge: "p-2 sm:p-3" },
   };
 
   const currentSize = sizeMap[size];
