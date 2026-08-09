@@ -16,6 +16,18 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Bypass caching for Vite development assets to prevent interference with HMR and dynamic imports
+  if (
+    event.request.url.includes('/@vite/') || 
+    event.request.url.includes('/@id/') || 
+    event.request.url.includes('/src/') ||
+    event.request.url.includes('/node_modules/') ||
+    event.request.url.includes('chrome-extension:') ||
+    event.request.url.includes('hot-update')
+  ) {
+    return;
+  }
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {

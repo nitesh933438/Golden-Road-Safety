@@ -8,8 +8,9 @@ export interface PendingSyncItem {
   type: "sos" | "hazard" | "community" | "ride" | "notification" | "volunteer";
   data: any;
   createdAt: number;
-  status: "pending" | "syncing" | "failed";
+  status: "pending" | "syncing" | "failed" | "permanently_failed";
   retryCount: number;
+  lastAttemptAt?: number;
   error?: string;
 }
 
@@ -44,20 +45,93 @@ function openDB(): Promise<IDBDatabase> {
 }
 
 /**
- * Add item to offline sync queue
+ * Runs cleanup routines on the queue:
+ * 1. Deletes items older than 48 hours.
+ * 2. Deletes items that have permanently failed (exceeded max retries).
+ * 3. Enforces a maximum queue size (50) by deleting the oldest pending/failed items.
+ */
+export async function cleanupSyncQueue(): Promise<void> {
+  try {
+    const db = await openDB();
+    const tx = db.transaction("syncQueue", "readwrite");
+    const store = tx.objectStore("syncQueue");
+    
+    const items: PendingSyncItem[] = await new Promise((resolve, reject) => {
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+
+    const now = Date.now();
+    const expirationThreshold = 48 * 60 * 60 * 1000; // 48 hours
+    const maxRetries = 5;
+    const maxQueueSize = 50;
+
+    // Filter out items that should be pruned
+    const itemsToDelete = items.filter(item => {
+      // 1. Expired
+      if (now - item.createdAt > expirationThreshold) return true;
+      // 2. Permanently failed
+      if (item.status === "permanently_failed" || item.retryCount >= maxRetries) return true;
+      return false;
+    });
+
+    // Execute deletion of expired/permanently failed items
+    for (const item of itemsToDelete) {
+      store.delete(item.id);
+    }
+
+    // Enforce maximum queue size
+    const remainingItems = items.filter(item => !itemsToDelete.some(d => d.id === item.id));
+    if (remainingItems.length > maxQueueSize) {
+      // Sort oldest first
+      remainingItems.sort((a, b) => a.createdAt - b.createdAt);
+      const pruneCount = remainingItems.length - maxQueueSize;
+      for (let i = 0; i < pruneCount; i++) {
+        store.delete(remainingItems[i].id);
+      }
+    }
+  } catch (e) {
+    console.warn("Sync queue cleanup failed:", e);
+  }
+}
+
+/**
+ * Add item to offline sync queue with duplicate prevention and size bounds.
  */
 export async function queueOfflineItem(
   type: PendingSyncItem["type"],
   data: any
 ): Promise<PendingSyncItem> {
+  // First run cleanup
+  await cleanupSyncQueue();
+
   const db = await openDB();
+  
+  // Duplicate check: Verify if an identical item is already pending
+  const existingItems = await getPendingSyncQueue();
+  const serializedData = JSON.stringify(data);
+  const isDuplicate = existingItems.some(item => {
+    if (item.type !== type) return false;
+    if (item.status === "permanently_failed") return false;
+    // Compare essential data strings
+    return JSON.stringify(item.data) === serializedData;
+  });
+
+  if (isDuplicate) {
+    console.log(`Duplicate prevention: Item of type "${type}" already exists in the queue.`);
+    const duplicate = existingItems.find(item => item.type === type && JSON.stringify(item.data) === serializedData);
+    return duplicate!;
+  }
+
   const item: PendingSyncItem = {
     id: `sync_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     type,
     data,
     createdAt: Date.now(),
     status: "pending",
-    retryCount: 0
+    retryCount: 0,
+    lastAttemptAt: Date.now()
   };
 
   return new Promise((resolve, reject) => {
@@ -86,7 +160,7 @@ export async function getPendingSyncQueue(): Promise<PendingSyncItem[]> {
 }
 
 /**
- * Update sync item status
+ * Update sync item status with retry limits and backoff timing
  */
 export async function updateSyncItemStatus(
   id: string,
@@ -103,8 +177,16 @@ export async function updateSyncItemStatus(
       const item: PendingSyncItem = getReq.result;
       if (item) {
         item.status = status;
+        item.lastAttemptAt = Date.now();
         if (error) item.error = error;
-        if (status === "failed") item.retryCount = (item.retryCount || 0) + 1;
+        
+        if (status === "failed") {
+          const nextRetry = (item.retryCount || 0) + 1;
+          item.retryCount = nextRetry;
+          if (nextRetry >= 5) {
+            item.status = "permanently_failed";
+          }
+        }
         store.put(item);
       }
       resolve();
@@ -153,19 +235,14 @@ export async function saveLastLocation(loc: { lat: number; lng: number; address:
   }));
 }
 
-export function getLastLocation(): { lat: number; lng: number; address: string; updatedAt: number } {
+export function getLastLocation(): { lat: number; lng: number; address: string; updatedAt: number } | null {
   const stored = localStorage.getItem("goldenguard_last_location");
   if (stored) {
     try {
       return JSON.parse(stored);
     } catch (e) {}
   }
-  return {
-    lat: 28.6139,
-    lng: 77.2090,
-    address: "Connaught Place, New Delhi, Delhi 110001",
-    updatedAt: Date.now()
-  };
+  return null;
 }
 
 /**

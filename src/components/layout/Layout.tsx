@@ -41,6 +41,7 @@ import { CrashTopBanner } from "../crash/CrashTopBanner";
 import { SimulateCrashButton } from "../crash/SimulateCrashButton";
 import { useAuth } from "../../context/AuthContext";
 import { RoadSafetyBackground } from "../RoadSafetyBackground";
+import { CompleteProfile } from "../auth/CompleteProfile";
 
 type NavItem = {
   name: string;
@@ -167,7 +168,7 @@ export function Layout() {
         aria-modal="true"
         aria-label="Navigation Menu"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[min(88vw,320px)] flex flex-col bg-surface-950 text-white shadow-2xl border-r border-surface-800/80 transition-transform duration-300 ease-in-out h-[100dvh] max-h-[100dvh] overflow-hidden shrink-0",
+          "fixed inset-y-0 left-0 z-50 w-full max-w-[320px] flex flex-col bg-surface-950 text-white shadow-2xl border-r border-surface-800/80 transition-transform duration-300 ease-in-out h-[100dvh] max-h-[100dvh] overflow-hidden shrink-0 pt-[env(safe-area-inset-top)]",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -363,7 +364,11 @@ export function Layout() {
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto relative flex flex-col custom-scrollbar">
           <div className="flex-1 p-4 sm:p-8 pb-24 lg:pb-8">
-            <Outlet context={{ demoMode }} />
+            {currentUser && userProfile?.isProfileComplete === false ? (
+              <CompleteProfile />
+            ) : (
+              <Outlet context={{ demoMode }} />
+            )}
           </div>
           <Footer />
         </main>

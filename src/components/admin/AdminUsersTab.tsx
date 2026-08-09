@@ -1,21 +1,83 @@
-import React, { useState } from "react";
-import { Search, UserCog, Ban, Activity, Shield, Check, Filter, ShieldAlert, BookOpen, User } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search, UserCog, Ban, Activity, Shield, Check, Filter, ShieldAlert, BookOpen, User as UserIcon, Loader2 } from "lucide-react";
 import { useAuth, AppRole } from "../../context/AuthContext";
+import { db } from "../../lib/firebase";
+import { collection, query, getDocs, limit } from "firebase/firestore";
+
+interface AdminUserItem {
+  id: string;
+  uid: string;
+  name: string;
+  email: string;
+  role: AppRole;
+  status: string;
+  joined: string;
+}
 
 export function AdminUsersTab() {
-  const { setUserRole } = useAuth();
+  const { setUserRole, currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [successMsg, setSuccessMsg] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userList, setUserList] = useState<AdminUserItem[]>([]);
 
-  const [userList, setUserList] = useState([
-    { id: "USR-992", uid: "uid_john_992", name: "John Doe", email: "john@example.com", role: "user" as AppRole, status: "active", joined: "Jan 12, 2026" },
-    { id: "USR-991", uid: "uid_nitesh_991", name: "Nitesh Admin", email: "nitesh933438@gmail.com", role: "admin" as AppRole, status: "active", joined: "Jan 10, 2026" },
-    { id: "USR-990", uid: "uid_sarah_990", name: "Sarah Jenkins", email: "sarah@example.com", role: "trainer" as AppRole, status: "active", joined: "Dec 05, 2025" },
-    { id: "USR-989", uid: "uid_vikram_989", name: "Officer Vikram", email: "vikram@police.gov.in", role: "police" as AppRole, status: "active", joined: "Jan 18, 2026" },
-    { id: "USR-988", uid: "uid_aiims_988", name: "AIIMS Dispatch Staff", email: "er@aiims.edu", role: "hospital" as AppRole, status: "active", joined: "Jan 22, 2026" },
-    { id: "USR-987", uid: "uid_bad_987", name: "Suspicious User", email: "spam@example.com", role: "user" as AppRole, status: "disabled", joined: "Feb 01, 2026" },
-  ]);
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Fetch users from Firestore
+  useEffect(() => {
+    let active = true;
+    const fetchUsers = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const q = query(
+          collection(db, "users"),
+          limit(100) // safety limit to prevent full database scanning
+        );
+        const snapshot = await getDocs(q);
+        if (!active) return;
+
+        const fetched: AdminUserItem[] = [];
+        snapshot.docs.forEach((docSnap, index) => {
+          const data = docSnap.data();
+          fetched.push({
+            id: `USR-${index + 900}`,
+            uid: docSnap.id,
+            name: data.name || "Anonymous Samaritan",
+            email: data.email || "No email available",
+            role: (data.role || "user") as AppRole,
+            status: data.isOnline ? "active" : "standby",
+            joined: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric"
+            }) : "N/A"
+          });
+        });
+
+        setUserList(fetched);
+      } catch (err: any) {
+        console.error("Failed to load users for admin dashboard:", err);
+        setError("Missing authorized permissions or network error.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleRoleChange = async (targetUid: string, targetName: string, newRole: AppRole) => {
     try {
@@ -28,13 +90,22 @@ export function AdminUsersTab() {
     }
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
+
   const filteredUsers = userList.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          user.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = user.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                          user.email.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                          user.id.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="space-y-6">
@@ -101,7 +172,7 @@ export function AdminUsersTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-100 dark:divide-surface-700/50">
-              {filteredUsers.map((user) => (
+              {paginatedUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
                   <td className="py-4 px-6">
                     <div className="font-bold text-sm text-surface-900 dark:text-white flex items-center gap-1.5">
@@ -126,7 +197,7 @@ export function AdminUsersTab() {
                     }`}>
                       {user.role === "admin" && <Shield className="w-3.5 h-3.5 text-red-500" />}
                       {user.role === "trainer" && <BookOpen className="w-3.5 h-3.5 text-blue-500" />}
-                      {user.role === "user" && <User className="w-3.5 h-3.5 text-emerald-500" />}
+                      {user.role === "user" && <UserIcon className="w-3.5 h-3.5 text-emerald-500" />}
                       <span>{user.role}</span>
                     </span>
                   </td>
@@ -148,7 +219,7 @@ export function AdminUsersTab() {
                     <div className="flex items-center justify-end gap-2">
                       <select
                         value={user.role}
-                        disabled={user.email === "nitesh933438@gmail.com"}
+                        disabled={user.uid === currentUser?.uid}
                         onChange={(e) => handleRoleChange(user.uid, user.name, e.target.value as AppRole)}
                         className="px-2.5 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-700 text-xs font-bold border border-surface-200 dark:border-surface-600 text-surface-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
                       >
@@ -166,6 +237,33 @@ export function AdminUsersTab() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between">
+            <span className="text-xs text-surface-500">
+              Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length}
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => {
+                  setCurrentPage((prev) => Math.max(prev - 1, 1));
+                }}
+                className="px-3 py-1.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-surface-50 dark:hover:bg-surface-700"
+              >
+                Previous
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => {
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+                }}
+                className="px-3 py-1.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-surface-50 dark:hover:bg-surface-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
     </div>

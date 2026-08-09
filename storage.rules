@@ -1,0 +1,51 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidImage() {
+      return request.resource.contentType.matches('image/jpeg') ||
+             request.resource.contentType.matches('image/png') ||
+             request.resource.contentType.matches('image/webp');
+    }
+
+    function isValidDoc() {
+      return request.resource.contentType == 'application/pdf';
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Profile photos (max 2MB)
+    match /users/{uid}/profile/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid) && 
+                   isValidImage() && 
+                   request.resource.size <= 2 * 1024 * 1024;
+    }
+
+    // Medical documents (max 5MB)
+    match /users/{uid}/medical/{fileName} {
+      allow read, write: if isOwner(uid) && 
+                           (isValidImage() || isValidDoc()) && 
+                           request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    // Incidents/emergencies/hazards (max 5MB)
+    match /incidents/{incidentId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && 
+                   isValidImage() && 
+                   request.resource.size <= 5 * 1024 * 1024;
+    }
+  }
+}

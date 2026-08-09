@@ -62,10 +62,27 @@ export function ReportHazard() {
   };
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    setImageError(null);
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        setImageError("Only image files (JPG, PNG, WEBP) are allowed.");
+        setSelectedFile(null);
+        setImagePreview(null);
+        return;
+      }
+      // Limit to 5MB (Incident image: max 2–5 MB before processing)
+      const maxSizeBytes = 5 * 1024 * 1024;
+      if (file.size > maxSizeBytes) {
+        setImageError(`The image is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed is 5MB.`);
+        setSelectedFile(null);
+        setImagePreview(null);
+        return;
+      }
+
       setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -102,11 +119,12 @@ export function ReportHazard() {
 
         await addDoc(collection(db, "hazards"), {
           ...hazardPayload,
-          photoURL: uploadedPhotoUrl || imagePreview || "",
+          photoURL: uploadedPhotoUrl || "", // Strictly use Cloudinary URL or empty string. NEVER store base64 in Firestore.
           createdAt: serverTimestamp(),
         });
-      } catch (err) {
-        console.warn("Firestore hazard report fallback queueing:", err);
+      } catch (err: any) {
+        console.warn("Firestore hazard report fallback queueing due to:", err);
+        // Fall back to queueing the item locally in IndexedDB (with its local base64 preview for later sync)
         await queueItem("hazard", hazardPayload);
       }
     }
@@ -310,9 +328,14 @@ export function ReportHazard() {
               <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-surface-300 dark:border-surface-700 rounded-2xl cursor-pointer hover:border-amber-500 transition-colors bg-surface-50 dark:bg-surface-800/40 text-surface-500">
                 <Upload className="w-6 h-6 mb-1 text-surface-400" />
                 <span className="text-xs font-bold text-surface-700 dark:text-surface-300">Click or Drag Photo</span>
-                <span className="text-[10px] text-surface-400">JPG, PNG up to 10MB</span>
+                <span className="text-[10px] text-surface-400">JPG, PNG up to 5MB</span>
                 <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
               </label>
+            )}
+            {imageError && (
+              <p className="text-xs text-red-500 font-bold bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">
+                {imageError}
+              </p>
             )}
           </div>
 

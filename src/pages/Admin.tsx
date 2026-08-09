@@ -16,15 +16,13 @@ import { AdminNotificationsTab } from "../components/admin/AdminNotificationsTab
 import { AdminAnalyticsTab } from "../components/admin/AdminAnalyticsTab";
 import { AdminSettingsTab } from "../components/admin/AdminSettingsTab";
 
-const ADMIN_EMAIL = "nitesh933438@gmail.com";
-
 type AdminTab = 
   | "dashboard" | "map" | "emergencies" | "volunteers" 
   | "users" | "hazards" | "notifications" | "analytics" | "settings";
 
 export function Admin() {
   const { demoMode } = useOutletContext<{ demoMode: boolean }>();
-  const { currentUser, userProfile, isGoogleAdmin, loginWithGoogle, logout, loading } = useAuth();
+  const { currentUser, userProfile, isAdmin, loginWithGoogle, logout, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [error, setError] = useState<string | null>(null);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
@@ -45,8 +43,8 @@ export function Admin() {
     return <div className="p-8 flex justify-center"><div className="w-10 h-10 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div></div>;
   }
 
-  // Strict Admin Check: Google Login with nitesh933438@gmail.com is required (unless demoMode)
-  const isAuthorizedAdmin = demoMode || isGoogleAdmin;
+  // Strict Admin Check: Google Login or DB-based role is required (unless demoMode)
+  const isAuthorizedAdmin = demoMode || isAdmin;
 
   if (!isAuthorizedAdmin) {
     return (
@@ -59,7 +57,7 @@ export function Admin() {
           <div className="space-y-2">
             <h1 className="text-2xl font-black text-surface-900 dark:text-white">Admin Access Restricted</h1>
             <p className="text-xs text-surface-500 leading-relaxed">
-              GoldenGuard Command Center requires <strong>Google Authentication</strong> with authorized administrator credentials (<code className="text-amber-500 font-mono">nitesh933438@gmail.com</code>).
+              GoldenGuard Command Center requires an authorized administrator account.
             </p>
           </div>
           
@@ -72,9 +70,9 @@ export function Admin() {
                 <div className="text-[11px] text-surface-500">
                   Provider: <span className="font-semibold text-amber-600 capitalize">{userProfile?.provider || "password"}</span>
                 </div>
-                {userProfile?.provider === "password" && currentUser.email === ADMIN_EMAIL && (
+                {!isAdmin && (
                   <div className="pt-2 text-red-500 font-bold text-[11px] flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Email/Password logins are not granted Admin privilege.
+                    <AlertTriangle className="w-3.5 h-3.5" /> This account is not granted Admin privileges.
                   </div>
                 )}
               </div>

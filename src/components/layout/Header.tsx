@@ -118,10 +118,21 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
           </div>
 
           {/* ==================== CENTER SEARCH BAR ==================== */}
-          <div className="flex-1 max-w-xl hidden md:block px-2 lg:px-6">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (headerSearch.trim()) {
+                navigate(`/search?q=${encodeURIComponent(headerSearch.trim())}`);
+              }
+            }}
+            className="flex-1 max-w-xl hidden md:block px-2 lg:px-6"
+          >
             <SmartInput
               value={headerSearch}
               onChange={setHeaderSearch}
+              onSelectSuggestion={(suggestion) => {
+                navigate(`/search?q=${encodeURIComponent(suggestion)}`);
+              }}
               placeholder="Search Users, Hospitals, Police, Volunteers, Hazards, Medical IDs..."
               historyKey="global_enterprise_header_search"
               suggestions={[
@@ -138,7 +149,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
               enableAIIntent={true}
               inputClassName="py-1.5 text-xs bg-surface-100/90 dark:bg-surface-800/90 border-surface-200/80 dark:border-surface-700/80 rounded-full shadow-inner focus:bg-white dark:focus:bg-surface-900"
             />
-          </div>
+          </form>
 
           {/* ==================== RIGHT SIDE CONTROLS ==================== */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
@@ -538,10 +549,23 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
             </button>
           </div>
 
-          <div className="py-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (headerSearch.trim()) {
+                setIsMobileSearchOpen(false);
+                navigate(`/search?q=${encodeURIComponent(headerSearch.trim())}`);
+              }
+            }}
+            className="py-4"
+          >
             <SmartInput
               value={headerSearch}
               onChange={setHeaderSearch}
+              onSelectSuggestion={(suggestion) => {
+                setIsMobileSearchOpen(false);
+                navigate(`/search?q=${encodeURIComponent(suggestion)}`);
+              }}
               placeholder="Type CPR, Hospitals, Police, Hazards, Volunteers..."
               historyKey="mobile_global_search"
               suggestions={[
@@ -557,7 +581,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
               enableAIIntent={true}
               inputClassName="py-3 text-sm bg-surface-100 dark:bg-surface-800 border-none rounded-2xl"
             />
-          </div>
+          </form>
 
           {/* Mobile Quick Category Shortcuts */}
           <div className="mt-2 space-y-3">

@@ -2,13 +2,13 @@
   "collections": [
     {
       "collectionId": "users",
-      "description": "User profiles, roles, contact info, emergency contacts and settings.",
+      "description": "User profiles, roles, contact info, emergency contacts, onboarding details, and settings.",
       "fields": [
         { "name": "uid", "type": "string", "description": "Unique user identifier from Auth" },
         { "name": "name", "type": "string", "description": "Full display name of user" },
         { "name": "email", "type": "string", "description": "User email address" },
         { "name": "phone", "type": "string", "description": "Contact phone number" },
-        { "name": "role", "type": "string", "description": "User role: admin, volunteer, user" },
+        { "name": "role", "type": "string", "description": "User role: admin, volunteer, user, hospital, police, trainer" },
         { "name": "provider", "type": "string", "description": "Auth provider: google, password" },
         { "name": "photoURL", "type": "string", "description": "Cloudinary image URL or profile photo" },
         { "name": "city", "type": "string", "description": "User city" },
@@ -18,7 +18,17 @@
         { "name": "lastLogin", "type": "timestamp", "description": "Last login timestamp" },
         { "name": "isOnline", "type": "boolean", "description": "Real-time online status" },
         { "name": "emergencyContacts", "type": "array", "description": "List of emergency contacts" },
-        { "name": "settings", "type": "map", "description": "User preferences and settings" }
+        { "name": "settings", "type": "map", "description": "User preferences and settings" },
+        { "name": "isProfileComplete", "type": "boolean", "description": "Flag to ensure user has completed role-based registration" },
+        { "name": "verificationStatus", "type": "string", "description": "Verification state of the entity: PENDING_VERIFICATION, VERIFIED, REJECTED" },
+        { "name": "address", "type": "string", "description": "Physical address for organization entities (Hospitals, Police, etc.)" },
+        { "name": "services", "type": "string", "description": "Services offered by hospital or agency" },
+        { "name": "location", "type": "string", "description": "Geographical coordinates or location details as string" },
+        { "name": "stationName", "type": "string", "description": "Official name of police station" },
+        { "name": "officialContact", "type": "string", "description": "Official hotline or telephone number of the agency" },
+        { "name": "serviceArea", "type": "string", "description": "Coverage area for responders" },
+        { "name": "qualifications", "type": "string", "description": "Skills or qualifications of trainers/volunteers" },
+        { "name": "trainerInfo", "type": "string", "description": "Information or details about the trainer's specialization" }
       ]
     },
     {

@@ -14,25 +14,26 @@ export function Profile() {
   const [activeTab, setActiveTab] = useState<"overview" | "certificates" | "history" | "achievements">("overview");
   
   // Local edit form fields
-  const [name, setName] = useState(userProfile?.name || "Dr. Aarav Sharma");
-  const [role, setRole] = useState(userProfile?.role === "admin" ? "GoldenGuard Administrator" : "Good Samaritan Lead Responder");
-  const [phone, setPhone] = useState(userProfile?.phone || "+91 98765 43210");
-  const [email, setEmail] = useState(userProfile?.email || "aarav.sharma@goldenguard.in");
-  const [city, setCity] = useState(userProfile?.city || "New Delhi");
-  const [bloodGroup, setBloodGroup] = useState(userProfile?.bloodGroup || "O+");
+  const [name, setName] = useState<string>(userProfile?.name || "");
+  const [role, setRole] = useState<string>(userProfile?.role || "user");
+  const [phone, setPhone] = useState<string>(userProfile?.phone || "");
+  const [email, setEmail] = useState<string>(userProfile?.email || "");
+  const [city, setCity] = useState<string>(userProfile?.city || "");
+  const [bloodGroup, setBloodGroup] = useState<string>(userProfile?.bloodGroup || "");
 
   const [isEditing, setIsEditing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (userProfile) {
-      setName(userProfile.name || "Dr. Aarav Sharma");
-      setRole(userProfile.role === "admin" ? "GoldenGuard Administrator" : "Good Samaritan Lead Responder");
-      setPhone(userProfile.phone || "+91 98765 43210");
-      setEmail(userProfile.email || "aarav.sharma@goldenguard.in");
-      setCity(userProfile.city || "New Delhi");
-      setBloodGroup(userProfile.bloodGroup || "O+");
+      setName(userProfile.name || "");
+      setRole(userProfile.role || "user");
+      setPhone(userProfile.phone || "");
+      setEmail(userProfile.email || "");
+      setCity(userProfile.city || "");
+      setBloodGroup(userProfile.bloodGroup || "");
     }
   }, [userProfile]);
 
@@ -55,13 +56,26 @@ export function Profile() {
   // Photo upload handler (Uploads to Cloudinary)
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    setUploadError(null);
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        setUploadError("Only image files are allowed.");
+        return;
+      }
+      // Profile limit: 2MB max (recommended: max 1-2 MB before processing)
+      const maxSizeBytes = 2 * 1024 * 1024;
+      if (file.size > maxSizeBytes) {
+        setUploadError(`The image is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Limit is 2MB.`);
+        return;
+      }
+
       setUploadingPhoto(true);
       try {
         const cloudinaryUrl = await uploadToCloudinary(file, "profiles");
         await updateProfileData({ photoURL: cloudinaryUrl }, file);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Photo upload failed:", err);
+        setUploadError("Photo upload temporarily unavailable. " + (err.message || "Failed to upload photo. Please check your network."));
       } finally {
         setUploadingPhoto(false);
       }
@@ -69,35 +83,22 @@ export function Profile() {
   };
 
   const profileData = {
-    name: "Dr. Aarav Sharma",
-    role: "Good Samaritan Lead Responder",
-    badge: "Level 3 Certified First Responder",
-    location: "Mumbai Central, Maharashtra",
-    phone: "+91 98765 43210",
-    email: "aarav.sharma@goldenguard.in",
-    completionPercentage: 92,
+    name: userProfile?.name || "Guest",
+    role: userProfile?.role || "User",
+    badge: "Community Member",
+    location: userProfile?.city ? `${userProfile?.city}, ${userProfile?.state || ''}` : "Location Unavailable",
+    phone: userProfile?.phone || "No Phone",
+    email: userProfile?.email || "No Email",
+    completionPercentage: 0,
     stats: {
-      rescuesConducted: 14,
-      goldenHourHrs: 28.5,
-      responseRating: 4.95,
-      hazardsReported: 32
+      rescuesConducted: 0,
+      goldenHourHrs: 0,
+      responseRating: 0.0,
+      hazardsReported: 0
     },
-    achievements: [
-      { id: 1, title: "Golden Hour Savior", desc: "Rescued 5+ victims within 10 minutes of accident call", icon: ShieldCheck, color: "text-amber-500 bg-amber-500/10 border-amber-500/30" },
-      { id: 2, title: "CPR Master Responder", desc: "Completed Level 3 Advanced CPR Triage Certification", icon: Heart, color: "text-red-500 bg-red-500/10 border-red-500/30" },
-      { id: 3, title: "Road Hazard Vigilant", desc: "Successfully reported and verified 30+ roadway blackspots", icon: Sparkles, color: "text-blue-500 bg-blue-500/10 border-blue-500/30" },
-      { id: 4, title: "Community Guardian", desc: "Mentored 100+ local citizens in emergency first-response", icon: Award, color: "text-purple-500 bg-purple-500/10 border-purple-500/30" }
-    ],
-    certificates: [
-      { id: "CERT-BLS-2026", title: "Basic Life Support (BLS) & CPR Provider", issuer: "Indian Red Cross & GoldenGuard National Registry", issueDate: "Jan 15, 2026", expiryDate: "Jan 2028", status: "Active & Verified" },
-      { id: "CERT-GOODSAM-2025", title: "Good Samaritan Law Legal Immunity", issuer: "Supreme Court Directive & Ministry of Road Transport", issueDate: "Nov 04, 2025", expiryDate: "Permanent", status: "Active & Verified" },
-      { id: "CERT-TRAUMA-2026", title: "Advanced Road Incident Triage & Haemorrhage Control", issuer: "National Disaster Response Force (NDRF)", issueDate: "Mar 10, 2026", expiryDate: "Mar 2027", status: "Active & Verified" }
-    ],
-    history: [
-      { id: "EMG-8921", date: "July 24, 2026", type: "Two-Wheeler Skidded", location: "Western Express Hwy, Bandra", role: "First Responder (CPR Applied)", status: "Victim Stable", responseTime: "3.2 mins" },
-      { id: "EMG-7712", date: "June 11, 2026", type: "Car Collision Triage", location: "BKC Connector Signal", role: "Scene Traffic Security", status: "Handed over to 108 Ambulance", responseTime: "2.8 mins" },
-      { id: "EMG-5401", date: "May 02, 2026", type: "Pedestrian Injury", location: "Andheri East Metro Underpass", role: "Haemorrhage Pressure Bandage", status: "Full Recovery", responseTime: "4.1 mins" }
-    ]
+    achievements: [],
+    certificates: [],
+    history: []
   };
 
   return (
@@ -177,6 +178,18 @@ export function Profile() {
                 <span>{isEditing ? "Save Profile" : "Edit Profile"}</span>
               </button>
             </div>
+
+            {uploadError && (
+              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold animate-in slide-in-from-top duration-300">
+                {uploadError}
+              </div>
+            )}
+
+            {uploadingPhoto && (
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold animate-pulse">
+                Optimizing and uploading profile image...
+              </div>
+            )}
 
             {isEditing ? (
               <div className="space-y-2 pt-2 max-w-md">

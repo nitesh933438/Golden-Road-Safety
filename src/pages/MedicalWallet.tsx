@@ -20,6 +20,7 @@ export function MedicalWallet() {
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [uploadingPhoto, setUploadingPhoto] = useState<boolean>(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [showQRModal, setShowQRModal] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"card" | "edit" | "contacts">("card");
 
@@ -48,13 +49,26 @@ export function MedicalWallet() {
   // Profile Photo Upload to Cloudinary
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    setPhotoError(null);
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        setPhotoError("Only image files are allowed.");
+        return;
+      }
+      // Profile photo size limit: 2MB max
+      const maxSizeBytes = 2 * 1024 * 1024;
+      if (file.size > maxSizeBytes) {
+        setPhotoError(`The image is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Limit is 2MB.`);
+        return;
+      }
+
       setUploadingPhoto(true);
       try {
         const url = await uploadToCloudinary(file, "profiles");
         handleChange("photoURL", url);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Medical ID photo upload failed:", err);
+        setPhotoError("Photo upload temporarily unavailable. " + (err.message || "Failed to upload photo. Please check your network."));
       } finally {
         setUploadingPhoto(false);
       }
@@ -376,18 +390,34 @@ export function MedicalWallet() {
               )}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1">
               <h4 className="font-bold text-sm text-surface-900 dark:text-white">Profile & ID Photograph</h4>
               <p className="text-xs text-surface-500">Uploaded to secure Cloudinary storage for emergency verification.</p>
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                disabled={uploadingPhoto}
-                className="px-3.5 py-1.5 rounded-xl bg-surface-200 dark:bg-surface-800 hover:bg-amber-500 hover:text-black text-surface-900 dark:text-white text-xs font-bold flex items-center gap-1.5 transition-colors mt-2"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span>{uploadingPhoto ? "Uploading..." : "Upload Photo"}</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="px-3.5 py-1.5 rounded-xl bg-surface-200 dark:bg-surface-800 hover:bg-amber-500 hover:text-black text-surface-900 dark:text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{uploadingPhoto ? "Uploading..." : "Upload Photo"}</span>
+                </button>
+                {formData.photoURL && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange("photoURL", "")}
+                    className="px-3.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 text-xs font-bold transition-colors"
+                  >
+                    Remove Photo
+                  </button>
+                )}
+              </div>
+              {photoError && (
+                <p className="text-xs text-red-500 font-bold bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 mt-2">
+                  {photoError}
+                </p>
+              )}
             </div>
           </div>
 

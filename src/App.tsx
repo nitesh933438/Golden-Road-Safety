@@ -31,6 +31,7 @@ const Profile = React.lazy(() => import("./pages/Profile").then(m => ({ default:
 const Notifications = React.lazy(() => import("./pages/Notifications").then(m => ({ default: m.Notifications })));
 const MedicalWallet = React.lazy(() => import("./pages/MedicalWallet").then(m => ({ default: m.MedicalWallet })));
 const EmergencyMedicalIDView = React.lazy(() => import("./pages/EmergencyMedicalIDView").then(m => ({ default: m.EmergencyMedicalIDView })));
+const Search = React.lazy(() => import("./pages/Search").then(m => ({ default: m.Search })));
 
 const NotFound = () => (
   <Placeholder 
@@ -123,6 +124,7 @@ export default function App() {
                       <Route path="access-denied" element={<SafeLazyRoute><AccessDenied /></SafeLazyRoute>} />
                       <Route path="profile" element={<SafeLazyRoute><Profile /></SafeLazyRoute>} />
                       <Route path="notifications" element={<SafeLazyRoute><Notifications /></SafeLazyRoute>} />
+                      <Route path="search" element={<SafeLazyRoute><Search /></SafeLazyRoute>} />
                       <Route path="*" element={<NotFound />} />
                     </Route>
                   </Routes>

@@ -34,6 +34,16 @@ export interface UserProfile {
     locationSharing: boolean;
     autoSOS: boolean;
   };
+  isProfileComplete?: boolean;
+  verificationStatus?: "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
+  address?: string;
+  services?: string;
+  location?: string;
+  stationName?: string;
+  officialContact?: string;
+  serviceArea?: string;
+  qualifications?: string;
+  trainerInfo?: string;
 }
 
 interface AuthContextType {
@@ -78,14 +88,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Auth state listener
   useEffect(() => {
+    let unsubDoc: (() => void) | undefined;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Clean up previous user listener if it exists
+      if (unsubDoc) {
+        unsubDoc();
+        unsubDoc = undefined;
+      }
+
       setCurrentUser(user);
 
       if (user) {
         const userRef = doc(db, "users", user.uid);
         
         // Listen to Firestore User Document in real-time
-        const unsubDoc = onSnapshot(userRef, async (snapshot) => {
+        unsubDoc = onSnapshot(userRef, async (snapshot) => {
           try {
             if (snapshot.exists()) {
               const data = snapshot.data() as UserProfile;
@@ -98,39 +116,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
               setUserProfile({
                 ...data,
-                role: calculatedRole
+                role: calculatedRole,
+                isProfileComplete: data.isProfileComplete !== false // If not explicitly false, treat existing profiles as complete
               });
             } else {
-              // First time registration doc creation
+              // No profile exists yet! Do NOT write a fake/placeholder profile to Firestore.
+              // Instead, prepare a partial local state with isProfileComplete: false.
               const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
               const assignedRole = (isGoogleProvider && user.email === ADMIN_EMAIL) ? "admin" : "user";
 
-              const newProfile: UserProfile = {
+              setUserProfile({
                 uid: user.uid,
-                name: user.displayName || user.email?.split("@")[0] || "Good Samaritan",
+                name: user.displayName || "",
                 email: user.email || "",
-                phone: user.phoneNumber || "+91 98765 43210",
+                phone: "",
                 role: assignedRole,
                 provider: isGoogleProvider ? "google" : "password",
                 photoURL: user.photoURL || "",
-                city: "New Delhi",
-                state: "Delhi NCR",
-                bloodGroup: "O+",
-                createdAt: serverTimestamp(),
-                lastLogin: serverTimestamp(),
-                isOnline: true,
-                emergencyContacts: [
-                  { name: "Family Emergency", phone: "+91 98765 00000", relation: "Family" }
-                ],
+                city: "",
+                state: "",
+                bloodGroup: "",
+                createdAt: null,
+                lastLogin: null,
+                isOnline: false,
+                emergencyContacts: [],
                 settings: {
                   notifications: true,
                   locationSharing: true,
                   autoSOS: true
-                }
-              };
-
-              await setDoc(userRef, newProfile);
-              setUserProfile(newProfile);
+                },
+                isProfileComplete: false
+              } as UserProfile);
             }
           } catch (snapshotErr) {
             console.error("Error setting/retrieving user profile in snapshot:", snapshotErr);
@@ -139,23 +155,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn("Firestore user snapshot note:", err.message);
         });
 
-        // Update last login & online status
+        // Update last login & online status if profile is complete/exists
         try {
-          await updateDoc(userRef, {
-            lastLogin: serverTimestamp(),
-            isOnline: true
-          });
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            await updateDoc(userRef, {
+              lastLogin: serverTimestamp(),
+              isOnline: true
+            });
+          }
         } catch (e) {}
 
         setLoading(false);
-        return () => unsubDoc();
       } else {
         setUserProfile(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (unsubDoc) {
+        unsubDoc();
+      }
+    };
   }, []);
 
   // Google Login
@@ -171,22 +194,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const docSnap = await getDoc(userRef);
 
       if (!docSnap.exists()) {
+        // Do NOT write complete fake document. Just write a minimal incomplete profile.
         await setDoc(userRef, {
           uid: user.uid,
-          name: user.displayName || "Good Samaritan",
+          name: user.displayName || "",
           email: user.email || "",
-          phone: "+91 98765 43210",
+          phone: "",
           role: assignedRole,
           provider: "google",
           photoURL: user.photoURL || "",
-          city: "New Delhi",
-          state: "Delhi NCR",
-          bloodGroup: "O+",
+          city: "",
+          state: "",
+          bloodGroup: "",
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
-          isOnline: true,
+          isOnline: false,
           emergencyContacts: [],
-          settings: { notifications: true, locationSharing: true, autoSOS: true }
+          settings: { notifications: true, locationSharing: true, autoSOS: true },
+          isProfileComplete: false
         });
       } else {
         const existingData = docSnap.data();
@@ -212,11 +237,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = result.user;
       
       const userRef = doc(db, "users", user.uid);
-      await setDoc(userRef, {
-        provider: "password",
-        lastLogin: serverTimestamp(),
-        isOnline: true
-      }, { merge: true }).catch(() => {});
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        await updateDoc(userRef, {
+          provider: "password",
+          lastLogin: serverTimestamp(),
+          isOnline: true
+        });
+      }
     } catch (error: any) {
       console.error("Email login error:", error);
       throw error;
@@ -251,22 +279,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await updateProfile(user, { displayName: name });
 
       const userRef = doc(db, "users", user.uid);
+      // Write minimal info, no fake phone or location!
       await setDoc(userRef, {
         uid: user.uid,
         name,
         email,
-        phone: "+91 98765 43210",
+        phone: "",
         role: "user", // Email/password signups are never admin
         provider: "password",
         photoURL: "",
-        city: "New Delhi",
-        state: "Delhi NCR",
-        bloodGroup: "O+",
+        city: "",
+        state: "",
+        bloodGroup: "",
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),
-        isOnline: true,
+        isOnline: false,
         emergencyContacts: [],
-        settings: { notifications: true, locationSharing: true, autoSOS: true }
+        settings: { notifications: true, locationSharing: true, autoSOS: true },
+        isProfileComplete: false
       });
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -279,7 +309,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentUser) {
       try {
         const userRef = doc(db, "users", currentUser.uid);
-        await updateDoc(userRef, { isOnline: false });
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          await updateDoc(userRef, { isOnline: false });
+        }
       } catch (e) {}
     }
     await signOut(auth);
@@ -310,7 +343,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const userRef = doc(db, "users", currentUser.uid);
-    await updateDoc(userRef, finalUpdates);
+    await setDoc(userRef, finalUpdates, { merge: true });
 
     setUserProfile((prev) => prev ? { ...prev, ...finalUpdates } : null);
   };

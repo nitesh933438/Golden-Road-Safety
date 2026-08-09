@@ -4,7 +4,7 @@ import {
   X, AlertCircle, MapPin, Edit3, ShieldAlert, HeartPulse, 
   Flame, Shield, Wrench, Info, CheckCircle2, Clock, Map, Activity, Phone, FileText, Download, User, Volume2, VolumeX, BookOpen
 } from "lucide-react";
-import { addDoc, collection, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, onSnapshot, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 // Components for different views
@@ -30,6 +30,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
   const [location, setLocation] = useState("Locating...");
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [sosError, setSosError] = useState<string | null>(null);
 
   // Active State
   const [emergencyId, setEmergencyId] = useState<string | null>(null);
@@ -122,31 +123,42 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
     }
 
     try {
-      const docRef = await addDoc(collection(db, "emergencies"), {
+      const uniqueSosId = "sos_" + Date.now() + "_" + Math.random().toString(36).substring(2, 11);
+      const record = {
+        id: uniqueSosId,
         userId: userProfile?.uid || "anonymous",
         type,
         severity,
+        priority: severity || "CRITICAL",
         notes,
         location: coords || "Location unavailable",
+        latitude: coords ? coords.lat : null,
+        longitude: coords ? coords.lng : null,
+        accuracy: coords ? (coords as any).accuracy || null : null,
+        locationSource: "GPS",
         address: location,
         emergencyContact: TEST_EMERGENCY_NUMBER,
-        status: "active",
+        status: "CREATED",
         smsStatus,
         emergencyType: type,
-        createdAt: serverTimestamp(),
         timeline: [
           "Location Captured", 
           "Emergency Incident Created", 
           `Backend SOS SMS Status: ${smsStatus}`
         ],
+      };
+
+      await setDoc(doc(db, "emergencies", uniqueSosId), {
+        ...record,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
-      setEmergencyId(docRef.id);
+      setEmergencyId(uniqueSosId);
       setStep("active");
       setTimelineProgress(2);
     } catch (error) {
       console.error("Error creating emergency in Firestore:", error);
-      setEmergencyId("DEMO-SOS-" + Math.floor(Math.random() * 10000));
-      setStep("active");
+      setSosError("SOS failed to synchronize. Network or permissions error.");
     }
   };
 
@@ -510,15 +522,22 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 sm:p-6 border-t border-surface-200 dark:border-surface-800 bg-white/50 dark:bg-surface-900/50 backdrop-blur-md flex justify-end gap-3 shrink-0">
+        <div className="p-4 sm:p-6 border-t border-surface-200 dark:border-surface-800 bg-white/50 dark:bg-surface-900/50 backdrop-blur-md flex flex-col sm:flex-row justify-end gap-3 shrink-0">
           {step === "setup" && (
-            <button
-              onClick={handleSendSOS}
-              className="w-full sm:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-lg transition-all shadow-[0_0_30px_rgba(220,38,38,0.3)] hover:shadow-[0_0_50px_rgba(220,38,38,0.5)] flex items-center justify-center gap-2"
-            >
-              <ShieldAlert className="w-6 h-6" />
-              SEND SOS NOW
-            </button>
+            <>
+              {sosError && (
+                <div className="flex-1 text-red-500 text-sm font-bold flex items-center mb-2 sm:mb-0">
+                  {sosError}
+                </div>
+              )}
+              <button
+                onClick={handleSendSOS}
+                className="w-full sm:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-lg transition-all shadow-[0_0_30px_rgba(220,38,38,0.3)] hover:shadow-[0_0_50px_rgba(220,38,38,0.5)] flex items-center justify-center gap-2"
+              >
+                <ShieldAlert className="w-6 h-6" />
+                SEND SOS NOW
+              </button>
+            </>
           )}
 
           {step === "active" && (

@@ -49,7 +49,7 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
           From: fromNumber,
           To: formattedRecipient,
           Body: textMessage,
-        }).toString(),
+         }).toString(),
       });
 
       const data = await response.json();
@@ -87,27 +87,11 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
       };
     }
 
-    // 2. Simulation / Test mode fallback when Twilio keys are not yet configured in development
-    console.log(`[SMS Service Simulation] Dispatched emergency test SMS from ${fromNumber} to ${formattedRecipient}:`, textMessage);
-
-    if (recipient === "0000000000" || recipient === "+910000000000") {
-      return {
-        success: false,
-        status: "FAILED",
-        message: "Emergency alert could not be sent. Please call emergency services.",
-      };
-    }
-
+    // 2. Real SMS provider is NOT configured - never simulate SMS success
     return {
-      success: true,
-      status: "SENT",
-      message: "Emergency alert sent successfully",
-      providerResponse: {
-        recipient: formattedRecipient,
-        sender: fromNumber,
-        timestamp: payload.timestamp,
-        gateway: "GoldenGuard Secure SMS Relay",
-      },
+      success: false,
+      status: "FAILED",
+      message: "SMS service is not configured.",
     };
   } catch (error: any) {
     console.error("[SMS Service Dispatch Exception]:", {

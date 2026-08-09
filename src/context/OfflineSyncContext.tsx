@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { 
   getPendingSyncQueue, 
@@ -74,25 +74,52 @@ export const OfflineSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       for (const item of queue) {
         if (item.status === "syncing") continue;
+        if (item.status === "permanently_failed" || item.retryCount >= 5) {
+          continue; // Skip permanently failed items
+        }
+
+        // Exponential backoff check: delay increases with retry count
+        if (item.retryCount > 0 && item.lastAttemptAt) {
+          const delayMs = Math.min(Math.pow(2, item.retryCount) * 5000, 15 * 60 * 1000); // Max backoff 15 mins
+          const timeSinceLastAttempt = Date.now() - item.lastAttemptAt;
+          if (timeSinceLastAttempt < delayMs) {
+            console.log(`Skipping sync for item ${item.id} due to backoff cooldown (${Math.ceil((delayMs - timeSinceLastAttempt) / 1000)}s remaining)`);
+            continue;
+          }
+        }
+
         await updateSyncItemStatus(item.id, "syncing");
 
         try {
           if (item.type === "sos") {
             let photoURL = item.data.photoURL || "";
             if (photoURL.startsWith("data:")) {
-              photoURL = await uploadToCloudinary(photoURL, "emergencies");
+              try {
+                photoURL = await uploadToCloudinary(photoURL, "emergencies");
+              } catch (cloudinaryErr) {
+                console.warn("Cloudinary upload failed during SOS sync:", cloudinaryErr);
+                // Throw error so it fails the sync of this item to avoid writing base64 to Firestore
+                throw cloudinaryErr;
+              }
             }
-            await addDoc(collection(db, "emergencies"), {
+            const docId = item.data.id || item.id;
+            await setDoc(doc(db, "emergencies", docId), {
               ...item.data,
               photoURL,
-              status: "Active",
+              status: item.data.status || "CREATED",
               syncedFromOffline: true,
-              createdTime: serverTimestamp()
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
             });
           } else if (item.type === "hazard") {
             let photoURL = item.data.photoURL || "";
             if (photoURL.startsWith("data:")) {
-              photoURL = await uploadToCloudinary(photoURL, "hazards");
+              try {
+                photoURL = await uploadToCloudinary(photoURL, "hazards");
+              } catch (cloudinaryErr) {
+                console.warn("Cloudinary upload failed during hazard sync:", cloudinaryErr);
+                throw cloudinaryErr;
+              }
             }
             await addDoc(collection(db, "hazards"), {
               ...item.data,
@@ -103,7 +130,12 @@ export const OfflineSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
           } else if (item.type === "community") {
             let photoURL = item.data.photoURL || "";
             if (photoURL.startsWith("data:")) {
-              photoURL = await uploadToCloudinary(photoURL, "community");
+              try {
+                photoURL = await uploadToCloudinary(photoURL, "community");
+              } catch (cloudinaryErr) {
+                console.warn("Cloudinary upload failed during community post sync:", cloudinaryErr);
+                throw cloudinaryErr;
+              }
             }
             await addDoc(collection(db, "communityPosts"), {
               ...item.data,
@@ -118,10 +150,12 @@ export const OfflineSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
               createdAt: serverTimestamp()
             });
           } else if (item.type === "notification") {
-            await addDoc(collection(db, "notifications"), {
+            const uId = item.data.userId || "anonymous";
+            const docId = item.data.id || item.id;
+            await setDoc(doc(db, "notifications", uId, "items", docId), {
               ...item.data,
               syncedFromOffline: true,
-              createdTime: serverTimestamp()
+              timestamp: serverTimestamp()
             });
           } else if (item.type === "volunteer") {
             await addDoc(collection(db, "volunteers"), {

@@ -4,6 +4,7 @@ import {
   Circle, LayersControl, ScaleControl, ZoomControl, useMapEvents
 } from "react-leaflet";
 import L from "leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
@@ -14,7 +15,7 @@ import {
   Compass, ZoomIn, ZoomOut, Target, HeartPulse, Shield, Filter, Plus,
   AlertTriangle, Flame, Building2, CheckCircle2, Phone, Award
 } from "lucide-react";
-import { collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc, deleteDoc, getDocs, where, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useTheme } from "../components/theme/ThemeProvider";
 import { useOutletContext } from "react-router-dom";
@@ -23,7 +24,7 @@ import { useOutletContext } from "react-router-dom";
 interface MapPlace {
   id: string;
   name: string;
-  type: "hospital" | "police" | "volunteer" | "hazard" | "user" | "search" | "ambulance" | "fire" | "blood" | "pharmacy";
+  type: "hospital" | "police" | "volunteer" | "hazard" | "user" | "search" | "ambulance" | "fire" | "blood" | "pharmacy" | "emergency";
   lat: number;
   lng: number;
   vicinity?: string;
@@ -44,7 +45,6 @@ interface RouteData {
 }
 
 // --- Constants ---
-const INDIA_CENTER: [number, number] = [28.6139, 77.2090]; // New Delhi center for emergency responsiveness
 const DEFAULT_ZOOM = 13;
 
 // --- Icon Generator ---
@@ -99,6 +99,9 @@ const getCustomIcon = (type: MapPlace["type"]) => {
   } else if (type === "search") {
     colorBg = "bg-indigo-600 border-indigo-200 shadow-indigo-500/30";
     iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+  } else if (type === "emergency") {
+    colorBg = "bg-red-600 border-red-200 shadow-red-500/30 animate-pulse";
+    iconSvg = `<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
   }
 
   iconCache[type] = L.divIcon({
@@ -116,18 +119,7 @@ const getCustomIcon = (type: MapPlace["type"]) => {
 };
 
 // --- Initial Emergency Services Dataset ---
-const INITIAL_PLACES: MapPlace[] = [
-  { id: "h1", name: "AIIMS Apex Trauma Centre", type: "hospital", lat: 28.5672, lng: 77.2100, vicinity: "Sri Aurobindo Marg, New Delhi", phone: "102", rating: 4.8, isOpen: true, bedsAvailable: 24 },
-  { id: "h2", name: "Safdarjung Hospital Emergency", type: "hospital", lat: 28.5703, lng: 77.2066, vicinity: "Ring Road, New Delhi", phone: "108", rating: 4.6, isOpen: true, bedsAvailable: 18 },
-  { id: "h3", name: "Max Super Speciality Hospital", type: "hospital", lat: 28.5244, lng: 77.2150, vicinity: "Press Enclave Rd, Saket", phone: "011-26515050", rating: 4.9, isOpen: true, bedsAvailable: 35 },
-  { id: "p1", name: "Connaught Place Central Police Station", type: "police", lat: 28.6315, lng: 77.2167, vicinity: "Sansad Marg, Connaught Place", phone: "100", rating: 4.5, isOpen: true },
-  { id: "p2", name: "South Campus Police Station", type: "police", lat: 28.5822, lng: 77.1650, vicinity: "Dhaula Kuan, New Delhi", phone: "112", rating: 4.4, isOpen: true },
-  { id: "a1", name: "Central Life Ambulance Dispatch", type: "ambulance", lat: 28.6100, lng: 77.2300, vicinity: "Connaught Lane Fleet Hub", phone: "108", rating: 4.9, isOpen: true },
-  { id: "f1", name: "Delhi Fire Service HQ", type: "fire", lat: 28.6280, lng: 77.2280, vicinity: "Connaught Circus, New Delhi", phone: "101", rating: 4.8, isOpen: true },
-  { id: "b1", name: "Red Cross Blood Bank Centre", type: "blood", lat: 28.6200, lng: 77.2150, vicinity: "Red Cross Road, New Delhi", phone: "011-23716441", rating: 4.7, isOpen: true },
-  { id: "ph1", name: "Apollo 24/7 Emergency Pharmacy", type: "pharmacy", lat: 28.6150, lng: 77.2100, vicinity: "Janpath Road, New Delhi", phone: "011-23321234", rating: 4.6, isOpen: true },
-  { id: "v1", name: "Dr. Vikram (Good Samaritan Responder)", type: "volunteer", lat: 28.6139, lng: 77.2090, vicinity: "Active First Aid Responder", phone: "+91 98765 43210", rating: 5.0, isOpen: true },
-];
+const INITIAL_PLACES: MapPlace[] = [];
 
 export default function SmartMap() {
   const { theme } = useTheme();
@@ -140,10 +132,10 @@ export default function SmartMap() {
 
   // States
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
-  const [mapCenter, setMapCenter] = useState<[number, number]>(INDIA_CENTER);
   const [zoomLevel, setZoomLevel] = useState<number>(DEFAULT_ZOOM);
   const [addressStatus, setAddressStatus] = useState<string>("Locating GPS...");
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [permissionState, setPermissionState] = useState<"granted" | "denied" | "prompt" | "timeout" | "unavailable" | "loading">("loading");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -152,6 +144,8 @@ export default function SmartMap() {
   
   const [places, setPlaces] = useState<MapPlace[]>(INITIAL_PLACES);
   const [firebaseHazards, setFirebaseHazards] = useState<MapPlace[]>([]);
+  const [firebaseEntities, setFirebaseEntities] = useState<MapPlace[]>([]);
+  const [firebaseEmergencies, setFirebaseEmergencies] = useState<MapPlace[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedPlace, setSelectedPlace] = useState<MapPlace | null>(null);
   
@@ -159,8 +153,9 @@ export default function SmartMap() {
     setSelectedCategory(catId);
     if (catId === "all" || catId === "hazard" || catId === "volunteer") return;
     
-    const centerLat = userLocation?.lat || mapCenter[0];
-    const centerLng = userLocation?.lng || mapCenter[1];
+    const centerLat = userLocation?.lat;
+    const centerLng = userLocation?.lng;
+    if (!centerLat || !centerLng) return;
 
     const overpassMap: Record<string, string> = {
       hospital: '[amenity=hospital]',
@@ -257,38 +252,61 @@ export default function SmartMap() {
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setGeoError("Geolocation is not supported by your browser");
-      setAddressStatus("GPS unsupported");
+      setPermissionState("unavailable");
+      setAddressStatus("Live location unavailable");
       return;
     }
     
+    setPermissionState("loading");
     setAddressStatus("Detecting real GPS location...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setUserLocation({ lat: latitude, lng: longitude, accuracy });
-        setMapCenter([latitude, longitude]);
         setZoomLevel(15);
         setAddressStatus("GPS active (High Accuracy)");
         setGeoError(null);
+        setPermissionState("granted");
         if (map) {
           map.flyTo([latitude, longitude], 15, { duration: 1.5 });
         }
       },
       (err) => {
+        let status: typeof permissionState = "unavailable";
+        if (err.code === err.PERMISSION_DENIED) {
+          status = "denied";
+        } else if (err.code === err.TIMEOUT) {
+          status = "timeout";
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          status = "unavailable";
+        }
+        setPermissionState(status);
         setGeoError(err.message || "Location access denied");
-        setAddressStatus("GPS denied / Error");
+        setAddressStatus("Live location unavailable");
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
     );
   }, [map]);
 
   useEffect(() => {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((result) => {
+        setPermissionState(result.state as any);
+        result.onchange = () => {
+          setPermissionState(result.state as any);
+        };
+      }).catch((err) => {
+        console.warn("Permissions query failed:", err);
+      });
+    }
     requestLocation();
+
     if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setUserLocation({ lat: latitude, lng: longitude, accuracy });
+        setPermissionState("granted");
       },
       (err) => {
         console.warn("GPS watch notice:", err);
@@ -303,6 +321,7 @@ export default function SmartMap() {
   // Reverse Geocode user location using OpenStreetMap Nominatim
   useEffect(() => {
     if (!userLocation) return;
+    let isMounted = true;
     const fetchAddress = async () => {
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=jsonv2`, {
@@ -310,24 +329,126 @@ export default function SmartMap() {
             'User-Agent': 'GoldenGuard-RoadSafetyApp'
           }
         });
+        if (!isMounted) return;
         if (res.ok) {
           const data = await res.json();
           if (data && data.display_name) {
             setAddressStatus(data.display_name);
+          } else {
+            setAddressStatus(`${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`);
           }
+        } else {
+          setAddressStatus(`${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`);
         }
       } catch (e) {
         console.warn("Reverse geocode fetch notice:", e);
+        if (isMounted) {
+          setAddressStatus(`${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`);
+        }
       }
     };
     fetchAddress();
+    return () => {
+      isMounted = false;
+    };
   }, [userLocation?.lat, userLocation?.lng]);
+
+  // Fetch Firebase Verified Entities (Hospitals, Police, Responders)
+  useEffect(() => {
+    let active = true;
+    try {
+      const q = query(
+        collection(db, "users"),
+        where("role", "in", ["hospital", "police", "volunteer", "responder", "trainer"]),
+        limit(100)
+      );
+      getDocs(q).then((snapshot) => {
+        if (!active) return;
+        const entities: MapPlace[] = [];
+        snapshot.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.verificationStatus === "VERIFIED") {
+            let parsedLat = 0;
+            let parsedLng = 0;
+            if (data.location && typeof data.location === "string") {
+              const parts = data.location.split(",").map(Number);
+              if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                parsedLat = parts[0];
+                parsedLng = parts[1];
+              }
+            }
+            if (parsedLat !== 0 && parsedLng !== 0) {
+              entities.push({
+                id: `user-entity-${docSnap.id}`,
+                name: data.name || data.stationName || "Verified Unit",
+                type: data.role === "hospital" ? "hospital" : data.role === "police" ? "police" : "volunteer",
+                lat: parsedLat,
+                lng: parsedLng,
+                vicinity: data.address || "Verified responder unit",
+                phone: data.phone || data.officialContact || "112",
+                rating: 5.0,
+                isOpen: true
+              });
+            }
+          }
+        });
+        setFirebaseEntities(entities);
+      }).catch((err) => {
+        console.warn("Firestore users sync notice:", err);
+      });
+    } catch (err) {
+      console.warn("Firebase users sync failed:", err);
+    }
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch Firebase Emergencies (Active alerts & incidents)
+  useEffect(() => {
+    try {
+      const q = query(
+        collection(db, "emergencies"),
+        where("status", "in", ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED", "active"]),
+        limit(50)
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const emergencies: MapPlace[] = [];
+        snapshot.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          const pLat = data.latitude;
+          const pLng = data.longitude;
+          if (typeof pLat === 'number' && !isNaN(pLat) && typeof pLng === 'number' && !isNaN(pLng)) {
+            emergencies.push({
+              id: `emergency-${docSnap.id}`,
+              name: `Emergency Incident: ${data.type || "SOS Alert"}`,
+              type: "emergency",
+              lat: pLat,
+              lng: pLng,
+              vicinity: `Status: ${data.status || "Active"} | Severity: ${data.severity || "Unknown"} | Address: ${data.address || "N/A"}`,
+              phone: data.phone || "112",
+              rating: 4.0,
+              isOpen: data.status !== "Resolved",
+            });
+          }
+        });
+        setFirebaseEmergencies(emergencies);
+      }, (err) => {
+        console.warn("Firestore emergencies sync notice:", err);
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn("Firebase emergencies sync failed:", err);
+    }
+  }, []);
 
   // Fetch Firebase Hazards & Incidents
   useEffect(() => {
+    let active = true;
     try {
-      const q = query(collection(db, "hazards"), orderBy("timestamp", "desc"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const q = query(collection(db, "hazards"), orderBy("timestamp", "desc"), limit(50));
+      getDocs(q).then((snapshot) => {
+        if (!active) return;
         const hazards: MapPlace[] = snapshot.docs.map((doc) => {
           const data = doc.data();
           return {
@@ -343,13 +464,15 @@ export default function SmartMap() {
           };
         });
         setFirebaseHazards(hazards);
-      }, (err) => {
+      }).catch((err) => {
         console.warn("Firestore hazards sync notice:", err);
       });
-      return () => unsubscribe();
     } catch (err) {
-      console.warn("Firebase initialization notice:", err);
+      console.warn("Firebase hazards sync failed:", err);
     }
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Calculate distance helper (Haversine)
@@ -407,8 +530,45 @@ export default function SmartMap() {
         { signal: controller.signal }
       );
       if (!res.ok) throw new Error("API error");
-      const data = await res.json();
-      setSearchResults(data);
+      const osmData = await res.json();
+
+      // Filter local verified firebase entities by search term
+      const term = searchQuery.toLowerCase().trim();
+      const matchedFirebase = firebaseEntities.filter(entity => {
+        return entity.name.toLowerCase().includes(term) || entity.vicinity.toLowerCase().includes(term);
+      }).map(entity => ({
+        place_id: `firebase-${entity.id}`,
+        name: `🏥 [Verified] ${entity.name}`,
+        display_name: `${entity.name} - ${entity.vicinity} (${entity.type.toUpperCase()})`,
+        lat: entity.lat,
+        lon: entity.lng,
+        source: "firebase",
+        originalPlace: entity
+      }));
+
+      // Filter local active emergencies/incidents by search term
+      const matchedEmergencies = firebaseEmergencies.filter(e => {
+        return e.name.toLowerCase().includes(term) || e.vicinity.toLowerCase().includes(term);
+      }).map(e => ({
+        place_id: `emergency-${e.id}`,
+        name: `🚨 [Incident] ${e.name}`,
+        display_name: `${e.name} - ${e.vicinity}`,
+        lat: e.lat,
+        lon: e.lng,
+        source: "firebase",
+        originalPlace: e
+      }));
+
+      const mappedOsm = osmData.map((item: any) => ({
+        ...item,
+        name: item.name || item.display_name.split(",")[0],
+        display_name: item.display_name,
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lon),
+        source: "osm"
+      }));
+
+      setSearchResults([...matchedFirebase, ...matchedEmergencies, ...mappedOsm]);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error("Search failed", err);
@@ -426,9 +586,9 @@ export default function SmartMap() {
     setHasSearched(false);
     setSearchError(null);
     const lat = parseFloat(item.lat);
-    const lng = parseFloat(item.lon);
-    const place: MapPlace = {
-      id: `search-${item.place_id}`,
+    const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng);
+    const place: MapPlace = item.originalPlace ? item.originalPlace : {
+      id: `search-${item.place_id || Date.now()}`,
       name: item.name || item.display_name.split(",")[0],
       type: "search",
       lat,
@@ -439,11 +599,11 @@ export default function SmartMap() {
     };
     
     setPlaces(prev => {
-      const filtered = prev.filter(p => p.type !== "search");
+      const filtered = prev.filter(p => p.type !== "search" && p.id !== place.id);
       return [...filtered, place];
     });
     
-    setMapCenter([lat, lng]);
+    setUserLocation({ lat, lng, accuracy: undefined });
     setZoomLevel(16);
     setSelectedPlace(place);
     setSearchResults([]);
@@ -492,8 +652,9 @@ export default function SmartMap() {
 
   // Nearest Hospital Quick Action
   const handleFindNearestHospital = () => {
-    const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
-    const hospitals = [...places, ...firebaseHazards].filter(p => p.type === "hospital");
+    const origin = userLocation;
+    if (!origin) return;
+    const hospitals = allPlacesList.filter(p => p.type === "hospital");
     if (hospitals.length === 0) return;
 
     let nearest = hospitals[0];
@@ -520,9 +681,16 @@ export default function SmartMap() {
     }
     
     setIsSOSMode(true);
-    const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
-    const hospitals = [...places, ...firebaseHazards].filter(p => p.type === "hospital");
-    const nearestHospital = hospitals[0] || INITIAL_PLACES[0];
+    const origin = userLocation;
+    if (!origin) return;
+    const hospitals = allPlacesList.filter(p => p.type === "hospital");
+    const nearestHospital = hospitals[0];
+    if (!nearestHospital) {
+      if (map) {
+        map.flyTo([origin.lat, origin.lng], 16, { duration: 1.5 });
+      }
+      return;
+    }
     
     setSelectedPlace(nearestHospital);
     fetchOSRMRoute(origin.lat, origin.lng, nearestHospital.lat, nearestHospital.lng, nearestHospital.name, "driving");
@@ -574,8 +742,6 @@ export default function SmartMap() {
   const handleRecenter = () => {
     if (map && userLocation) {
       map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1.2 });
-    } else if (map) {
-      map.flyTo(INDIA_CENTER, DEFAULT_ZOOM, { duration: 1.2 });
     }
   };
   const toggleFullscreen = () => {
@@ -588,7 +754,12 @@ export default function SmartMap() {
   };
 
   // Filtered Places
-  const allPlacesList = [...places, ...firebaseHazards];
+  const allPlacesList = [
+    ...places, 
+    ...firebaseHazards, 
+    ...firebaseEntities, 
+    ...firebaseEmergencies
+  ];
   const filteredPlaces = allPlacesList.filter(p => {
     if (selectedCategory === "all") return true;
     return p.type === selectedCategory;
@@ -773,106 +944,171 @@ export default function SmartMap() {
       )}
 
       {/* Floating Map Controls */}
-      <div className="absolute top-36 right-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
-        <button onClick={handleZoomIn} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
-        <button onClick={handleZoomOut} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
-        <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-0.5" />
-        <button onClick={requestLocation} title="My Location" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-blue-500 transition-colors"><LocateFixed className="w-4 h-4 text-blue-500" /></button>
-        <button onClick={handleRecenter} title="Recenter" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-emerald-500 transition-colors"><Target className="w-4 h-4 text-emerald-500" /></button>
-        <button onClick={() => setShowTrafficLayer(!showTrafficLayer)} title="Traffic Layer" className={`w-10 h-10 backdrop-blur-xl border rounded-xl flex items-center justify-center shadow-xl transition-colors ${showTrafficLayer ? "bg-red-500 text-white border-red-400" : "bg-white/95 dark:bg-surface-900/95 border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300"}`}><Radio className="w-4 h-4" /></button>
-        <button onClick={toggleFullscreen} title="Fullscreen" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><Maximize className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
-      </div>
+      {userLocation && (
+        <div className="absolute top-36 right-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
+          <button onClick={handleZoomIn} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+          <button onClick={handleZoomOut} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+          <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-0.5" />
+          <button onClick={requestLocation} title="My Location" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-blue-500 transition-colors"><LocateFixed className="w-4 h-4 text-blue-500" /></button>
+          <button onClick={handleRecenter} title="Recenter" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-emerald-500 transition-colors"><Target className="w-4 h-4 text-emerald-500" /></button>
+          <button onClick={() => setShowTrafficLayer(!showTrafficLayer)} title="Traffic Layer" className={`w-10 h-10 backdrop-blur-xl border rounded-xl flex items-center justify-center shadow-xl transition-colors ${showTrafficLayer ? "bg-red-500 text-white border-red-400" : "bg-white/95 dark:bg-surface-900/95 border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300"}`}><Radio className="w-4 h-4" /></button>
+          <button onClick={toggleFullscreen} title="Fullscreen" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><Maximize className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+        </div>
+      )}
 
-      {/* Leaflet Map Container */}
-      <MapContainer
-        ref={setMap}
-        center={mapCenter}
-        zoom={zoomLevel}
-        scrollWheelZoom={true}
-        className="w-full h-full z-0"
-        zoomControl={false}
-      >
-        <LayersControl position="bottomleft">
-          <LayersControl.BaseLayer checked={theme !== "dark"} name="Roadmap (OpenStreetMap)">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
+      {/* Leaflet Map / Fallback View */}
+      {!userLocation ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-surface-50 dark:bg-surface-950/40 z-[998] pt-32">
+          {permissionState === "loading" ? (
+            <div className="space-y-4 max-w-sm p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl flex flex-col items-center animate-in fade-in zoom-in-95">
+              <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+              <div className="space-y-1.5">
+                <h3 className="font-black text-sm text-surface-900 dark:text-white">Detecting Real GPS Location</h3>
+                <p className="text-xs text-surface-500 leading-relaxed">
+                  Connecting to satellites. Please allow location access if prompted by your browser...
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-md p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6 animate-in fade-in zoom-in-95">
+              <div className="w-16 h-16 mx-auto bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500">
+                <LocateFixed className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-black text-surface-900 dark:text-white">Live Location Unavailable</h2>
+                <p className="text-xs text-surface-500 leading-relaxed">
+                  GoldenGuard requires high-accuracy real GPS location data. 
+                  {permissionState === "denied" ? " Location permission is blocked." : " Satellite signal could not be established."}
+                </p>
+              </div>
+
+              {permissionState === "denied" ? (
+                <div className="text-left text-xs bg-surface-50 dark:bg-surface-800/50 p-4 rounded-2xl border border-surface-100 dark:border-surface-800 space-y-2 text-surface-600 dark:text-surface-300">
+                  <div className="font-bold text-surface-800 dark:text-white font-black">Instructions to enable location:</div>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li><strong>Chrome:</strong> Click the lock icon in the URL bar, set Location to <em>Allow</em>, then refresh.</li>
+                    <li><strong>Safari:</strong> Go to Settings &gt; Privacy &gt; Location Services, make sure Safari has access, and refresh.</li>
+                    <li><strong>Firefox:</strong> Click the permissions shield next to the URL, clear the blocked status, and refresh.</li>
+                  </ul>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <button
+                    onClick={requestLocation}
+                    className="w-full h-11 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Retry Satellite GPS
+                  </button>
+                  <p className="text-[10px] text-surface-400">
+                    If this persists, please verify your device's global GPS settings are turned on.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <MapContainer
+          ref={setMap}
+          center={[userLocation.lat, userLocation.lng]}
+          zoom={zoomLevel}
+          scrollWheelZoom={true}
+          className="w-full h-full z-0 animate-in fade-in duration-500"
+          zoomControl={false}
+        >
+          <LayersControl position="bottomleft">
+            <LayersControl.BaseLayer checked={theme !== "dark"} name="Roadmap (OpenStreetMap)">
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maxZoom={19}
+              />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Tactical Map">
+              <TileLayer
+                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                maxZoom={19}
+              />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Satellite Imagery">
+              <TileLayer
+                attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-eGP, and the GIS User Community'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={19}
+              />
+            </LayersControl.BaseLayer>
+          </LayersControl>
+
+          <ScaleControl position="bottomleft" imperial={false} />
+          
+          {/* Click Handler */}
+          <MapEventsHandler onClick={handleMapClickForReport} />
+
+          {/* User Location Marker & Accuracy Circle */}
+          {userLocation && typeof userLocation.lat === 'number' && !isNaN(userLocation.lat) && typeof userLocation.lng === 'number' && !isNaN(userLocation.lng) && (
+            <>
+              {userLocation.accuracy && (
+                <Circle 
+                  center={[userLocation.lat, userLocation.lng]} 
+                  radius={userLocation.accuracy} 
+                  pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.15, weight: 1 }}
+                />
+              )}
+              <Marker position={[userLocation.lat, userLocation.lng]} icon={getCustomIcon("user")}>
+                <Popup className="custom-popup">
+                  <div className="font-black text-sm text-surface-900">Your Location</div>
+                  <div className="text-[10px] text-surface-500">{addressStatus}</div>
+                  {userLocation.accuracy && (
+                    <div className="text-[10px] font-bold mt-1">
+                      Accuracy: ±{Math.round(userLocation.accuracy)} m
+                      {userLocation.accuracy > 50 ? (
+                        <span className="text-amber-500 block">⚠️ Poor accuracy - exact coordinates may vary</span>
+                      ) : (
+                        <span className="text-emerald-600 block">✓ High accuracy GPS</span>
+                      )}
+                    </div>
+                  )}
+                </Popup>
+              </Marker>
+            </>
+          )}
+
+          {/* Legitimate clustered emergency markers */}
+          <MarkerClusterGroup chunkedLoading>
+            {filteredPlaces.filter(place => typeof place.lat === 'number' && !isNaN(place.lat) && typeof place.lng === 'number' && !isNaN(place.lng)).map(place => (
+              <Marker 
+                key={place.id} 
+                position={[place.lat, place.lng]} 
+                icon={getCustomIcon(place.type)}
+                eventHandlers={{
+                  click: () => {
+                    setSelectedPlace(place);
+                    if (map) map.flyTo([place.lat, place.lng], 16, { duration: 1.2 });
+                  }
+                }}
+              >
+                <Popup className="custom-popup">
+                  <div className="font-black text-sm text-surface-900">{place.name}</div>
+                  <div className="text-[10px] text-surface-500">{place.vicinity}</div>
+                  {place.phone && <div className="text-xs font-bold text-red-500 mt-1">Tel: {place.phone}</div>}
+                </Popup>
+              </Marker>
+            ))}
+          </MarkerClusterGroup>
+
+          {/* Active Route Polyline */}
+          {activeRoute && (
+            <Polyline 
+              positions={activeRoute.coords} 
+              color={isSOSMode ? "#EF4444" : "#F59E0B"} 
+              weight={6} 
+              opacity={0.85}
+              dashArray={isSOSMode ? "10, 10" : undefined}
             />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Tactical Map">
-            <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              maxZoom={19}
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satellite Imagery">
-            <TileLayer
-              attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-eGP, and the GIS User Community'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={19}
-            />
-          </LayersControl.BaseLayer>
-        </LayersControl>
-
-        <ScaleControl position="bottomleft" imperial={false} />
-        
-        {/* Click Handler */}
-        <MapEventsHandler onClick={handleMapClickForReport} />
-
-        {/* User Location Marker & Accuracy Circle */}
-        {userLocation && typeof userLocation.lat === 'number' && !isNaN(userLocation.lat) && typeof userLocation.lng === 'number' && !isNaN(userLocation.lng) && (
-          <>
-            <Circle 
-              center={[userLocation.lat, userLocation.lng]} 
-              radius={userLocation.accuracy || 30} 
-              pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.15, weight: 1 }}
-            />
-            <Marker position={[userLocation.lat, userLocation.lng]} icon={getCustomIcon("user")}>
-              <Popup className="custom-popup">
-                <div className="font-black text-sm text-surface-900">Your Current Location</div>
-                <div className="text-[10px] text-surface-500">{addressStatus}</div>
-                {userLocation.accuracy && (
-                  <div className="text-[10px] font-bold text-emerald-600 mt-1">Accuracy: ±{Math.round(userLocation.accuracy)} m</div>
-                )}
-              </Popup>
-            </Marker>
-          </>
-        )}
-
-        {/* Filtered Emergency Places Markers */}
-        {filteredPlaces.filter(place => typeof place.lat === 'number' && !isNaN(place.lat) && typeof place.lng === 'number' && !isNaN(place.lng)).map(place => (
-          <Marker 
-            key={place.id} 
-            position={[place.lat, place.lng]} 
-            icon={getCustomIcon(place.type)}
-            eventHandlers={{
-              click: () => {
-                setSelectedPlace(place);
-                if (map) map.flyTo([place.lat, place.lng], 16, { duration: 1.2 });
-              }
-            }}
-          >
-            <Popup className="custom-popup">
-              <div className="font-black text-sm text-surface-900">{place.name}</div>
-              <div className="text-[10px] text-surface-500">{place.vicinity}</div>
-              {place.phone && <div className="text-xs font-bold text-red-500 mt-1">Tel: {place.phone}</div>}
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* Active Route Polyline */}
-        {activeRoute && (
-          <Polyline 
-            positions={activeRoute.coords} 
-            color={isSOSMode ? "#EF4444" : "#F59E0B"} 
-            weight={6} 
-            opacity={0.85}
-            dashArray={isSOSMode ? "10, 10" : undefined}
-          />
-        )}
-      </MapContainer>
+          )}
+        </MapContainer>
+      )}
 
       {/* Selected Place Details Card (Bottom Sheet / Side Panel) */}
       {selectedPlace && (
@@ -908,8 +1144,8 @@ export default function SmartMap() {
           <div className="flex gap-2.5">
             <button
               onClick={() => {
-                const origin = userLocation || { lat: mapCenter[0], lng: mapCenter[1] };
-                fetchOSRMRoute(origin.lat, origin.lng, selectedPlace.lat, selectedPlace.lng, selectedPlace.name, travelMode);
+                if (!userLocation) return;
+                fetchOSRMRoute(userLocation.lat, userLocation.lng, selectedPlace.lat, selectedPlace.lng, selectedPlace.name, travelMode);
               }}
               className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
             >

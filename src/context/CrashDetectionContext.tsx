@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useDemo } from "./DemoContext";
+import { useAuth } from "./AuthContext";
 
 export interface EmergencyContactNotice {
   name: string;
@@ -72,6 +73,7 @@ function playUrgentBeep(frequency = 880, duration = 0.15) {
 
 export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { demoMode, triggerDemoEmergency } = useDemo();
+  const { userProfile } = useAuth();
   
   const [sensorActive, setSensorActive] = useState<boolean>(true);
   const [isCrashDetected, setIsCrashDetected] = useState<boolean>(false);
@@ -83,10 +85,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
   const goldenHourTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Default User Geolocation
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number }>({
-    lat: 28.5672,
-    lng: 77.2100, // Delhi NCR Corridor / Fallback India Hub
-  });
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Track Geolocation
   useEffect(() => {
@@ -161,30 +160,28 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
   const dispatchAutoSOS = useCallback((wasUserResponded: boolean) => {
     const emergencyId = `SOS-CRASH-${Math.floor(1000 + Math.random() * 9000)}`;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const mapsLink = `https://www.openstreetmap.org/?mlat=${userCoords.lat}&mlon=${userCoords.lng}#map=18/${userCoords.lat}/${userCoords.lng}`;
-    const locationName = "Km 14 Expressway, Sector 62 Corridor";
+    const mapsLink = userCoords ? `https://www.openstreetmap.org/?mlat=${userCoords.lat}&mlon=${userCoords.lng}#map=18/${userCoords.lat}/${userCoords.lng}` : "";
+    const locationName = "Unknown Location";
 
     const contacts: EmergencyContactNotice[] = [
-      { name: "Elena Rivera (Spouse)", phone: "+91 98765 43210", relationship: "Spouse", status: "Delivered via SMS/WhatsApp", timeSent: timeStr },
-      { name: "Dr. Robert Miller", phone: "+91 98123 45678", relationship: "Primary Physician", status: "Delivered via SMS", timeSent: timeStr },
-      { name: "National Emergency Hub 112", phone: "112", relationship: "Control Room", status: "High Priority Relay Dispatched", timeSent: timeStr },
+      { name: "Emergency Dispatch 112", phone: "112", relationship: "Control Room", status: "High Priority Relay Dispatched", timeSent: timeStr },
     ];
 
     const emergencyPayload: AutoEmergencyPayload = {
       id: emergencyId,
-      patientName: "Alex Rivera",
+      patientName: userProfile?.name || "User",
       type: "Automated Vehicle Crash & Impact Alert",
       severity: "critical",
-      location: `${locationName} (${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)})`,
-      lat: userCoords.lat,
-      lng: userCoords.lng,
+      location: userCoords ? `${locationName} (${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)})` : locationName,
+      lat: userCoords ? userCoords.lat : 0,
+      lng: userCoords ? userCoords.lng : 0,
       timestamp: timeStr,
       status: "active",
       isAutoSOS: true,
       crashDetected: true,
       unconscious: !wasUserResponded,
       contactsNotified: contacts,
-      nearbyVolunteersNotifiedCount: 4,
+      nearbyVolunteersNotifiedCount: 0,
       goldenHourMinutesLeft: 60,
     };
 
@@ -192,20 +189,25 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
     // Save to Firestore (if available)
     if (!demoMode) {
-      addDoc(collection(db, "emergencies"), {
+      setDoc(doc(db, "emergencies", emergencyId), {
         id: emergencyId,
+        userId: userProfile?.uid || "anonymous",
         type: emergencyPayload.type,
         severity: "critical",
+        priority: "CRITICAL",
         isAutoSOS: true,
         crashDetected: true,
         unconscious: !wasUserResponded,
-        status: "active",
-        patientName: "Alex Rivera",
+        status: "CREATED",
+        patientName: userProfile?.name || "User",
         location: emergencyPayload.location,
-        lat: userCoords.lat,
-        lng: userCoords.lng,
-        timestamp: new Date(),
+        latitude: userCoords ? userCoords.lat : 0,
+        longitude: userCoords ? userCoords.lng : 0,
+        accuracy: null,
+        locationSource: "GPS",
         contactsNotified: contacts,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       }).catch((err) => console.warn("Firestore Auto SOS write notice:", err));
     }
 

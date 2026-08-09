@@ -7,7 +7,7 @@ import {
   Radio, Clock, CheckCircle2, ShieldCheck, Award, Stethoscope, Sparkles, Building2, Car, Bike, Shield as ShieldIcon,
   Bell, TrendingUp, Zap, AlertCircle, Eye, ArrowUpRight, Check, Compass, RadioTower
 } from "lucide-react";
-import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useDemo } from "../context/DemoContext";
 import { useOfflineSync } from "../context/OfflineSyncContext";
@@ -87,8 +87,12 @@ export function Dashboard() {
     setIsFetchingLive(true);
     setFetchError(null);
 
-    // 1. Subscribe to active emergencies
-    const qEmergencies = query(collection(db, "emergencies"), where("status", "==", "active"));
+    // 1. Subscribe to active emergencies (active SOS and live status is allowed for realtime)
+    const qEmergencies = query(
+      collection(db, "emergencies"), 
+      where("status", "in", ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED", "active"]),
+      limit(50)
+    );
     const unsubEmergencies = onSnapshot(qEmergencies, (snapshot) => {
       setLiveIncidentsCount(snapshot.size);
       setIsFetchingLive(false);
@@ -98,26 +102,22 @@ export function Dashboard() {
       setIsFetchingLive(false);
     });
 
-    // 2. Subscribe to volunteers
-    const qVolunteers = collection(db, "volunteers");
-    const unsubVolunteers = onSnapshot(qVolunteers, (snapshot) => {
+    // 2. One-time fetch for volunteers count to avoid full list realtime listener
+    getDocs(query(collection(db, "volunteers"), limit(100))).then((snapshot) => {
       setLiveVolunteersCount(snapshot.size);
-    }, (err) => {
+    }).catch((err) => {
       console.warn("Firestore volunteers fetch failed.", err);
     });
 
-    // 3. Subscribe to active hazards
-    const qHazards = collection(db, "hazards");
-    const unsubHazards = onSnapshot(qHazards, (snapshot) => {
+    // 3. One-time fetch for hazards count to avoid full list realtime listener
+    getDocs(query(collection(db, "hazards"), limit(100))).then((snapshot) => {
       setLiveHazardsCount(snapshot.size);
-    }, (err) => {
+    }).catch((err) => {
       console.warn("Firestore hazards fetch failed.", err);
     });
 
     return () => {
       unsubEmergencies();
-      unsubVolunteers();
-      unsubHazards();
     };
   }, [demoMode]);
 
@@ -127,18 +127,7 @@ export function Dashboard() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Determine actual metrics to display based on demo vs live mode
   const getMetricValue = (type: "incidents" | "volunteers" | "hospitals" | "response" | "triage") => {
-    if (demoMode) {
-      switch (type) {
-        case "incidents": return "189";
-        case "volunteers": return "1,420";
-        case "hospitals": return "480 Beds";
-        case "response": return "2.1 min";
-        case "triage": return "OPERATIONAL";
-      }
-    }
-
     if (!isOnline) {
       return "OFFLINE";
     }
@@ -149,16 +138,15 @@ export function Dashboard() {
 
     switch (type) {
       case "incidents":
-        return liveIncidentsCount !== null ? liveIncidentsCount : null;
+        return liveIncidentsCount !== null ? liveIncidentsCount.toString() : "0";
       case "volunteers":
-        return liveVolunteersCount !== null ? liveVolunteersCount : null;
+        return liveVolunteersCount !== null ? liveVolunteersCount.toString() : "0";
       case "hospitals":
-        // Fallback to static verified beds when offline/unreachable, otherwise say "Live Connected"
-        return "24 Trauma ICUs";
+        return "0 Beds Available";
       case "response":
-        return "3.8 min"; // Real historic benchmark
+        return "0.0 min";
       case "triage":
-        return "ONLINE";
+        return "UNKNOWN";
     }
   };
 
@@ -272,7 +260,7 @@ export function Dashboard() {
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
             LIVE RADAR FEED
           </div>
-          <span className="text-amber-600 dark:text-amber-400 font-extrabold truncate tracking-tight">DELHI REGIONAL EMERGENCY SYNC FREQUENCY: 148.85 MHz</span>
+          <span className="text-amber-600 dark:text-amber-400 font-extrabold truncate tracking-tight">LOCAL EMERGENCY SYNC FREQUENCY: 148.85 MHz</span>
         </div>
         <div className="flex items-center gap-4 text-[11px] text-surface-500 dark:text-surface-400 shrink-0">
           <span className="flex items-center gap-1.5">

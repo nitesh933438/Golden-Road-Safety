@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { 
-  collection, onSnapshot, query, orderBy, addDoc, 
-  doc, updateDoc, deleteDoc, serverTimestamp 
+  collection, onSnapshot, query, orderBy, limit, addDoc, 
+  doc, setDoc, updateDoc, deleteDoc, serverTimestamp 
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { useAuth } from "./AuthContext";
 
 export type NotificationType = 
   | "emergency" 
@@ -42,108 +43,7 @@ interface NotificationContextType {
   sendTestNotification: (type: NotificationType) => void;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n1",
-    title: "🚨 Automated Crash Anomaly Detected",
-    message: "SafeRide Guardian registered 3.4G impact on Expressway Km 14. Emergency contacts notified.",
-    time: "5 minutes ago",
-    group: "Today",
-    type: "emergency",
-    isRead: false,
-    link: "/sos"
-  },
-  {
-    id: "n2",
-    title: "🆘 SOS Dispatch Request Confirmed",
-    message: "National Control Room assigned Emergency Response Team #4. Golden Hour timer ticking.",
-    time: "15 minutes ago",
-    group: "Today",
-    type: "sos",
-    isRead: false,
-    link: "/sos"
-  },
-  {
-    id: "n3",
-    title: "🤝 Volunteer Rahul Verma En Route",
-    message: "Certified Responder Rahul Verma accepted dispatch in Sector 7 (ETA: 2.1 mins).",
-    time: "25 minutes ago",
-    group: "Today",
-    type: "volunteer",
-    isRead: false,
-    link: "/community"
-  },
-  {
-    id: "n4",
-    title: "🏥 Max Hospital Trauma Bay 2 Prepped",
-    message: "Level-1 Trauma Center reserved ICU Bed #2 and ventilator for incoming Golden Hour victim.",
-    time: "40 minutes ago",
-    group: "Today",
-    type: "hospital",
-    isRead: true,
-    link: "/map"
-  },
-  {
-    id: "n5",
-    title: "🚔 Police Patrol Squad 4 Dispatched",
-    message: "Highway Patrol Squad 4 cordoning accident zone for rapid ambulance corridor pass.",
-    time: "1 hour ago",
-    group: "Today",
-    type: "police",
-    isRead: true,
-    link: "/map"
-  },
-  {
-    id: "n6",
-    title: "🤖 AI First Aid Protocol: Hemorrhage Control",
-    message: "Apply direct pressure with clean cloth. Do NOT remove soaked bandages — layer new ones on top.",
-    time: "2 hours ago",
-    group: "Today",
-    type: "ai",
-    isRead: true,
-    link: "/first-aid"
-  },
-  {
-    id: "n7",
-    title: "⚠️ Road Hazard Verified: Deep Pothole",
-    message: "Municipal Command Center verified blackspot report on Outer Ring Road. Maintenance assigned.",
-    time: "4 hours ago",
-    group: "Today",
-    type: "hazard",
-    isRead: true,
-    link: "/report"
-  },
-  {
-    id: "n8",
-    title: "📢 BROADCAST: Monsoon Flash Flood Alert",
-    message: "Admin Advisory: Sector 14 underpass waterlogged. GoldenGuard volunteers deployed for detour guidance.",
-    time: "Yesterday at 4:15 PM",
-    group: "Yesterday",
-    type: "admin",
-    isRead: true,
-    link: "/notifications"
-  },
-  {
-    id: "n9",
-    title: "🎓 Level 3 CPR Badge Verified",
-    message: "Congratulations! Your Advanced Bystander Triage refresher certificate is active on your profile.",
-    time: "Yesterday at 11:30 AM",
-    group: "Yesterday",
-    type: "training",
-    isRead: true,
-    link: "/training"
-  },
-  {
-    id: "n10",
-    title: "🌐 Community Response Milestone",
-    message: "Over 1,420 active volunteers online today. Golden Hour arrival time dropped to 4.2 mins.",
-    time: "3 days ago",
-    group: "Older",
-    type: "community",
-    isRead: true,
-    link: "/community"
-  }
-];
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -166,6 +66,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return "unsupported";
   });
 
+  const { userProfile } = useAuth();
+
   // Save cache to localStorage
   useEffect(() => {
     try {
@@ -175,10 +77,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Real-time Firestore Listener
   useEffect(() => {
+    if (!userProfile?.uid) {
+      return;
+    }
+
     let unsubscribe: (() => void) | undefined;
     try {
-      const notifRef = collection(db, "notifications");
-      const q = query(notifRef);
+      const notifRef = collection(db, "notifications", userProfile.uid, "items");
+      // Use indexed queries and limit to optimize reads
+      const q = query(notifRef, orderBy("timestamp", "desc"), limit(50));
 
       unsubscribe = onSnapshot(
         q,
@@ -199,12 +106,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               };
             });
 
-            // Merge fetched items with initial items to prevent losing default richness
+            // Merge fetched items with initial/local items without duplicates
             setNotifications((prev) => {
-              const existingIds = new Set(prev.map((n) => n.id));
-              const newItems = fetched.filter((f) => !existingIds.has(f.id));
-              if (newItems.length === 0) return prev;
-              return [...newItems, ...prev];
+              const initialIds = new Set(["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8", "n9", "n10"]);
+              const uniqueFetched = fetched.filter(f => !initialIds.has(f.id));
+
+              const fetchedMap = new Map(uniqueFetched.map(f => [f.id, f]));
+              const merged = prev.map(item => {
+                if (fetchedMap.has(item.id)) {
+                  const updated = fetchedMap.get(item.id)!;
+                  fetchedMap.delete(item.id);
+                  return updated;
+                }
+                return item;
+              });
+
+              return [...fetchedMap.values(), ...merged];
             });
           }
         },
@@ -219,7 +136,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [userProfile?.uid]);
 
   // Trigger System Push Notification
   const triggerBrowserPush = useCallback((title: string, body: string) => {
@@ -270,20 +187,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Send Browser Push
     triggerBrowserPush(newItem.title, newItem.message);
 
-    // Save to Firestore
-    try {
-      await addDoc(collection(db, "notifications"), {
-        title: newItem.title,
-        message: newItem.message,
-        type: newItem.type,
-        group: "Today",
-        isRead: false,
-        time: timeStr,
-        link: newItem.link || "/notifications",
-        timestamp: serverTimestamp()
-      });
-    } catch (e) {
-      console.warn("Firestore save notice:", e);
+    // Save to user subcollection
+    if (userProfile?.uid) {
+      try {
+        await setDoc(doc(db, "notifications", userProfile.uid, "items", newId), {
+          title: newItem.title,
+          message: newItem.message,
+          type: newItem.type,
+          group: "Today",
+          isRead: false,
+          time: timeStr,
+          link: newItem.link || "/notifications",
+          timestamp: serverTimestamp()
+        });
+      } catch (e) {
+        console.warn("Firestore save notice:", e);
+      }
     }
   };
 
@@ -294,8 +213,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     );
 
     try {
-      if (id.length > 10) {
-        const notifDoc = doc(db, "notifications", id);
+      if (id.length > 10 && userProfile?.uid) {
+        const notifDoc = doc(db, "notifications", userProfile.uid, "items", id);
         updateDoc(notifDoc, { isRead: true }).catch(() => {});
       }
     } catch (e) {}
@@ -311,8 +230,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications((prev) => prev.filter((n) => n.id !== id));
 
     try {
-      if (id.length > 10) {
-        const notifDoc = doc(db, "notifications", id);
+      if (id.length > 10 && userProfile?.uid) {
+        const notifDoc = doc(db, "notifications", userProfile.uid, "items", id);
         deleteDoc(notifDoc).catch(() => {});
       }
     } catch (e) {}

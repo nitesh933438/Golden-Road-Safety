@@ -9,7 +9,7 @@ import { getLocalMedicalID, MedicalIDData } from "../lib/medicalIdStore";
 import { EmergencyCallBanner } from "../components/EmergencyCallBanner";
 import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EMERGENCY_NUMBER } from "../lib/emergencyCall";
 import { useAuth } from "../context/AuthContext";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, setDoc, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { getApiUrl } from "../lib/api";
 
@@ -27,6 +27,9 @@ export function SOS() {
   const [isProcessingSOS, setIsProcessingSOS] = useState(false);
   const [sosError, setSosError] = useState<string | null>(null);
 
+  const [activeSosId, setActiveSosId] = useState<string | null>(null);
+  const [activeSosRecord, setActiveSosRecord] = useState<any | null>(null);
+
   useEffect(() => {
     setMedicalID(getLocalMedicalID());
   }, [sosActive]);
@@ -41,13 +44,89 @@ export function SOS() {
     }
   }, [pageLocation.search]);
 
-  const getGPSLocationAsync = (): Promise<{lat: number, lng: number} | null> => {
+  // Fetch initial active SOS from Firestore if logged in
+  useEffect(() => {
+    if (!userProfile?.uid) return;
+
+    const loadActiveSOS = async () => {
+      try {
+        const q = query(
+          collection(db, "emergencies"),
+          where("userId", "==", userProfile.uid)
+        );
+        const querySnapshot = await getDocs(q);
+        const activeDoc = querySnapshot.docs.find(doc => {
+          const status = doc.data().status;
+          return ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED"].includes(status);
+        });
+
+        if (activeDoc) {
+          const data = activeDoc.data();
+          setActiveSosId(activeDoc.id);
+          setActiveSosRecord(data);
+          setSosActive(true);
+          if (data.latitude && data.longitude) {
+            setCoords({ lat: data.latitude, lng: data.longitude });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading active SOS from Firestore:", err);
+      }
+    };
+
+    loadActiveSOS();
+  }, [userProfile?.uid]);
+
+  // Real-time listener for active SOS record
+  useEffect(() => {
+    if (!activeSosId) return;
+
+    const docRef = doc(db, "emergencies", activeSosId);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setActiveSosRecord(data);
+          
+          const terminalStatuses = ["RESOLVED", "CANCELLED", "FAILED"];
+          if (terminalStatuses.includes(data.status)) {
+            setSosActive(false);
+            setActiveSosId(null);
+            setActiveSosRecord(null);
+          } else {
+            setSosActive(true);
+            if (data.latitude && data.longitude) {
+              setCoords({ lat: data.latitude, lng: data.longitude });
+            }
+          }
+        } else {
+          setSosActive(false);
+          setActiveSosId(null);
+          setActiveSosRecord(null);
+        }
+      },
+      (error) => {
+        console.error("Real-time listener error on SOS:", error);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [activeSosId]);
+
+  const getGPSLocationAsync = (): Promise<{lat: number, lng: number, accuracy: number | null} | null> => {
     return new Promise((resolve) => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            if (Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude)) {
-              resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            if (pos && pos.coords && Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude)) {
+              resolve({
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                accuracy: pos.coords.accuracy || null
+              });
             } else {
               resolve(null);
             }
@@ -68,41 +147,44 @@ export function SOS() {
     if (isProcessingSOS) return;
     setIsProcessingSOS(true);
     setSosError(null);
+    setLocationError(null);
 
     try {
-      let currentCoords = coords;
-      if (!currentCoords) {
-        const freshCoords = await getGPSLocationAsync();
-        if (freshCoords) {
-          currentCoords = freshCoords;
-          setCoords(freshCoords);
-          setLocationError(null);
-        } else {
-          setLocationError("Location permission is required to send SOS.");
-          throw new Error("Unable to determine a valid location.");
-        }
+      // Step 1: Get current GPS. Do not insert fake coordinates.
+      const freshCoords = await getGPSLocationAsync();
+      if (!freshCoords) {
+        setLocationError("GPS location is unavailable or permission is denied. Real-time GPS coordinates are required for GoldenGuard SOS dispatch.");
+        setSosError("SOS could not be synchronized. Please use emergency call immediately.");
+        setIsProcessingSOS(false);
+        return;
       }
+
+      setCoords({ lat: freshCoords.lat, lng: freshCoords.lng });
+
+      // Step 2: Create a unique SOS ID
+      const uniqueSosId = "sos_" + Date.now() + "_" + Math.random().toString(36).substring(2, 11);
 
       const sosMsg = generateSOSMessage({
         userName: userProfile?.name || "GoldenGuard Test User",
-        coords: currentCoords,
+        coords: { lat: freshCoords.lat, lng: freshCoords.lng },
       });
 
       let smsStatus = "PENDING";
-      let data: any = null;
       let apiSmsFailed = false;
-      
+      let apiSmsErrorMsg = "";
+
+      // Step 3: SMS transmission through secure backend
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
         
         const response = await fetch(getApiUrl("/api/emergency/sos"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: TEST_EMERGENCY_NUMBER,
-            latitude: currentCoords ? currentCoords.lat : "Location unavailable",
-            longitude: currentCoords ? currentCoords.lng : "Location unavailable",
+            latitude: freshCoords.lat,
+            longitude: freshCoords.lng,
             timestamp: new Date().toISOString(),
             message: sosMsg,
           }),
@@ -111,92 +193,81 @@ export function SOS() {
         
         clearTimeout(timeoutId);
 
-        const contentType = response.headers.get("content-type") || "";
-        
-        if (contentType.includes("application/json")) {
-          const text = await response.text();
-          if (text.trim()) {
-            try {
-              data = JSON.parse(text);
-            } catch (e) {
-              console.error("Invalid JSON returned by SOS API:", text);
-              throw new Error("SOS server returned invalid JSON.");
-            }
+        const text = await response.text();
+        let data: any = null;
+        if (text) {
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            console.error("Failed to parse SOS response:", text);
           }
-        } else {
-          const text = await response.text();
-          console.error("SOS API returned non-JSON response:", {
-            status: response.status,
-            statusText: response.statusText,
-            body: text.substring(0, 500)
-          });
-          throw new Error(`SOS server returned an unexpected response (${response.status}).`);
         }
 
-        if (!response.ok) {
+        if (!response.ok || !data?.success) {
           smsStatus = "FAILED";
           apiSmsFailed = true;
-          const errorMsg = data?.error || data?.message || `SOS request failed with status ${response.status}.`;
-          console.warn("SOS API returned non-ok response:", errorMsg);
-          setSosError(`SMS notification could not be dispatched automatically: ${errorMsg}`);
+          apiSmsErrorMsg = data?.message || "SMS service is not configured.";
         } else {
-          smsStatus = data && data.success ? "SENT" : "FAILED";
-          if (smsStatus === "FAILED") {
-            apiSmsFailed = true;
-            setSosError(`SMS dispatch failed: ${data?.message || "Unknown error."}`);
-          }
+          smsStatus = "SENT";
         }
-        console.log("SOS API response:", data);
       } catch (err: any) {
         smsStatus = "FAILED";
         apiSmsFailed = true;
-        if (err.name === 'AbortError') {
-          console.error("Backend SOS request timed out.");
-          setSosError("SOS server did not respond. SMS notification failed.");
-        } else {
-          console.error("Backend SOS request failed in SOS page:", err);
-          setSosError(`SOS SMS dispatch failed: ${err.message || "SOS service is temporarily unavailable."}`);
-        }
+        apiSmsErrorMsg = err.name === 'AbortError' ? "Request timed out." : (err.message || "Failed to reach emergency SMS backend.");
       }
 
-      const loc = getLastLocation();
+      // Step 4: Construct real SOS record matching all the specified fields
       const sosRecord = {
+        id: uniqueSosId,
         userId: userProfile?.uid || "anonymous",
-        location: loc.address || "Location name temporarily unavailable.",
-        coords: currentCoords || { lat: loc.lat, lng: loc.lng },
-        severity: "CRITICAL",
-        emergencyContact: TEST_EMERGENCY_NUMBER,
-        status: "active",
+        latitude: freshCoords.lat,
+        longitude: freshCoords.lng,
+        accuracy: freshCoords.accuracy,
+        status: "CREATED",
+        priority: "CRITICAL",
+        locationSource: "GPS",
         smsStatus,
-        type: "1-Tap SOS Emergency Dispatch",
-        triggeredAt: new Date().toISOString(),
+        message: sosMsg,
       };
 
       if (!isOnline) {
+        // save a small pending SOS action in IndexedDB
         await queueItem("sos", sosRecord);
         setOfflineSaved(true);
+        setActiveSosId(uniqueSosId);
+        setActiveSosRecord(sosRecord);
         setSosActive(true);
+        
+        setSosError("SMS service is not configured (Offline). Please use emergency call immediately.");
       } else {
         setOfflineSaved(false);
         try {
-          await addDoc(collection(db, "emergencies"), {
+          // Write real Firestore SOS record
+          await setDoc(doc(db, "emergencies", uniqueSosId), {
             ...sosRecord,
             createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+
+          setActiveSosId(uniqueSosId);
+          setActiveSosRecord({
+            ...sosRecord,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           });
           setSosActive(true);
+
           if (apiSmsFailed) {
-            setSosError("Emergency record created, but SMS notification failed.");
+            setSosError(apiSmsErrorMsg === "SMS service is not configured." ? "SMS service is not configured." : `SMS Service failed: ${apiSmsErrorMsg}`);
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error("Failed to write emergency to Firestore:", e);
-          setSosError("Unable to create the emergency record.");
-          throw e;
+          setSosError("SOS could not be synchronized. Please use emergency call immediately.");
         }
       }
     } catch (e: any) {
-      if (!sosError) {
-        setSosError(e.message || "Failed to process SOS.");
-      }
+      console.error("SOS Activation failure:", e);
+      setSosError("SOS could not be synchronized. Please use emergency call immediately.");
     } finally {
       setIsProcessingSOS(false);
     }
@@ -208,7 +279,25 @@ export function SOS() {
         await activateEmergency();
       }
     } else {
+      // If there is an active SOS, update its status to "CANCELLED" in Firestore
+      if (activeSosId) {
+        setIsProcessingSOS(true);
+        try {
+          if (isOnline) {
+            await setDoc(doc(db, "emergencies", activeSosId), {
+              status: "CANCELLED",
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+          }
+        } catch (err) {
+          console.error("Error cancelling SOS:", err);
+        } finally {
+          setIsProcessingSOS(false);
+        }
+      }
       setSosActive(false);
+      setActiveSosId(null);
+      setActiveSosRecord(null);
       setOfflineSaved(false);
       setSosError(null);
     }
@@ -403,22 +492,41 @@ export function SOS() {
       )}
 
       {sosActive && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mt-4 animate-in slide-in-from-bottom-4 duration-500 relative z-10">
-           <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-2xl p-4 border border-green-200 dark:border-green-900/30 flex flex-col items-center justify-center gap-2 shadow-sm">
-              <MapPin className="w-6 h-6 text-green-500" />
-              <span className="text-sm font-bold text-surface-900 dark:text-white">Location Sent</span>
-              <span className="text-xs text-surface-500">{demoMode ? "142 Sector 7 Expressway" : "Fetching..."}</span>
-           </div>
-           <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-2xl p-4 border border-blue-200 dark:border-blue-900/30 flex flex-col items-center justify-center gap-2 shadow-sm">
-              <Activity className="w-6 h-6 text-blue-500" />
-              <span className="text-sm font-bold text-surface-900 dark:text-white">Responders</span>
-              <span className="text-xs text-surface-500">{demoMode ? "3 En Route" : "Alerting..."}</span>
-           </div>
-           <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-2xl p-4 border border-amber-200 dark:border-amber-900/30 flex flex-col items-center justify-center gap-2 shadow-sm">
-              <CheckCircle2 className="w-6 h-6 text-amber-500" />
-              <span className="text-sm font-bold text-surface-900 dark:text-white">Contacts</span>
-              <span className="text-xs text-surface-500">Notified</span>
-           </div>
+        <div className="flex flex-col gap-4 w-full mt-4 animate-in slide-in-from-bottom-4 duration-500 relative z-10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+             <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-2xl p-4 border border-green-200 dark:border-green-900/30 flex flex-col items-center justify-center gap-2 shadow-sm">
+                <MapPin className="w-6 h-6 text-green-500" />
+                <span className="text-sm font-bold text-surface-900 dark:text-white">Location (GPS)</span>
+                <span className="text-xs text-surface-500 font-mono">
+                  {coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : "Locating..."}
+                </span>
+             </div>
+             <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-2xl p-4 border border-blue-200 dark:border-blue-900/30 flex flex-col items-center justify-center gap-2 shadow-sm">
+                <Activity className="w-6 h-6 text-blue-500" />
+                <span className="text-sm font-bold text-surface-900 dark:text-white">Emergency Status</span>
+                <span className="text-xs text-blue-600 dark:text-blue-400 font-black uppercase tracking-wider">
+                  {activeSosRecord?.status || "CREATED"}
+                </span>
+             </div>
+             <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-2xl p-4 border border-amber-200 dark:border-amber-900/30 flex flex-col items-center justify-center gap-2 shadow-sm">
+                <CheckCircle2 className="w-6 h-6 text-amber-500" />
+                <span className="text-sm font-bold text-surface-900 dark:text-white">Alert Dispatch</span>
+                <span className="text-xs text-surface-500">
+                  {activeSosRecord?.smsStatus === "SENT" ? "SMS Dispatched" : activeSosRecord?.smsStatus === "FAILED" ? "SMS Not Configured" : "Dispatches Alerting"}
+                </span>
+             </div>
+          </div>
+
+          <a 
+            href={`sms:${TEST_EMERGENCY_NUMBER}?body=${encodeURIComponent(activeSosRecord?.message || "Emergency Help Requested!")}`}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
+          >
+            <Phone className="w-4 h-4" /> Send Backup SMS via Device
+          </a>
+
+          <div className="text-xs text-surface-500 dark:text-surface-400 font-medium">
+            🔒 Real-time GPS location is secure. Access is restricted exclusively to you, your emergency contacts, and assigned first-responders.
+          </div>
         </div>
       )}
 

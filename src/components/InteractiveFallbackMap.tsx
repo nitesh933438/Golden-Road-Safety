@@ -26,17 +26,8 @@ export interface Place {
   isOpen?: boolean;
 }
 
-// Sample Emergency Hub Services in India
-const DEFAULT_INDIA_PLACES: Place[] = [
-  { id: "h1", name: "AIIMS Trauma Center & Emergency", type: "hospital", lat: 28.5672, lng: 77.2100, vicinity: "Sri Aurobindo Marg, New Delhi", phone: "108", isOpen: true },
-  { id: "h2", name: "Max Super Specialty Emergency Bay", type: "hospital", lat: 28.5283, lng: 77.2185, vicinity: "Press Enclave Marg, Saket", phone: "108", isOpen: true },
-  { id: "h3", name: "KEM Hospital & Trauma Care", type: "hospital", lat: 19.0028, lng: 72.8425, vicinity: "Parel, Mumbai", phone: "108", isOpen: true },
-  { id: "h4", name: "Apollo Hospitals Emergency Unit", type: "hospital", lat: 13.0604, lng: 80.2496, vicinity: "Greams Lane, Chennai", phone: "108", isOpen: true },
-  { id: "p1", name: "Delhi Police Emergency Command Center", type: "police", lat: 28.6292, lng: 77.2197, vicinity: "Jai Singh Marg, Connaught Place", phone: "112", isOpen: true },
-  { id: "p2", name: "Mumbai Police Control Room", type: "police", lat: 18.9438, lng: 72.8336, vicinity: "Crawford Market, Fort, Mumbai", phone: "112", isOpen: true },
-  { id: "hz1", name: "High Risk Accident Blackspot - Fog Zone", type: "hazard", lat: 28.4595, lng: 77.0266, vicinity: "Delhi-Gurugram Expressway Km 14", isOpen: true },
-  { id: "hz2", name: "Oil Spill & Skidding Danger", type: "hazard", lat: 19.0760, lng: 72.8777, vicinity: "Western Express Highway Flyover", isOpen: true },
-];
+// Empty initialization - no fake data
+const DEFAULT_INDIA_PLACES: Place[] = [];
 
 const iconCache: Record<string, L.DivIcon> = {};
 

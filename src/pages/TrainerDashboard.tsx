@@ -15,19 +15,10 @@ export function TrainerDashboard() {
   const [activeTab, setActiveTab] = useState<TrainerTab>("sessions");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Sample State Data for Trainer Portal
-  const [sessions, setSessions] = useState([
-    { id: "SESS-101", title: "Level-1 CPR & AED Golden Hour Intensive", date: "2026-02-15", time: "10:00 AM - 01:00 PM", location: "Trauma Hall A, AIIMS Delhi", traineesCount: 24, maxCapacity: 30, status: "Upcoming", trainer: "Dr. Rajesh Sharma" },
-    { id: "SESS-102", title: "Heavy Vehicle & Highway Safety Protocols", date: "2026-02-18", time: "02:00 PM - 05:00 PM", location: "DTC Driver Academy, Rohini", traineesCount: 45, maxCapacity: 50, status: "Upcoming", trainer: "Commander V. K. Singh" },
-    { id: "SESS-099", title: "Good Samaritan Legal Protections & First Response", date: "2026-02-05", time: "11:00 AM - 01:00 PM", location: "Online Live Stream", traineesCount: 112, maxCapacity: 150, status: "Completed", trainer: "Adv. Sunita Rao" },
-  ]);
+  // Real State Data for Trainer Portal (empty by default before fetch)
+  const [sessions, setSessions] = useState<{id: string, title: string, date: string, time: string, location: string, traineesCount: number, maxCapacity: number, status: string, trainer: string}[]>([]);
 
-  const [trainees, setTrainees] = useState([
-    { id: "TRN-881", name: "Aman Verma", email: "aman@example.com", phone: "+91 98112 33445", course: "Level-1 CPR & AED", progress: 85, status: "Passed Assessment", certIssued: true },
-    { id: "TRN-882", name: "Priya Sharma", email: "priya@example.com", phone: "+91 98765 11223", course: "Highway Emergency First Responder", progress: 100, status: "Certified Samaritan", certIssued: true },
-    { id: "TRN-883", name: "Rohan Gupta", email: "rohan@example.com", phone: "+91 98234 55667", course: "Heavy Vehicle Safety Protocols", progress: 45, status: "In Progress", certIssued: false },
-    { id: "TRN-884", name: "Sneha Patel", email: "sneha@example.com", phone: "+91 98990 44332", course: "Level-1 CPR & AED", progress: 92, status: "Pending Verification", certIssued: false },
-  ]);
+  const [trainees, setTrainees] = useState<{id: string, name: string, email: string, phone: string, course: string, progress: number, status: string, certIssued: boolean}[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");

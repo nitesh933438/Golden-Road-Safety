@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Heart, MessageCircle, Share2, AlertTriangle, ShieldCheck, MapPin, Send, Sparkles } from "lucide-react";
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 
@@ -76,13 +76,23 @@ export function Feed() {
   const [postType, setPostType] = useState<"tip" | "hazard" | "success" | "campaign">("tip");
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
+  const [limitCount, setLimitCount] = useState(10);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    try {
-      const q = query(collection(db, "communityPosts"));
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const fetched: Post[] = snapshot.docs.map((docSnap) => {
+    let active = true;
+    const fetchPosts = async () => {
+      setIsLoading(true);
+      try {
+        const postsRef = collection(db, "communityPosts");
+        const q = query(postsRef, orderBy("createdAt", "desc"), limit(limitCount));
+        const querySnapshot = await getDocs(q);
+        
+        if (!active) return;
+        
+        if (!querySnapshot.empty) {
+          const fetched: Post[] = querySnapshot.docs.map((docSnap) => {
             const d = docSnap.data();
             return {
               id: docSnap.id,
@@ -100,19 +110,34 @@ export function Feed() {
           });
 
           setPosts((prev) => {
-            const existingIds = new Set(prev.map(p => p.id));
-            const newFetched = fetched.filter(f => !existingIds.has(f.id));
-            if (newFetched.length === 0) return prev;
-            return [...newFetched, ...prev];
+            const localOnly = prev.filter(p => p.id.startsWith("local-"));
+            const existingIds = new Set(localOnly.map(l => l.id));
+            const uniqueFetched = fetched.filter(f => !existingIds.has(f.id));
+            
+            if (querySnapshot.docs.length < limitCount) {
+              setHasMore(false);
+            } else {
+              setHasMore(true);
+            }
+
+            return [...localOnly, ...uniqueFetched];
           });
+        } else {
+          setHasMore(false);
         }
-      }, (err) => console.warn("Feed snapshot notice:", err));
-    } catch (e) {}
+      } catch (e) {
+        console.warn("Error fetching community posts:", e);
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+
+    fetchPosts();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      active = false;
     };
-  }, []);
+  }, [limitCount]);
 
   const handleCreatePost = async () => {
     if (!newPostText.trim()) return;
@@ -298,6 +323,18 @@ export function Feed() {
           );
         })}
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center pt-4">
+          <button
+            onClick={() => setLimitCount((prev) => prev + 10)}
+            disabled={isLoading}
+            className="px-6 py-2.5 bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-800 dark:text-surface-200 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+          >
+            {isLoading ? "Loading..." : "Load More Posts"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

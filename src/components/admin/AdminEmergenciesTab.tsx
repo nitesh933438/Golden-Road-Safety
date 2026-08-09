@@ -33,12 +33,21 @@ export function AdminEmergenciesTab() {
       ]
     : baseEmergencies;
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
+
   const filteredEmergencies = allEmergencies.filter((e) => {
     if (filter === "auto_sos") return e.isAutoSOS;
     if (filter === "critical") return e.severity === "critical";
-    if (filter === "active") return e.status === "active";
+    if (filter === "active") return ["active", "CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED"].includes(e.status);
     return true;
   });
+
+  const totalPages = Math.ceil(filteredEmergencies.length / itemsPerPage);
+  const paginatedEmergencies = filteredEmergencies.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
@@ -136,7 +145,7 @@ export function AdminEmergenciesTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-100 dark:divide-surface-700/50">
-              {filteredEmergencies.map((em) => (
+              {paginatedEmergencies.map((em) => (
                 <tr key={em.id} className={`hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors ${em.isAutoSOS ? "bg-red-50/40 dark:bg-red-950/20" : ""}`}>
                   <td className="py-4 px-6">
                     <div className="font-bold text-sm text-surface-900 dark:text-white">{em.id}</div>
@@ -195,6 +204,29 @@ export function AdminEmergenciesTab() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between">
+            <span className="text-xs text-surface-500">
+              Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredEmergencies.length)} of {filteredEmergencies.length}
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className="px-3 py-1.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-surface-50 dark:hover:bg-surface-700"
+              >
+                Previous
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                className="px-3 py-1.5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-surface-50 dark:hover:bg-surface-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -10,76 +10,139 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRole() {
+      return getUserData().role;
+    }
+
     function isAdmin() {
-      return isSignedIn() && 
-             request.auth.token.email == "nitesh933438@gmail.com" &&
-             request.auth.token.firebase.sign_in_provider == "google.com";
+      return isSignedIn() && (
+        (request.auth.token.email == "nitesh933438@gmail.com" && request.auth.token.firebase.sign_in_provider == "google.com") ||
+        getUserRole() == "admin"
+      );
+    }
+
+    function isResponder() {
+      return isSignedIn() && (
+        getUserRole() in ["admin", "hospital", "police", "volunteer", "responder", "trainer"]
+      );
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
     }
 
     // Users collection
     match /users/{userId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || isAdmin() || (
+        resource != null && (
+          (resource.data.role in ["hospital", "police", "responder", "trainer"] && resource.data.verificationStatus == "VERIFIED") ||
+          (resource.data.role == "volunteer" && (resource.data.approvalStatus == "Approved" || resource.data.verificationStatus == "VERIFIED"))
+        )
+      );
+      allow create: if isOwner(userId);
+      // Enforce that users can only update their own profile and cannot self-verify or change role
+      allow update: if (isOwner(userId) && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'verificationStatus', 'approvalStatus', 'approved'])
+      )) || isAdmin();
       allow delete: if isAdmin();
     }
 
     // Emergencies collection
     match /emergencies/{emergencyId} {
-      allow read: if true;
-      allow create: if isSignedIn() || true;
-      allow update, delete: if isSignedIn() || isAdmin();
+      allow read: if (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid)) || 
+                     (isResponder() && (resource == null || resource.data.status in ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED", "active"])) || 
+                     isAdmin();
+      allow create: if (isSignedIn() && request.resource.data.userId == request.auth.uid) || isAdmin();
+      allow update: if (isSignedIn() && (resource != null && resource.data.userId == request.auth.uid)) || 
+                       (isResponder() && (
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+                       )) || 
+                       isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Notifications collection
+    // Hierarchical Notifications collection
+    match /notifications/{userId}/items/{notificationId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) || isAdmin() || isResponder();
+      allow update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Legacy Notifications collection
     match /notifications/{notificationId} {
-      allow read: if true;
-      allow create, update, delete: if true;
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isResponder();
     }
 
     // Hazards collection
     match /hazards/{hazardId} {
       allow read: if true;
-      allow create: if true;
-      allow update, delete: if isSignedIn() || isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['latitude', 'longitude', 'type', 'severity', 'description', 'createdBy', 'userId'])
+      );
+      allow delete: if isAdmin();
     }
 
     // Community Posts collection
     match /communityPosts/{postId} {
       allow read: if true;
-      allow create: if isSignedIn() || true;
-      allow update, delete: if isSignedIn() || isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn(); // Allow liking or adding comments
+      allow delete: if isAdmin();
     }
 
     // Volunteers collection
     match /volunteers/{volunteerId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() || isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        volunteerId == request.auth.uid || 
+        request.resource.data.userId == request.auth.uid || 
+        request.resource.data.uid == request.auth.uid
+      );
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          volunteerId == request.auth.uid || 
+          (resource != null && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid))
+        ) && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['approved', 'status', 'approvalStatus', 'trainingStatus', 'completedRescues', 'rating'])
+        )
+      );
       allow delete: if isAdmin();
     }
 
     // Training collection
     match /training/{trainingId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() || true;
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(trainingId) || isAdmin();
       allow delete: if isAdmin();
     }
 
     // Ride History collection
     match /rideHistory/{rideId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() || true;
+      allow read: if isSignedIn() && (resource == null || resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }
 
     // Medical IDs collection
     match /medicalIDs/{docId} {
-      // Emergency reading allowed for lockscreen access and QR scanning
-      allow read: if true;
-      // Strict rule: Only the owner can create or update their Medical ID (Admin cannot edit user Medical ID)
-      allow create, update: if isOwner(docId) || (isSignedIn() && request.auth.uid == docId);
-      allow delete: if isOwner(docId);
+      allow read: if isOwner(docId) || isResponder() || isAdmin();
+      allow create, update: if isOwner(docId) || isAdmin();
+      allow delete: if isOwner(docId) || isAdmin();
+    }
+
+    // Audit Logs collection
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
     }
   }
 }
-
