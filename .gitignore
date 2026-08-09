@@ -5,3 +5,7 @@ coverage/
 .env*
 !.env.example
 firebase-applet-config.json
+dist/
+-e .env
+.env.local
+.env.production
