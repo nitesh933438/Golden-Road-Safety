@@ -115,8 +115,15 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
           message: sosMsg,
         }),
       });
-      backendResult = await response.json();
-      smsStatus = response.ok && backendResult.success ? "SENT" : "FAILED";
+      const text = await response.text();
+      if (text) {
+        try {
+          backendResult = JSON.parse(text);
+        } catch (e) {
+          console.error("Failed to parse SOS response:", text);
+        }
+      }
+      smsStatus = response.ok && backendResult?.success ? "SENT" : "FAILED";
     } catch (err) {
       console.error("Backend SOS request failed:", err);
       smsStatus = "FAILED";

@@ -190,39 +190,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isAdminEmail = user.email === ADMIN_EMAIL;
       const assignedRole = (isGoogle && isAdminEmail) ? "admin" : "user";
 
-      const userRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(userRef);
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(userRef);
 
-      if (!docSnap.exists()) {
-        // Do NOT write complete fake document. Just write a minimal incomplete profile.
-        await setDoc(userRef, {
-          uid: user.uid,
-          name: user.displayName || "",
-          email: user.email || "",
-          phone: "",
-          role: assignedRole,
-          provider: "google",
-          photoURL: user.photoURL || "",
-          city: "",
-          state: "",
-          bloodGroup: "",
-          createdAt: serverTimestamp(),
-          lastLogin: serverTimestamp(),
-          isOnline: false,
-          emergencyContacts: [],
-          settings: { notifications: true, locationSharing: true, autoSOS: true },
-          isProfileComplete: false
-        });
-      } else {
-        const existingData = docSnap.data();
-        const existingRole = existingData?.role || "user";
-        const finalRole = (user.email === ADMIN_EMAIL) ? "admin" : existingRole;
-        await updateDoc(userRef, {
-          role: finalRole,
-          provider: "google",
-          lastLogin: serverTimestamp(),
-          isOnline: true
-        });
+        if (!docSnap.exists()) {
+          await setDoc(userRef, {
+            uid: user.uid,
+            name: user.displayName || "",
+            email: user.email || "",
+            phone: "",
+            role: assignedRole,
+            provider: "google",
+            photoURL: user.photoURL || "",
+            city: "",
+            state: "",
+            bloodGroup: "",
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp(),
+            isOnline: false,
+            emergencyContacts: [],
+            settings: { notifications: true, locationSharing: true, autoSOS: true },
+            isProfileComplete: false
+          });
+        } else {
+          const existingData = docSnap.data();
+          const existingRole = existingData?.role || "user";
+          const finalRole = (user.email === ADMIN_EMAIL) ? "admin" : existingRole;
+          await updateDoc(userRef, {
+            role: finalRole,
+            provider: "google",
+            lastLogin: serverTimestamp(),
+            isOnline: true
+          });
+        }
+      } catch (firestoreErr) {
+        console.warn("Firestore sync during Google login warning (offline/network):", firestoreErr);
       }
     } catch (error: any) {
       console.error("Google login error:", error);
@@ -236,14 +239,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await signInWithEmailAndPassword(auth, email, pass);
       const user = result.user;
       
-      const userRef = doc(db, "users", user.uid);
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        await updateDoc(userRef, {
-          provider: "password",
-          lastLogin: serverTimestamp(),
-          isOnline: true
-        });
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          await updateDoc(userRef, {
+            provider: "password",
+            lastLogin: serverTimestamp(),
+            isOnline: true
+          });
+        }
+      } catch (firestoreErr) {
+        console.warn("Firestore sync during email login warning:", firestoreErr);
       }
     } catch (error: any) {
       console.error("Email login error:", error);
@@ -276,28 +283,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await createUserWithEmailAndPassword(auth, email, pass);
       const user = result.user;
 
-      await updateProfile(user, { displayName: name });
+      try {
+        await updateProfile(user, { displayName: name });
+      } catch (e) {}
 
-      const userRef = doc(db, "users", user.uid);
-      // Write minimal info, no fake phone or location!
-      await setDoc(userRef, {
-        uid: user.uid,
-        name,
-        email,
-        phone: "",
-        role: "user", // Email/password signups are never admin
-        provider: "password",
-        photoURL: "",
-        city: "",
-        state: "",
-        bloodGroup: "",
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
-        isOnline: false,
-        emergencyContacts: [],
-        settings: { notifications: true, locationSharing: true, autoSOS: true },
-        isProfileComplete: false
-      });
+      try {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, {
+          uid: user.uid,
+          name,
+          email,
+          phone: "",
+          role: "user",
+          provider: "password",
+          photoURL: "",
+          city: "",
+          state: "",
+          bloodGroup: "",
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          isOnline: false,
+          emergencyContacts: [],
+          settings: { notifications: true, locationSharing: true, autoSOS: true },
+          isProfileComplete: false
+        });
+      } catch (firestoreErr) {
+        console.warn("Firestore profile creation on signup warning:", firestoreErr);
+      }
     } catch (error: any) {
       console.error("Signup error:", error);
       throw error;

@@ -73,14 +73,22 @@ export function EmergencyCallBanner({
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data: any = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          console.error("Failed to parse SOS response:", text);
+        }
+      }
 
-      if (response.ok && data.success) {
+      if (response.ok && data?.success) {
         setSendingStatus("sent");
         setStatusMessage("✓ Emergency alert sent successfully");
       } else {
         setSendingStatus("failed");
-        setStatusMessage(`✕ ${data.message || "Emergency alert could not be sent. Please call emergency services."}`);
+        setStatusMessage(`✕ ${data?.message || "Emergency alert could not be sent (Twilio trial/config limit). Please use manual SMS."}`);
       }
     } catch (error: any) {
       console.error("Automatic SOS Dispatch Error:", error);

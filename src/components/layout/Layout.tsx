@@ -104,6 +104,7 @@ export function Layout() {
   const { isOnline, pendingCount } = useOfflineSync();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [reminderDismissed, setReminderDismissed] = useState(false);
 
   const role = userProfile?.role || "user";
   const NAV_ITEMS = (isAdmin || role === "admin")
@@ -364,11 +365,32 @@ export function Layout() {
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto relative flex flex-col custom-scrollbar">
           <div className="flex-1 p-4 sm:p-8 pb-24 lg:pb-8">
-            {currentUser && userProfile?.isProfileComplete === false ? (
-              <CompleteProfile />
-            ) : (
-              <Outlet context={{ demoMode }} />
+            {currentUser && userProfile?.isProfileComplete === false && !reminderDismissed && (
+              <div className="mb-6 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-sm">Complete your profile</h4>
+                    <p className="text-xs opacity-90">Please update your medical profile and emergency contacts to improve emergency response capabilities.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    to="/profile"
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                  >
+                    Complete Profile
+                  </Link>
+                  <button
+                    onClick={() => setReminderDismissed(true)}
+                    className="px-3 py-2 bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    Remind Me Later
+                  </button>
+                </div>
+              </div>
             )}
+            <Outlet context={{ demoMode }} />
           </div>
           <Footer />
         </main>
