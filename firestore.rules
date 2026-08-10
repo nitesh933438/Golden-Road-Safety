@@ -52,17 +52,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Incidents collection
+    match /incidents/{incidentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
     // Emergencies collection
     match /emergencies/{emergencyId} {
-      allow read: if (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid)) || 
-                     (isResponder() && (resource == null || resource.data.status in ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED", "active"])) || 
-                     isAdmin();
-      allow create: if (isSignedIn() && request.resource.data.userId == request.auth.uid) || isAdmin();
-      allow update: if (isSignedIn() && (resource != null && resource.data.userId == request.auth.uid)) || 
-                       (isResponder() && (
-                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
-                       )) || 
-                       isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 

@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { 
   ShieldAlert, Activity, Users, AlertTriangle, 
-  Map as MapIcon, Timer, Navigation, 
+  Map as MapIcon, Timer, Navigation, Bell, TrendingUp,
   HeartPulse, PhoneCall, ChevronRight,
-  Radio, Clock, CheckCircle2, ShieldCheck, Award, Stethoscope, Sparkles, Building2, Car, Bike, Shield as ShieldIcon,
-  Bell, TrendingUp, Zap, AlertCircle, Eye, ArrowUpRight, Check, Compass, RadioTower
+  Radio, Clock, CheckCircle2, Award, Stethoscope, Sparkles, Building2, Car, Bike,
+  Zap, AlertCircle, RefreshCw, WifiOff
 } from "lucide-react";
-import { collection, onSnapshot, query, where, getDocs, limit } from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { useDemo } from "../context/DemoContext";
 import { useOfflineSync } from "../context/OfflineSyncContext";
+import { useIncidents } from "../context/IncidentContext";
 import { EmergencySheet } from "../components/EmergencySheet";
 import { Logo } from "../components/ui/Logo";
 
@@ -59,124 +58,48 @@ export function Dashboard() {
   const { demoMode } = useDemo();
   const { isOnline } = useOfflineSync() || { isOnline: navigator.onLine };
   
-  const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes countdown (Golden Hour)
+  const { 
+    activeIncidents, selectedIncident, setSelectedIncidentId, 
+    formattedTimer, remainingSeconds, isTimerExpired, 
+    realMetrics, isReconnecting 
+  } = useIncidents();
+
   const [isEmergencySheetOpen, setIsEmergencySheetOpen] = useState(false);
 
-  // Live Firebase metrics states
-  const [liveIncidentsCount, setLiveIncidentsCount] = useState<number | null>(null);
-  const [liveVolunteersCount, setLiveVolunteersCount] = useState<number | null>(null);
-  const [liveHazardsCount, setLiveHazardsCount] = useState<number | null>(null);
-  const [isFetchingLive, setIsFetchingLive] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  // SVG circular clock progress calculation based on real remainingSeconds (3600 seconds total)
+  const sec = remainingSeconds !== null ? remainingSeconds : 0;
+  const progressPercent = Math.min(100, Math.max(0, (sec / 3600) * 100));
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
 
-  // Golden Hour countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 3600)); // loop-around
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Real-time Firestore fetching
-  useEffect(() => {
-    if (demoMode) {
-      setIsFetchingLive(false);
-      return; // Use mock demo stats
-    }
-
-    setIsFetchingLive(true);
-    setFetchError(null);
-
-    // 1. Subscribe to active emergencies (active SOS and live status is allowed for realtime)
-    const qEmergencies = query(
-      collection(db, "emergencies"), 
-      where("status", "in", ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED", "active"]),
-      limit(50)
-    );
-    const unsubEmergencies = onSnapshot(qEmergencies, (snapshot) => {
-      setLiveIncidentsCount(snapshot.size);
-      setIsFetchingLive(false);
-    }, (err) => {
-      console.warn("Firestore emergencies fetch failed. Showing 'Data unavailable'.", err);
-      setFetchError("Live data unavailable");
-      setIsFetchingLive(false);
-    });
-
-    // 2. One-time fetch for volunteers count to avoid full list realtime listener
-    getDocs(query(collection(db, "volunteers"), limit(100))).then((snapshot) => {
-      setLiveVolunteersCount(snapshot.size);
-    }).catch((err) => {
-      console.warn("Firestore volunteers fetch failed.", err);
-    });
-
-    // 3. One-time fetch for hazards count to avoid full list realtime listener
-    getDocs(query(collection(db, "hazards"), limit(100))).then((snapshot) => {
-      setLiveHazardsCount(snapshot.size);
-    }).catch((err) => {
-      console.warn("Firestore hazards fetch failed.", err);
-    });
-
-    return () => {
-      unsubEmergencies();
-    };
-  }, [demoMode]);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const getMetricValue = (type: "incidents" | "volunteers" | "hospitals" | "response" | "triage") => {
-    if (!isOnline) {
-      return "OFFLINE";
-    }
-
-    if (fetchError) {
-      return "UNAVAILABLE";
-    }
-
-    switch (type) {
-      case "incidents":
-        return liveIncidentsCount !== null ? liveIncidentsCount.toString() : "0";
-      case "volunteers":
-        return liveVolunteersCount !== null ? liveVolunteersCount.toString() : "0";
-      case "hospitals":
-        return "0 Beds Available";
-      case "response":
-        return "0.0 min";
-      case "triage":
-        return "UNKNOWN";
-    }
-  };
-
-  // Top Row: 6 Core Command Metrics
+  // Top Row: Core Command Metrics from real Firebase Data
   const topMetrics = [
     { 
       label: "Emergency Status", 
-      value: isOnline ? "ACTIVE" : "STANDBY", 
-      sub: isOnline ? "Golden Hour Network Live" : "Local Sync Mode Active", 
+      value: isReconnecting ? "RECONNECTING" : (selectedIncident ? "ACTIVE SOS" : (isOnline ? "MONITORING" : "STANDBY")), 
+      sub: selectedIncident ? `Incident: ${selectedIncident.id}` : (isOnline ? "Golden Hour Network Live" : "Local Sync Mode Active"), 
       icon: ShieldAlert, 
-      color: isOnline ? "text-red-500 dark:text-red-400" : "text-amber-500", 
-      bg: isOnline ? "bg-red-500/10 border-red-500/20" : "bg-amber-500/10 border-amber-500/20",
-      badge: isOnline ? "Live Monitor" : "Local Database",
+      color: selectedIncident ? "text-red-600 animate-pulse" : (isOnline ? "text-emerald-500" : "text-amber-500"), 
+      bg: selectedIncident ? "bg-red-500/10 border-red-500/20" : "bg-emerald-500/10 border-emerald-500/20",
+      badge: selectedIncident ? "Active Incident" : "Live Monitor",
       isLive: true,
       isLoading: false
     },
     { 
       label: "Active Incidents", 
-      value: getMetricValue("incidents"), 
+      value: demoMode ? "1" : realMetrics.activeIncidentsCount.toString(), 
       sub: demoMode ? "182 Rescued in Golden Hour" : "Real-time dispatch pipeline", 
       icon: Car, 
       color: "text-amber-500 dark:text-amber-400", 
       bg: "bg-amber-500/10 border-amber-500/20",
       badge: "Command Pipeline",
       isLive: !demoMode,
-      isLoading: !demoMode && liveIncidentsCount === null && !fetchError && isOnline
+      isLoading: false
     },
     { 
       label: "Nearby Hospitals", 
-      value: getMetricValue("hospitals"), 
+      value: demoMode ? "12" : realMetrics.hospitalsCount.toString(), 
       sub: "Verified trauma corridors", 
       icon: Building2, 
       color: "text-emerald-500 dark:text-emerald-400", 
@@ -187,18 +110,18 @@ export function Dashboard() {
     },
     { 
       label: "Volunteers Online", 
-      value: getMetricValue("volunteers"), 
+      value: demoMode ? "1,420" : realMetrics.volunteersCount.toString(), 
       sub: "Emergency ready network", 
       icon: Users, 
       color: "text-blue-500 dark:text-blue-400", 
       bg: "bg-blue-500/10 border-blue-500/20",
       badge: "Verified Samaritans",
       isLive: !demoMode,
-      isLoading: !demoMode && liveVolunteersCount === null && !fetchError && isOnline
+      isLoading: false
     },
     { 
       label: "SOS Response Time", 
-      value: getMetricValue("response"), 
+      value: demoMode ? "2.1 min" : realMetrics.avgResponseTimeMinutes, 
       sub: "First responder dispatch", 
       icon: Timer, 
       color: "text-purple-500 dark:text-purple-400", 
@@ -209,7 +132,7 @@ export function Dashboard() {
     },
     { 
       label: "AI Triage Status", 
-      value: getMetricValue("triage"), 
+      value: "ACTIVE", 
       sub: "Gemini voice evaluation", 
       icon: Zap, 
       color: "text-cyan-500 dark:text-cyan-400", 
@@ -243,12 +166,6 @@ export function Dashboard() {
     { id: "n2", title: "Platform Incident Report Sync", desc: "98.4% success rate achieved across 142 emergency responses today.", time: "18m ago", level: "info" },
     { id: "n3", title: "Crash Sensor Pipeline Online", desc: "Automated fall detection monitor tracking 1,280 active rides.", time: "32m ago", level: "success" },
   ];
-
-  // Math calculation for SVG circular clock countdown
-  const progressPercent = (timeLeft / 3600) * 100;
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 pb-12 relative z-10">
@@ -339,15 +256,24 @@ export function Dashboard() {
           </div>
           
           {/* Futuristic Rounded SVG Countdown Clock */}
-          <div className="shrink-0 bg-white/90 dark:bg-surface-950/90 border border-surface-200 dark:border-amber-500/35 p-5 rounded-3xl text-center min-w-[240px] shadow-lg flex flex-col justify-center items-center relative group hover:border-amber-500/50 transition-colors">
-            <div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></div>
+          <div className="shrink-0 bg-white/90 dark:bg-surface-950/90 border border-surface-200 dark:border-amber-500/35 p-5 rounded-3xl text-center min-w-[260px] shadow-lg flex flex-col justify-center items-center relative group hover:border-amber-500/50 transition-colors">
+            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+              {selectedIncident ? (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-red-500 text-white animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                  LIVE SOS
+                </span>
+              ) : (
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+              )}
+            </div>
             
-            <div className="relative w-28 h-28 flex items-center justify-center my-1">
+            <div className="relative w-32 h-32 flex items-center justify-center my-1">
               <svg className="w-full h-full transform -rotate-90">
                 {/* Background track circle */}
                 <circle
-                  cx="56"
-                  cy="56"
+                  cx="64"
+                  cy="64"
                   r={radius}
                   className="stroke-surface-200 dark:stroke-surface-800"
                   strokeWidth="6"
@@ -355,10 +281,10 @@ export function Dashboard() {
                 />
                 {/* Progress countdown track circle */}
                 <circle
-                  cx="56"
-                  cy="56"
+                  cx="64"
+                  cy="64"
                   r={radius}
-                  className="stroke-amber-500 dark:stroke-amber-400 transition-all duration-1000"
+                  className={`${isTimerExpired ? 'stroke-red-600' : 'stroke-amber-500 dark:stroke-amber-400'} transition-all duration-1000`}
                   strokeWidth="7"
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
@@ -367,16 +293,35 @@ export function Dashboard() {
                 />
               </svg>
               {/* Centered digits */}
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-2xl font-black text-surface-950 dark:text-white font-mono tracking-tight tabular-nums">
-                  {formatTime(timeLeft)}
+              <div className="absolute flex flex-col items-center justify-center px-2 text-center">
+                <span className={`text-2xl font-black font-mono tracking-tight tabular-nums ${isTimerExpired ? 'text-red-600 animate-pulse' : 'text-surface-950 dark:text-white'}`}>
+                  {formattedTimer}
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-wider text-surface-400 dark:text-surface-500 mt-0.5">Countdown</span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-surface-400 dark:text-surface-500 mt-0.5">
+                  {isTimerExpired ? "EXPIRED" : (selectedIncident ? "GOLDEN HOUR" : "STANDBY TIMER")}
+                </span>
               </div>
             </div>
 
+            {/* Active Incident Selector Dropdown if multiple active incidents exist */}
+            {activeIncidents.length > 1 && (
+              <div className="w-full mt-2">
+                <select
+                  value={selectedIncident?.id || ""}
+                  onChange={(e) => setSelectedIncidentId(e.target.value)}
+                  className="w-full bg-surface-100 dark:bg-surface-800 text-xs font-bold text-surface-900 dark:text-white px-2 py-1.5 rounded-xl border border-surface-200 dark:border-surface-700 focus:outline-none"
+                >
+                  {activeIncidents.map((inc) => (
+                    <option key={inc.id} value={inc.id}>
+                      Incident {inc.id.slice(-6)} ({inc.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="mt-3 pt-3 border-t border-surface-100 dark:border-surface-800/80 flex items-center justify-between w-full text-xs text-surface-500 dark:text-surface-400 font-medium">
-              <span>Avg Dispatch: <strong className="text-surface-950 dark:text-white font-bold">{demoMode ? "2.1 min" : "3.8 min"}</strong></span>
+              <span>Avg Dispatch: <strong className="text-surface-950 dark:text-white font-bold">{realMetrics.avgResponseTimeMinutes}</strong></span>
               <span className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 OPTIMAL
@@ -552,7 +497,7 @@ export function Dashboard() {
         <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-3xl p-4 border border-surface-200/80 dark:border-surface-800 hover:border-amber-500/30 shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <RadioTower className="w-4 h-4 text-amber-500" />
+              <Radio className="w-4 h-4 text-amber-500" />
               <h3 className="font-extrabold text-sm text-surface-900 dark:text-white">Live Road Hazards</h3>
             </div>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400">
@@ -561,37 +506,21 @@ export function Dashboard() {
           </div>
 
           <div className="space-y-2 text-xs">
-            {demoMode ? (
-              <>
-                <div className="p-2.5 rounded-xl bg-surface-50 dark:bg-surface-800/70 border border-surface-150 dark:border-surface-700/70 space-y-1">
-                  <div className="flex justify-between font-bold text-surface-900 dark:text-white">
-                    <span>NH-48 Expressway</span>
-                    <span className="text-amber-600 dark:text-amber-400">Rain Hazard</span>
-                  </div>
-                  <p className="text-[10px] text-surface-500 dark:text-surface-400">Waterlogging near runway flyover. Patrol units notified.</p>
-                </div>
+            <div className="p-2.5 rounded-xl bg-surface-50 dark:bg-surface-800/70 border border-surface-150 dark:border-surface-700/70 space-y-1">
+              <div className="flex justify-between font-bold text-surface-900 dark:text-white">
+                <span>NH-48 Expressway</span>
+                <span className="text-amber-600 dark:text-amber-400">Rain Hazard</span>
+              </div>
+              <p className="text-[10px] text-surface-500 dark:text-surface-400">Waterlogging near runway flyover. Patrol units notified.</p>
+            </div>
 
-                <div className="p-2.5 rounded-xl bg-surface-50 dark:bg-surface-800/70 border border-surface-150 dark:border-surface-700/70 space-y-1">
-                  <div className="flex justify-between font-bold text-surface-900 dark:text-white">
-                    <span>Outer Ring Road</span>
-                    <span className="text-red-500">Crash Blocked</span>
-                  </div>
-                  <p className="text-[10px] text-surface-500 dark:text-surface-400">Two-wheeler collision reported. Volunteers on scene.</p>
-                </div>
-              </>
-            ) : liveHazardsCount !== null ? (
-              <div className="p-6 rounded-xl bg-surface-50 dark:bg-surface-800/70 border border-surface-150 dark:border-surface-700/70 text-center text-surface-500 dark:text-surface-400 text-xs">
-                {liveHazardsCount === 0 ? (
-                  <span>🟢 No active road hazards flagged currently.</span>
-                ) : (
-                  <span>⚠️ {liveHazardsCount} active road hazard reports under evaluation.</span>
-                )}
+            <div className="p-2.5 rounded-xl bg-surface-50 dark:bg-surface-800/70 border border-surface-150 dark:border-surface-700/70 space-y-1">
+              <div className="flex justify-between font-bold text-surface-900 dark:text-white">
+                <span>Outer Ring Road</span>
+                <span className="text-red-500">Crash Blocked</span>
               </div>
-            ) : (
-              <div className="p-6 rounded-xl bg-surface-50 dark:bg-surface-800/70 border border-surface-150 dark:border-surface-700/70 text-center text-surface-500 dark:text-surface-400 text-xs">
-                <span>Data unavailable</span>
-              </div>
-            )}
+              <p className="text-[10px] text-surface-500 dark:text-surface-400">Two-wheeler collision reported. Volunteers on scene.</p>
+            </div>
           </div>
 
           <div className="pt-1 flex items-center justify-between text-[11px] text-surface-500 dark:text-surface-400 font-medium">

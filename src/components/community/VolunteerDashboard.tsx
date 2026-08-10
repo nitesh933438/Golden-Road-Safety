@@ -1,50 +1,64 @@
 import React, { useState } from "react";
 import { Power, MapPin, Navigation, Clock, ShieldAlert, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
-
-interface Emergency {
-  id: string;
-  type: string;
-  severity: "high" | "medium" | "critical";
-  distance: string;
-  eta: string;
-  timeSinceSos: string;
-  location: string;
-}
-
-const MOCK_EMERGENCIES: Emergency[] = [
-  {
-    id: "sos-102",
-    type: "Road Accident",
-    severity: "critical",
-    distance: "1.2 km",
-    eta: "4 mins",
-    timeSinceSos: "2 mins ago",
-    location: "Intersection of Main St & 4th Ave"
-  }
-];
+import { useIncidents } from "../../context/IncidentContext";
+import { useAuth } from "../../context/AuthContext";
+import { IncidentDoc } from "../../lib/incidentService";
 
 export function VolunteerDashboard() {
-  const [isOnline, setIsOnline] = useState(false);
-  const [activeRescue, setActiveRescue] = useState<Emergency | null>(null);
+  const { userProfile } = useAuth();
+  const { activeIncidents, updateIncidentStatus } = useIncidents();
+
+  const [isOnline, setIsOnline] = useState(true);
+  const [activeRescue, setActiveRescue] = useState<IncidentDoc | null>(null);
   const [rescueStep, setRescueStep] = useState<"en_route" | "arrived" | "assisting" | "completed">("en_route");
 
+  // Filter unassigned or assigned-to-me active emergencies
+  const availableIncidents = activeIncidents.filter((inc) => {
+    if (!isOnline) return false;
+    if (activeRescue && inc.id === activeRescue.id) return false;
+    return !inc.volunteerId || inc.volunteerId === userProfile?.uid;
+  });
+
   // Accept Rescue
-  const acceptRescue = (emergency: Emergency) => {
+  const acceptRescue = async (emergency: IncidentDoc) => {
     setActiveRescue(emergency);
     setRescueStep("en_route");
-  };
-
-  const advanceRescue = () => {
-    if (rescueStep === "en_route") setRescueStep("arrived");
-    else if (rescueStep === "arrived") setRescueStep("assisting");
-    else if (rescueStep === "assisting") setRescueStep("completed");
-    else {
-      setActiveRescue(null);
-      // Reset
+    try {
+      await updateIncidentStatus(emergency.id, {
+        volunteerId: userProfile?.uid || "volunteer",
+        volunteerName: userProfile?.name || "Good Samaritan Volunteer",
+        status: "acknowledged",
+      });
+    } catch (err) {
+      console.error("Failed to accept rescue in Firestore:", err);
     }
   };
 
-  const cancelRescue = () => {
+  const advanceRescue = async () => {
+    if (!activeRescue) return;
+
+    if (rescueStep === "en_route") {
+      setRescueStep("arrived");
+      await updateIncidentStatus(activeRescue.id, { status: "responding" }).catch(() => {});
+    } else if (rescueStep === "arrived") {
+      setRescueStep("assisting");
+      await updateIncidentStatus(activeRescue.id, { status: "hospital-arrived" }).catch(() => {});
+    } else if (rescueStep === "assisting") {
+      setRescueStep("completed");
+    } else {
+      await updateIncidentStatus(activeRescue.id, { status: "resolved" }).catch(() => {});
+      setActiveRescue(null);
+    }
+  };
+
+  const cancelRescue = async () => {
+    if (activeRescue) {
+      await updateIncidentStatus(activeRescue.id, {
+        volunteerId: null,
+        volunteerName: null,
+        status: "active",
+      }).catch(() => {});
+    }
     setActiveRescue(null);
   };
 
@@ -61,7 +75,7 @@ export function VolunteerDashboard() {
           <div>
             <h2 className="text-xl font-bold mb-1">Status: {isOnline ? 'Online & Ready' : 'Offline'}</h2>
             <p className="text-sm text-surface-500">
-              {isOnline ? 'Listening for nearby SOS signals...' : 'Toggle to receive emergency requests.'}
+              {isOnline ? 'Listening for real-time GoldenGuard SOS dispatches...' : 'Toggle to receive emergency requests.'}
             </p>
           </div>
         </div>
@@ -89,7 +103,10 @@ export function VolunteerDashboard() {
               <div>
                 <h3 className="font-bold text-red-900 dark:text-red-100 text-lg">Active Rescue: {activeRescue.type}</h3>
                 <p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5" /> {activeRescue.location}
+                  <MapPin className="w-3.5 h-3.5" /> {activeRescue.locationText}
+                </p>
+                <p className="text-xs text-red-600 dark:text-red-400 font-mono mt-0.5">
+                  Reporter: {activeRescue.reporterName} ({activeRescue.reporterPhone})
                 </p>
               </div>
             </div>
@@ -105,15 +122,20 @@ export function VolunteerDashboard() {
               onClick={advanceRescue}
               className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-red-600/20"
             >
-              {rescueStep === "en_route" && <><Navigation className="w-5 h-5" /> I Have Arrived</>}
-              {rescueStep === "arrived" && <><ShieldAlert className="w-5 h-5" /> Start Assisting</>}
-              {rescueStep === "assisting" && <><CheckCircle2 className="w-5 h-5" /> Medical Help Arrived (Complete)</>}
-              {rescueStep === "completed" && "Finish & View Log"}
+              {rescueStep === "en_route" && <><Navigation className="w-5 h-5" /> I Have Arrived On Scene</>}
+              {rescueStep === "arrived" && <><ShieldAlert className="w-5 h-5" /> Start First Aid Assisting</>}
+              {rescueStep === "assisting" && <><CheckCircle2 className="w-5 h-5" /> Medical/Ambulance Arrived (Complete)</>}
+              {rescueStep === "completed" && "Finish & Save Rescue Record"}
             </button>
             {rescueStep === "en_route" && (
-              <button className="flex-1 py-4 bg-white dark:bg-surface-800 text-surface-900 dark:text-white border border-surface-200 dark:border-surface-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors">
-                <Navigation className="w-5 h-5 text-blue-500" /> Navigate ({activeRescue.eta})
-              </button>
+              <a 
+                href={`https://www.google.com/maps/dir/?api=1&destination=${activeRescue.latitude},${activeRescue.longitude}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-4 bg-white dark:bg-surface-800 text-surface-900 dark:text-white border border-surface-200 dark:border-surface-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
+              >
+                <Navigation className="w-5 h-5 text-blue-500" /> Open Navigation Maps
+              </a>
             )}
           </div>
 
@@ -147,39 +169,49 @@ export function VolunteerDashboard() {
         </div>
       ) : (
         <>
-          {/* Incoming Emergencies */}
+          {/* Incoming Real Emergencies */}
           {isOnline && (
             <div className="space-y-4">
               <h3 className="font-bold text-sm uppercase tracking-wider text-surface-500 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" /> Nearby Emergencies
+                <AlertTriangle className="w-4 h-4 text-amber-500" /> Nearby Active Emergencies ({availableIncidents.length})
               </h3>
               
-              {MOCK_EMERGENCIES.map((em) => (
-                <div key={em.id} className="bg-white dark:bg-surface-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row gap-4 items-center animate-in fade-in slide-in-from-bottom-4">
-                  <div className="flex-1 w-full">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                        {em.severity}
-                      </span>
-                      <span className="text-sm font-bold text-red-600 animate-pulse">{em.timeSinceSos}</span>
-                    </div>
-                    <h4 className="text-lg font-bold mb-1">{em.type}</h4>
-                    <p className="text-sm text-surface-600 dark:text-surface-400 flex items-center gap-1.5 mb-2">
-                      <MapPin className="w-4 h-4" /> {em.location}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm font-semibold">
-                      <span className="flex items-center gap-1"><Navigation className="w-4 h-4 text-blue-500" /> {em.distance}</span>
-                      <span className="flex items-center gap-1"><Clock className="w-4 h-4 text-amber-500" /> {em.eta}</span>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => acceptRescue(em)}
-                    className="w-full sm:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-md"
-                  >
-                    Accept SOS <ArrowRight className="w-5 h-5" />
-                  </button>
+              {availableIncidents.length === 0 ? (
+                <div className="p-8 text-center bg-white dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700 text-surface-500">
+                  <ShieldAlert className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                  <p className="font-bold text-surface-900 dark:text-white">No active unassigned emergencies nearby</p>
+                  <p className="text-xs text-surface-500 mt-1">You will receive an instant alert as soon as a new SOS is dispatched in your area.</p>
                 </div>
-              ))}
+              ) : (
+                availableIncidents.map((em) => (
+                  <div key={em.id} className="bg-white dark:bg-surface-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row gap-4 items-center animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex-1 w-full">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                          {em.priority}
+                        </span>
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono">
+                          ID: {em.id}
+                        </span>
+                      </div>
+                      <h4 className="text-lg font-bold mb-1">{em.type}</h4>
+                      <p className="text-sm text-surface-600 dark:text-surface-400 flex items-center gap-1.5 mb-2">
+                        <MapPin className="w-4 h-4 text-red-500" /> {em.locationText}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-surface-500">
+                        <span>Reporter: <strong className="text-surface-900 dark:text-white">{em.reporterName}</strong></span>
+                        <span>Phone: <strong className="text-surface-900 dark:text-white">{em.reporterPhone}</strong></span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => acceptRescue(em)}
+                      className="w-full sm:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-md"
+                    >
+                      Accept SOS <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
 

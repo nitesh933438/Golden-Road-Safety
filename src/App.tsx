@@ -5,6 +5,7 @@ import { ThemeProvider } from "./components/theme/ThemeProvider";
 import { AuthProvider } from "./context/AuthContext";
 import { OfflineSyncProvider } from "./context/OfflineSyncContext";
 import { DemoProvider } from "./context/DemoContext";
+import { IncidentProvider } from "./context/IncidentContext";
 import { CrashDetectionProvider } from "./context/CrashDetectionContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { Layout } from "./components/layout/Layout";
@@ -88,9 +89,10 @@ export default function App() {
       <AuthProvider>
         <OfflineSyncProvider>
           <DemoProvider>
-            <NotificationProvider>
-              <Router>
-                <CrashDetectionProvider>
+            <IncidentProvider>
+              <NotificationProvider>
+                <Router>
+                  <CrashDetectionProvider>
                   <Routes>
                     {/* Standalone Lockscreen Emergency View */}
                     <Route path="/medical-id/view" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
@@ -131,7 +133,8 @@ export default function App() {
                 </CrashDetectionProvider>
               </Router>
             </NotificationProvider>
-          </DemoProvider>
+          </IncidentProvider>
+        </DemoProvider>
         </OfflineSyncProvider>
       </AuthProvider>
     </ThemeProvider>

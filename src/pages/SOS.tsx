@@ -11,6 +11,7 @@ import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EME
 import { useAuth } from "../context/AuthContext";
 import { addDoc, collection, serverTimestamp, doc, setDoc, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { createEmergencyIncident } from "../lib/incidentService";
 import { getApiUrl } from "../lib/api";
 
 export function SOS() {
@@ -242,16 +243,32 @@ export function SOS() {
       } else {
         setOfflineSaved(false);
         try {
+          const incResult = await createEmergencyIncident({
+            reporterUid: userProfile?.uid || "anonymous",
+            reporterName: userProfile?.name || "GoldenGuard User",
+            reporterPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+            latitude: freshCoords.lat,
+            longitude: freshCoords.lng,
+            locationText: `GPS Coordinates (${freshCoords.lat.toFixed(4)}, ${freshCoords.lng.toFixed(4)})`,
+            priority: "critical",
+            type: "1-TAP SOS Beacon",
+            notes: sosMsg
+          });
+
+          const finalSosId = incResult.incident.id;
+
           // Write real Firestore SOS record
-          await setDoc(doc(db, "emergencies", uniqueSosId), {
+          await setDoc(doc(db, "emergencies", finalSosId), {
             ...sosRecord,
+            id: finalSosId,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
 
-          setActiveSosId(uniqueSosId);
+          setActiveSosId(finalSosId);
           setActiveSosRecord({
             ...sosRecord,
+            id: finalSosId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });

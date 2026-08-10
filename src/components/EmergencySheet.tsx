@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { addDoc, collection, onSnapshot, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { createEmergencyIncident } from "../lib/incidentService";
 
 // Components for different views
 import { LiveEmergencyMap } from "./LiveEmergencyMap";
@@ -131,8 +132,23 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
 
     try {
       const uniqueSosId = "sos_" + Date.now() + "_" + Math.random().toString(36).substring(2, 11);
+      
+      const incResult = await createEmergencyIncident({
+        reporterUid: userProfile?.uid || "anonymous",
+        reporterName: userProfile?.name || "Good Samaritan User",
+        reporterPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+        latitude: coords ? coords.lat : 28.6139,
+        longitude: coords ? coords.lng : 77.2090,
+        locationText: location || "Emergency Location Captured",
+        priority: (severity?.toLowerCase() as any) || "critical",
+        type: type || "Road Accident",
+        notes: notes || ""
+      });
+
+      const createdIncId = incResult.incident.id;
+
       const record = {
-        id: uniqueSosId,
+        id: createdIncId,
         userId: userProfile?.uid || "anonymous",
         type,
         severity,
@@ -145,7 +161,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
         locationSource: "GPS",
         address: location,
         emergencyContact: TEST_EMERGENCY_NUMBER,
-        status: "CREATED",
+        status: "active",
         smsStatus,
         emergencyType: type,
         timeline: [
@@ -155,12 +171,12 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
         ],
       };
 
-      await setDoc(doc(db, "emergencies", uniqueSosId), {
+      await setDoc(doc(db, "emergencies", createdIncId || uniqueSosId), {
         ...record,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      setEmergencyId(uniqueSosId);
+      setEmergencyId(createdIncId || uniqueSosId);
       setStep("active");
       setTimelineProgress(2);
     } catch (error) {

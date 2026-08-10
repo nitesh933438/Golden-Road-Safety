@@ -59,16 +59,22 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
         const errMessage = data.message || "Twilio request failed";
         const errMoreInfo = data.more_info || "https://www.twilio.com/docs/errors";
         
-        console.error("[Twilio SMS Dispatch Error]:", {
+        console.warn("[Twilio SMS Dispatch Notice]:", {
           code: errCode,
           message: errMessage,
           status: response.status,
           more_info: errMoreInfo,
         });
 
-        let friendlyMessage = `Emergency alert could not be sent: ${errMessage}`;
-        if (errMessage.toLowerCase().includes("template") || errMessage.toLowerCase().includes("trial")) {
-          friendlyMessage = `Twilio trial account restriction: Trial accounts can only use predefined SMS templates. Please use the "Send SMS via Device" manual backup option on your screen.`;
+        let friendlyMessage = `Emergency alert could not be sent via gateway: ${errMessage}`;
+        if (
+          String(errCode) === "572006" || 
+          errMessage.toLowerCase().includes("template") || 
+          errMessage.toLowerCase().includes("trial font") ||
+          errMessage.toLowerCase().includes("trial") ||
+          String(errMoreInfo).includes("572006")
+        ) {
+          friendlyMessage = `Twilio trial/verification limit (Error 572006): Trial accounts require verified numbers or template approval. Please use the 'Send SMS via Device' manual button on screen.`;
         }
 
         return {

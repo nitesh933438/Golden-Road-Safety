@@ -69,6 +69,28 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
   };
 
+  const handleQuickLogin = async (quickEmail: string, quickPass: string, quickName: string) => {
+    setError(null);
+    setLoading(true);
+    try {
+      try {
+        await loginWithEmail(quickEmail, quickPass);
+      } catch (loginErr: any) {
+        // If account doesn't exist yet, auto create it
+        if (loginErr.code === 'auth/user-not-found' || loginErr.code === 'auth/invalid-credential') {
+          await signupWithEmail(quickEmail, quickPass, quickName);
+        } else {
+          throw loginErr;
+        }
+      }
+      onClose();
+    } catch (err: any) {
+      setError(getFriendlyAuthErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
@@ -148,9 +170,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
 
             {error && (
-              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
+              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
               </div>
             )}
 
@@ -169,6 +193,29 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </svg>
               <span>Continue with Google</span>
             </button>
+
+            {/* Quick Samaritan Direct Sign-In Helper */}
+            <div className="bg-surface-50 dark:bg-surface-800/60 p-3 rounded-2xl border border-surface-200 dark:border-surface-700/80 space-y-2">
+              <span className="text-[10px] font-black uppercase text-surface-400 tracking-wider block">⚡ Quick Samaritan Sign-In</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin("nitesh933438@gmail.com", "admin123456", "Admin Samaritan")}
+                  disabled={loading}
+                  className="py-2 px-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-[11px] font-extrabold border border-amber-500/30 transition-all text-center"
+                >
+                  Admin Access
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin("samaritan@goldenguard.org", "samaritan123", "Good Samaritan Volunteer")}
+                  disabled={loading}
+                  className="py-2 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[11px] font-extrabold border border-emerald-500/30 transition-all text-center"
+                >
+                  Volunteer Access
+                </button>
+              </div>
+            </div>
 
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-surface-200 dark:bg-surface-800"></span>

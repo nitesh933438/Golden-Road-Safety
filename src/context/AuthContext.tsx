@@ -3,6 +3,8 @@ import {
   User as FirebaseUser,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -207,11 +209,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Handle OAuth Redirect Result on Mount
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Completed Google Login via redirect:", result.user.email);
+        }
+      })
+      .catch((err) => {
+        console.warn("Google redirect auth note:", err?.message || err);
+      });
+  }, []);
+
   // Google Login
   const loginWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      let user: FirebaseUser | null = null;
+
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        user = result.user;
+      } catch (popupError: any) {
+        console.warn("signInWithPopup notice/error:", popupError);
+
+        // If popup is blocked, cancelled, or iframe prohibited, attempt redirect
+        if (
+          popupError.code === "auth/popup-blocked" ||
+          popupError.code === "auth/cancelled-popup-request" ||
+          popupError.code === "auth/popup-closed-by-user"
+        ) {
+          try {
+            console.log("Triggering Google signInWithRedirect fallback...");
+            await signInWithRedirect(auth, googleProvider);
+            return;
+          } catch (redirectErr) {
+            throw redirectErr;
+          }
+        }
+
+        throw popupError;
+      }
+
+      if (!user) return;
+
       const isAdminEmail = user.email === ADMIN_EMAIL;
       const assignedRole: AppRole = isAdminEmail ? "admin" : "user";
 

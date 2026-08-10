@@ -32,6 +32,36 @@
       ]
     },
     {
+      "collectionId": "incidents",
+      "description": "Real-time emergency incidents, reporter tracking, responders, and Golden Hour deadlines.",
+      "fields": [
+        { "name": "incidentId", "type": "string", "description": "Unique incident ID" },
+        { "name": "reporterUid", "type": "string", "description": "User ID of the reporter" },
+        { "name": "reporterName", "type": "string", "description": "Name of the reporter" },
+        { "name": "reporterPhone", "type": "string", "description": "Phone number of the reporter" },
+        { "name": "latitude", "type": "number", "description": "GPS latitude" },
+        { "name": "longitude", "type": "number", "description": "GPS longitude" },
+        { "name": "locationText", "type": "string", "description": "Human-readable address or description" },
+        { "name": "createdAt", "type": "timestamp", "description": "Creation timestamp from server" },
+        { "name": "goldenHourDeadline", "type": "timestamp", "description": "Deadline timestamp (createdAt + 60 minutes)" },
+        { "name": "status", "type": "string", "description": "Status: active, acknowledged, responding, hospital-arrived, resolved, cancelled, expired" },
+        { "name": "priority", "type": "string", "description": "Priority: critical, high, medium, low" },
+        { "name": "type", "type": "string", "description": "Emergency type e.g. Road Accident, Cardiac Arrest, 1-TAP SOS" },
+        { "name": "responders", "type": "array", "description": "List of responder UIDs/names" },
+        { "name": "hospitalId", "type": "string", "description": "Assigned hospital ID or name" },
+        { "name": "policeId", "type": "string", "description": "Assigned police station ID or unit" },
+        { "name": "volunteerId", "type": "string", "description": "Assigned volunteer UID" },
+        { "name": "acknowledgedAt", "type": "timestamp", "description": "Timestamp when responder acknowledged/accepted" },
+        { "name": "respondingAt", "type": "timestamp", "description": "Timestamp when responder started traveling" },
+        { "name": "hospitalAcknowledgedAt", "type": "timestamp", "description": "Timestamp when hospital accepted" },
+        { "name": "resolvedAt", "type": "timestamp", "description": "Timestamp when incident was resolved" },
+        { "name": "traumaCapacity", "type": "string", "description": "Hospital trauma capacity level" },
+        { "name": "bedsAvailable", "type": "number", "description": "Hospital available beds" },
+        { "name": "hospitalEta", "type": "string", "description": "Estimated time of arrival to hospital" },
+        { "name": "hospitalStatus", "type": "string", "description": "Hospital specific status: accepted, arrived, treatment_started, resolved" }
+      ]
+    },
+    {
       "collectionId": "emergencies",
       "description": "Automated SOS, crash incidents, and victim tracking.",
       "fields": [
