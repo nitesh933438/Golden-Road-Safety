@@ -1,5 +1,12 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  setPersistence, 
+  browserLocalPersistence, 
+  browserSessionPersistence, 
+  inMemoryPersistence 
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Use import.meta.glob so that the build does not fail if firebase-applet-config.json is ignored/missing on GitHub/Vercel
@@ -18,8 +25,20 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Graceful persistence initialization to avoid IndexedDB "The database is closing" or iframe storage blocks
+setPersistence(auth, browserLocalPersistence).catch(async (err) => {
+  console.warn("browserLocalPersistence notice, falling back to session persistence:", err);
+  try {
+    await setPersistence(auth, browserSessionPersistence);
+  } catch (e) {
+    await setPersistence(auth, inMemoryPersistence).catch(() => {});
+  }
+});
+
 export const db = getFirestore(app, fileConfig.firestoreDatabaseId || undefined);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
+

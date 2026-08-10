@@ -8,7 +8,10 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  updateProfile
+  updateProfile,
+  setPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { auth, googleProvider, db } from "../lib/firebase";
@@ -258,15 +261,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         result = await signInWithPopup(auth, googleProvider);
       } catch (popupError: any) {
+        console.warn("signInWithPopup error/notice:", popupError);
+        const errStr = (popupError?.message || popupError?.code || "").toLowerCase();
+
+        // If IndexedDB closed/closing or storage partitioning error occurs
         if (
+          errStr.includes("closing") || 
+          errStr.includes("indexeddb") || 
+          errStr.includes("database") ||
+          popupError.code === "auth/internal-error"
+        ) {
+          console.log("IndexedDB/session adjustment during popup, switching persistence and retrying...");
+          try {
+            await setPersistence(auth, browserSessionPersistence);
+          } catch (pErr) {
+            await setPersistence(auth, inMemoryPersistence).catch(() => {});
+          }
+          result = await signInWithPopup(auth, googleProvider);
+        } else if (
           popupError.code === "auth/popup-blocked" ||
           popupError.code === "auth/cancelled-popup-request"
         ) {
           console.log("Popup blocked/cancelled, attempting redirect...");
           await signInWithRedirect(auth, googleProvider);
           return;
+        } else {
+          throw popupError;
         }
-        throw popupError;
       }
 
       if (!result?.user) return;
