@@ -3,7 +3,6 @@ import {
   User as FirebaseUser,
   onAuthStateChanged,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -225,32 +224,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Google Login
   const loginWithGoogle = async () => {
     try {
-      let user: FirebaseUser | null = null;
-
-      try {
-        const result = await signInWithPopup(auth, googleProvider);
-        user = result.user;
-      } catch (popupError: any) {
-        console.warn("signInWithPopup notice/error:", popupError);
-
-        // If popup is blocked, cancelled, or iframe prohibited, attempt redirect
-        if (
-          popupError.code === "auth/popup-blocked" ||
-          popupError.code === "auth/cancelled-popup-request" ||
-          popupError.code === "auth/popup-closed-by-user"
-        ) {
-          try {
-            console.log("Triggering Google signInWithRedirect fallback...");
-            await signInWithRedirect(auth, googleProvider);
-            return;
-          } catch (redirectErr) {
-            throw redirectErr;
-          }
-        }
-
-        throw popupError;
-      }
-
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
       if (!user) return;
 
       const isAdminEmail = user.email === ADMIN_EMAIL;
@@ -300,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
       } catch (firestoreErr: any) {
-        console.warn("Firestore sync during Google login warning (offline/network):", firestoreErr.message);
+        console.warn("Firestore sync during Google login warning:", firestoreErr.message);
       }
     } catch (error: any) {
       console.error("Google login error:", error);

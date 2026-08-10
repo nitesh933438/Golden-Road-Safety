@@ -38,6 +38,9 @@ export function getFriendlyAuthErrorMessage(error: any): string {
       
     default:
       const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes("closing") || lowerMessage.includes("database") || lowerMessage.includes("indexeddb")) {
+        return "Database session updated during sign-in. Please click 'Continue with Google' again or use Quick Samaritan Sign-In below.";
+      }
       if (lowerMessage.includes("unauthorized-domain") || lowerMessage.includes("domain not authorized") || lowerMessage.includes("unauthorized domain")) {
         return `Domain '${currentHost}' is not authorized in Firebase Console. Add '${currentHost}' to Firebase Console > Authentication > Settings > Authorized Domains, or sign in using Email/Password below.`;
       }
