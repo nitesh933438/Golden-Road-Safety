@@ -27,6 +27,8 @@ export interface UserProfile {
   bloodGroup: string;
   createdAt: any;
   lastLogin: any;
+  lastLoginAt?: any;
+  updatedAt?: any;
   isOnline: boolean;
   emergencyContacts: Array<{ name: string; phone: string; relation: string }>;
   settings: {
@@ -34,6 +36,7 @@ export interface UserProfile {
     locationSharing: boolean;
     autoSOS: boolean;
   };
+  profileCompleted?: boolean;
   isProfileComplete?: boolean;
   verificationStatus?: "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
   address?: string;
@@ -90,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let unsubDoc: (() => void) | undefined;
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       // Clean up previous user listener if it exists
       if (unsubDoc) {
         unsubDoc();
@@ -100,73 +103,96 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
 
       if (user) {
+        const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
+        const defaultRole: AppRole = (user.email === ADMIN_EMAIL) ? "admin" : "user";
+
+        const fallbackProfile: UserProfile = {
+          uid: user.uid,
+          name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
+          email: user.email || "",
+          phone: "",
+          role: defaultRole,
+          provider: isGoogleProvider ? "google" : "password",
+          photoURL: user.photoURL || "",
+          city: "",
+          state: "",
+          bloodGroup: "",
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          isOnline: true,
+          emergencyContacts: [],
+          settings: {
+            notifications: true,
+            locationSharing: true,
+            autoSOS: true
+          },
+          profileCompleted: false,
+          isProfileComplete: false
+        };
+
+        // Populate fallback profile immediately if none set yet
+        setUserProfile((prev) => prev || fallbackProfile);
+
         const userRef = doc(db, "users", user.uid);
         
         // Listen to Firestore User Document in real-time
-        unsubDoc = onSnapshot(userRef, async (snapshot) => {
+        unsubDoc = onSnapshot(userRef, (snapshot) => {
           try {
             if (snapshot.exists()) {
-              const data = snapshot.data() as UserProfile;
-              
-              // Determine role: Google Login with ADMIN_EMAIL gets "admin". Otherwise preserve stored role from Firestore!
-              const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
-              const calculatedRole: AppRole = (isGoogleProvider && user.email === ADMIN_EMAIL) 
-                ? "admin" 
-                : (data.role || "user");
+              const data = snapshot.data();
+              const existingRole = data.role || defaultRole;
+              const finalRole: AppRole = (user.email === ADMIN_EMAIL) ? "admin" : existingRole;
+
+              const isComplete = data.isProfileComplete !== false && data.profileCompleted !== false;
 
               setUserProfile({
+                ...fallbackProfile,
                 ...data,
-                role: calculatedRole,
-                isProfileComplete: data.isProfileComplete !== false // If not explicitly false, treat existing profiles as complete
-              });
+                role: finalRole,
+                profileCompleted: isComplete,
+                isProfileComplete: isComplete
+              } as UserProfile);
             } else {
-              // No profile exists yet! Do NOT write a fake/placeholder profile to Firestore.
-              // Instead, prepare a partial local state with isProfileComplete: false.
-              const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
-              const assignedRole = (isGoogleProvider && user.email === ADMIN_EMAIL) ? "admin" : "user";
+              // Document does not exist in Firestore yet
+              setUserProfile(fallbackProfile);
 
-              setUserProfile({
+              // Auto-create minimal profile in Firestore in background
+              setDoc(userRef, {
                 uid: user.uid,
-                name: user.displayName || "",
+                name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
                 email: user.email || "",
                 phone: "",
-                role: assignedRole,
+                role: defaultRole,
                 provider: isGoogleProvider ? "google" : "password",
                 photoURL: user.photoURL || "",
                 city: "",
                 state: "",
                 bloodGroup: "",
-                createdAt: null,
-                lastLogin: null,
-                isOnline: false,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                lastLogin: serverTimestamp(),
+                lastLoginAt: serverTimestamp(),
+                accountStatus: "active",
+                isOnline: true,
                 emergencyContacts: [],
-                settings: {
-                  notifications: true,
-                  locationSharing: true,
-                  autoSOS: true
-                },
+                settings: { notifications: true, locationSharing: true, autoSOS: true },
+                profileCompleted: false,
                 isProfileComplete: false
-              } as UserProfile);
+              }, { merge: true }).catch((err) => {
+                console.warn("Background user document note:", err.message);
+              });
             }
           } catch (snapshotErr) {
-            console.error("Error setting/retrieving user profile in snapshot:", snapshotErr);
+            console.error("Error parsing user profile in snapshot:", snapshotErr);
+            setUserProfile(fallbackProfile);
+          } finally {
+            setLoading(false);
           }
         }, (err) => {
-          console.warn("Firestore user snapshot note:", err.message);
+          console.warn("Firestore user snapshot listener notice (using auth fallback):", err.message);
+          setUserProfile(fallbackProfile);
+          setLoading(false);
         });
-
-        // Update last login & online status if profile is complete/exists
-        try {
-          const snap = await getDoc(userRef);
-          if (snap.exists()) {
-            await updateDoc(userRef, {
-              lastLogin: serverTimestamp(),
-              isOnline: true
-            });
-          }
-        } catch (e) {}
-
-        setLoading(false);
       } else {
         setUserProfile(null);
         setLoading(false);
@@ -186,18 +212,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      const isGoogle = true;
       const isAdminEmail = user.email === ADMIN_EMAIL;
-      const assignedRole = (isGoogle && isAdminEmail) ? "admin" : "user";
+      const assignedRole: AppRole = isAdminEmail ? "admin" : "user";
 
+      const userRef = doc(db, "users", user.uid);
       try {
-        const userRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(userRef);
 
         if (!docSnap.exists()) {
           await setDoc(userRef, {
             uid: user.uid,
-            name: user.displayName || "",
+            name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
             email: user.email || "",
             phone: "",
             role: assignedRole,
@@ -207,25 +232,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             state: "",
             bloodGroup: "",
             createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
             lastLogin: serverTimestamp(),
-            isOnline: false,
+            lastLoginAt: serverTimestamp(),
+            accountStatus: "active",
+            isOnline: true,
             emergencyContacts: [],
             settings: { notifications: true, locationSharing: true, autoSOS: true },
+            profileCompleted: false,
             isProfileComplete: false
           });
         } else {
           const existingData = docSnap.data();
           const existingRole = existingData?.role || "user";
-          const finalRole = (user.email === ADMIN_EMAIL) ? "admin" : existingRole;
+          // NEVER overwrite an existing user's role during Google login unless ADMIN_EMAIL
+          const finalRole: AppRole = isAdminEmail ? "admin" : existingRole;
+
           await updateDoc(userRef, {
             role: finalRole,
             provider: "google",
+            photoURL: user.photoURL || existingData?.photoURL || "",
+            updatedAt: serverTimestamp(),
             lastLogin: serverTimestamp(),
+            lastLoginAt: serverTimestamp(),
             isOnline: true
           });
         }
-      } catch (firestoreErr) {
-        console.warn("Firestore sync during Google login warning (offline/network):", firestoreErr);
+      } catch (firestoreErr: any) {
+        console.warn("Firestore sync during Google login warning (offline/network):", firestoreErr.message);
       }
     } catch (error: any) {
       console.error("Google login error:", error);
@@ -238,19 +272,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await signInWithEmailAndPassword(auth, email, pass);
       const user = result.user;
-      
+      const isAdminEmail = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
       try {
         const userRef = doc(db, "users", user.uid);
         const snap = await getDoc(userRef);
         if (snap.exists()) {
           await updateDoc(userRef, {
             provider: "password",
+            updatedAt: serverTimestamp(),
             lastLogin: serverTimestamp(),
+            lastLoginAt: serverTimestamp(),
             isOnline: true
           });
+        } else {
+          await setDoc(userRef, {
+            uid: user.uid,
+            name: user.displayName || email.split("@")[0] || "GoldenGuard User",
+            email: user.email || email,
+            phone: "",
+            role: isAdminEmail ? "admin" : "user",
+            provider: "password",
+            photoURL: "",
+            city: "",
+            state: "",
+            bloodGroup: "",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            lastLogin: serverTimestamp(),
+            lastLoginAt: serverTimestamp(),
+            accountStatus: "active",
+            isOnline: true,
+            emergencyContacts: [],
+            settings: { notifications: true, locationSharing: true, autoSOS: true },
+            profileCompleted: false,
+            isProfileComplete: false
+          });
         }
-      } catch (firestoreErr) {
-        console.warn("Firestore sync during email login warning:", firestoreErr);
+      } catch (firestoreErr: any) {
+        console.warn("Firestore sync during email login warning:", firestoreErr.message);
       }
     } catch (error: any) {
       console.error("Email login error:", error);
@@ -282,6 +342,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
       const user = result.user;
+      const isAdminEmail = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
       try {
         await updateProfile(user, { displayName: name });
@@ -294,21 +355,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name,
           email,
           phone: "",
-          role: "user",
+          role: isAdminEmail ? "admin" : "user",
           provider: "password",
           photoURL: "",
           city: "",
           state: "",
           bloodGroup: "",
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
-          isOnline: false,
+          lastLoginAt: serverTimestamp(),
+          accountStatus: "active",
+          isOnline: true,
           emergencyContacts: [],
           settings: { notifications: true, locationSharing: true, autoSOS: true },
+          profileCompleted: false,
           isProfileComplete: false
         });
-      } catch (firestoreErr) {
-        console.warn("Firestore profile creation on signup warning:", firestoreErr);
+      } catch (firestoreErr: any) {
+        console.warn("Firestore profile creation on signup warning:", firestoreErr.message);
       }
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -347,17 +412,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? "admin" 
         : (updates.role && updates.role !== "admin" ? updates.role : userProfile?.role || "user");
 
+    const isComplete = updates.isProfileComplete !== undefined 
+      ? updates.isProfileComplete 
+      : (updates.profileCompleted !== undefined ? updates.profileCompleted : true);
+
     const finalUpdates = {
       ...updates,
       photoURL,
       // Security guard: Users cannot elevate role to admin via self-update
-      role: computedRole
+      role: computedRole,
+      updatedAt: serverTimestamp(),
+      profileCompleted: isComplete,
+      isProfileComplete: isComplete
     };
 
     const userRef = doc(db, "users", currentUser.uid);
     await setDoc(userRef, finalUpdates, { merge: true });
 
-    setUserProfile((prev) => prev ? { ...prev, ...finalUpdates } : null);
+    setUserProfile((prev) => prev ? { 
+      ...prev, 
+      ...finalUpdates, 
+      profileCompleted: isComplete, 
+      isProfileComplete: isComplete 
+    } : null);
   };
 
   const isGoogleAdmin = !!(
