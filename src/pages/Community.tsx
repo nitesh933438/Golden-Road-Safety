@@ -27,7 +27,7 @@ export function Community() {
           </div>
           <div>
             <div className="text-xs text-emerald-100 font-semibold uppercase tracking-wider">Active Volunteers</div>
-            <div className="text-sm font-bold">{demoMode ? "14,205 Online" : "2,405 Online"}</div>
+            <div className="text-sm font-bold">Network Active</div>
           </div>
         </div>
       </div>
