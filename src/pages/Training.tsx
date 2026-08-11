@@ -26,7 +26,7 @@ export function Training() {
         </div>
         <div className="flex items-center gap-3 bg-white/10 p-3 rounded-2xl backdrop-blur-sm shadow-inner">
           <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-blue-600 font-bold text-xl">
-            CPR
+            {demoMode ? "12" : "4"}
           </div>
           <div>
             <div className="text-xs text-blue-200 font-semibold uppercase tracking-wider">Badges Earned</div>

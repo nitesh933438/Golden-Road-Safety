@@ -189,32 +189,30 @@ export function Layout() {
 
         {/* Scrollable Navigation Menu Area (Independent scrolling) */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-4 space-y-5">
-          {/* Hackathon Live Demo Launcher & Simulate Crash (Dev Only) */}
-          {import.meta.env.DEV && (
-            <div className="mx-4 p-4 rounded-2xl bg-gradient-to-r from-red-600/20 via-amber-600/20 to-amber-500/15 border border-amber-500/30 space-y-3 shrink-0 shadow-lg">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Hackathon Mode (Dev)</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              </div>
-              <p className="text-xs text-surface-200 font-medium leading-normal">
-                Interactive Guided Live Demo & Crash Simulator
-              </p>
-              <div className="space-y-2 pt-1">
-                <button
-                  onClick={() => {
-                    setSidebarOpen(false);
-                    startTour();
-                  }}
-                  className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.02]"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>Start Live Tour</span>
-                </button>
-
-                <SimulateCrashButton variant="compact" className="w-full justify-center rounded-xl min-h-[44px] py-2.5" />
-              </div>
+          {/* Hackathon Live Demo Launcher & Simulate Crash */}
+          <div className="mx-4 p-4 rounded-2xl bg-gradient-to-r from-red-600/20 via-amber-600/20 to-amber-500/15 border border-amber-500/30 space-y-3 shrink-0 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Hackathon Mode</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
             </div>
-          )}
+            <p className="text-xs text-surface-200 font-medium leading-normal">
+              Interactive Guided Live Demo & Crash Simulator
+            </p>
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => {
+                  setSidebarOpen(false);
+                  startTour();
+                }}
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.02]"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Start Live Tour</span>
+              </button>
+
+              <SimulateCrashButton variant="compact" className="w-full justify-center rounded-xl min-h-[44px] py-2.5" />
+            </div>
+          </div>
 
           {/* Navigation Menu Items */}
           <div className="px-3 space-y-1">

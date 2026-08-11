@@ -5,7 +5,7 @@ import {
   Map as MapIcon, Timer, Navigation, Bell, TrendingUp,
   HeartPulse, PhoneCall, ChevronRight,
   Radio, Clock, CheckCircle2, Award, Stethoscope, Sparkles, Building2, Car, Bike,
-  Zap, AlertCircle, RefreshCw, WifiOff, BookOpen
+  Zap, AlertCircle, RefreshCw, WifiOff
 } from "lucide-react";
 import { useDemo } from "../context/DemoContext";
 import { useOfflineSync } from "../context/OfflineSyncContext";
@@ -88,46 +88,46 @@ export function Dashboard() {
     },
     { 
       label: "Active Incidents", 
-      value: realMetrics.activeIncidentsCount.toString(), 
-      sub: "Real-time dispatch pipeline", 
+      value: demoMode ? "1" : realMetrics.activeIncidentsCount.toString(), 
+      sub: demoMode ? "182 Rescued in Golden Hour" : "Real-time dispatch pipeline", 
       icon: Car, 
       color: "text-amber-500 dark:text-amber-400", 
       bg: "bg-amber-500/10 border-amber-500/20",
       badge: "Command Pipeline",
-      isLive: true,
+      isLive: !demoMode,
       isLoading: false
     },
     { 
       label: "Nearby Hospitals", 
-      value: realMetrics.hospitalsCount.toString(), 
+      value: demoMode ? "12" : realMetrics.hospitalsCount.toString(), 
       sub: "Verified trauma corridors", 
       icon: Building2, 
       color: "text-emerald-500 dark:text-emerald-400", 
       bg: "bg-emerald-500/10 border-emerald-500/20",
       badge: "Connected Network",
-      isLive: true,
+      isLive: !demoMode,
       isLoading: false
     },
     { 
       label: "Volunteers Online", 
-      value: realMetrics.volunteersCount.toString(), 
+      value: demoMode ? "1,420" : realMetrics.volunteersCount.toString(), 
       sub: "Emergency ready network", 
       icon: Users, 
       color: "text-blue-500 dark:text-blue-400", 
       bg: "bg-blue-500/10 border-blue-500/20",
       badge: "Verified Samaritans",
-      isLive: true,
+      isLive: !demoMode,
       isLoading: false
     },
     { 
       label: "SOS Response Time", 
-      value: realMetrics.avgResponseTimeMinutes, 
+      value: demoMode ? "2.1 min" : realMetrics.avgResponseTimeMinutes, 
       sub: "First responder dispatch", 
       icon: Timer, 
       color: "text-purple-500 dark:text-purple-400", 
       bg: "bg-purple-500/10 border-purple-500/20",
       badge: "Optimal Benchmark",
-      isLive: true,
+      isLive: !demoMode,
       isLoading: false
     },
     { 
@@ -209,82 +209,48 @@ export function Dashboard() {
             </div>
             
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-none text-surface-950 dark:text-white">
-              Road Safety &{" "}
+              AI-Powered Road Safety &{" "}
               <span className="bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 dark:from-amber-400 dark:via-amber-300 dark:to-red-400 bg-clip-text text-transparent">
-                Emergency Help
+                Golden Hour Response Platform
               </span>
             </h1>
             
             <p className="text-sm text-surface-600 dark:text-surface-300 max-w-2xl leading-relaxed">
-              India's real-time emergency response platform. Get immediate help, report road problems, and find nearby medical support when seconds matter.
+              India's real-time emergency triage, volunteer dispatch, and hospital trauma coordination system designed to save lives when seconds matter.
             </p>
 
-            {/* Platform Quick Action Corridor - Citizen First */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+            {/* Platform Quick Action Corridor */}
+            <div className="flex flex-wrap gap-3 pt-2">
               <button 
                 onClick={() => setIsEmergencySheetOpen(true)}
-                className="flex flex-col items-start p-5 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black transition-all shadow-[0_4px_20px_rgba(220,38,38,0.3)] hover:scale-[1.02] active:scale-[0.98] group text-left"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black text-sm transition-all shadow-[0_4px_20px_rgba(220,38,38,0.3)] hover:shadow-[0_4px_25px_rgba(220,38,38,0.4)] group hover:scale-[1.02] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <ShieldAlert className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span className="text-base font-black">GET EMERGENCY HELP</span>
-                </div>
-                <span className="text-xs font-medium text-red-100">Police • Ambulance • Nearby Help</span>
+                <ShieldAlert className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                Start Emergency
               </button>
 
               <Link 
-                to="/report"
-                className="flex flex-col items-start p-5 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-750 text-surface-900 dark:text-white rounded-2xl border border-surface-200 dark:border-surface-700 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98] group text-left"
+                to="/saferide"
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-2xl font-extrabold text-sm transition-all shadow-md shadow-amber-500/10 hover:scale-[1.02] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-base font-black">REPORT ROAD PROBLEM</span>
-                </div>
-                <span className="text-xs font-medium text-surface-500 dark:text-surface-400">Potholes • Accidents • Hazards</span>
-              </Link>
-
-              <Link 
-                to="/map"
-                className="flex flex-col items-start p-5 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-750 text-surface-900 dark:text-white rounded-2xl border border-surface-200 dark:border-surface-700 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98] group text-left"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <MapIcon className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-base font-black">FIND NEARBY HELP</span>
-                </div>
-                <span className="text-xs font-medium text-surface-500 dark:text-surface-400">Hospitals • Police • Volunteers</span>
-              </Link>
-
-              <Link 
-                to="/training"
-                className="flex flex-col items-start p-5 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-750 text-surface-900 dark:text-white rounded-2xl border border-surface-200 dark:border-surface-700 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98] group text-left"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <BookOpen className="w-5 h-5 text-purple-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-base font-black">Safety Tips</span>
-                </div>
-                <span className="text-xs font-medium text-surface-500 dark:text-surface-400">Road rules & survival guides</span>
+                <Bike className="w-4.5 h-4.5 fill-current" />
+                SafeRide Guardian
               </Link>
 
               <Link 
                 to="/first-aid"
-                className="flex flex-col items-start p-5 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-750 text-surface-900 dark:text-white rounded-2xl border border-surface-200 dark:border-surface-700 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98] group text-left"
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-700/85 backdrop-blur-md border border-surface-200 dark:border-surface-750 text-surface-900 dark:text-white rounded-2xl font-bold text-sm transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <Stethoscope className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-base font-black">First Aid</span>
-                </div>
-                <span className="text-xs font-medium text-surface-500 dark:text-surface-400">CPR steps & emergency medical help</span>
+                <Stethoscope className="w-4.5 h-4.5 text-emerald-500 dark:text-emerald-400" />
+                AI First Aid
               </Link>
 
               <Link 
-                to="/notifications"
-                className="flex flex-col items-start p-5 bg-white dark:bg-surface-800 hover:bg-surface-50 dark:hover:bg-surface-750 text-surface-900 dark:text-white rounded-2xl border border-surface-200 dark:border-surface-700 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98] group text-left"
+                to="/map"
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 dark:border-amber-500/40 rounded-2xl font-bold text-sm transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <Bell className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-base font-black">My Activity</span>
-                </div>
-                <span className="text-xs font-medium text-surface-500 dark:text-surface-400">Track your reports & notifications</span>
+                <MapIcon className="w-4.5 h-4.5" />
+                Smart Map
               </Link>
             </div>
           </div>
@@ -373,9 +339,15 @@ export function Dashboard() {
             National Command Center Real-Time Status
           </h2>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Firestore Database Sync
-            </span>
+            {demoMode ? (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1.5 animate-pulse">
+                <Radio className="w-3.5 h-3.5" /> Demo Sandbox Active
+              </span>
+            ) : (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Firestore Database Sync
+              </span>
+            )}
           </div>
         </div>
 
@@ -734,7 +706,7 @@ export function Dashboard() {
               </div>
 
               <div className="p-3 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
-                ⚡ Over <strong className="text-surface-900 dark:text-white font-black">Verified victims</strong> safely evacuated inside the critical 60-minute Golden Hour response window today.
+                ⚡ Over <strong className="text-surface-900 dark:text-white font-black">{demoMode ? "182 victims" : "Verified victims"}</strong> safely evacuated inside the critical 60-minute Golden Hour response window today.
               </div>
             </div>
           </div>
