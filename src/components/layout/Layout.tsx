@@ -27,18 +27,13 @@ import {
   Shield as ShieldIcon,
   LucideIcon,
 } from "lucide-react";
-import { useDemo } from "../../context/DemoContext";
 import { useOfflineSync } from "../../context/OfflineSyncContext";
 import { AuthModal } from "../auth/AuthModal";
 import { cn } from "../../lib/utils";
 import { Logo } from "../ui/Logo";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
-import { WelcomeModal } from "../demo/WelcomeModal";
-import { GuidedDemoTour } from "../demo/GuidedDemoTour";
-import { AutoSOSModal } from "../crash/AutoSOSModal";
 import { CrashTopBanner } from "../crash/CrashTopBanner";
-import { SimulateCrashButton } from "../crash/SimulateCrashButton";
 import { useAuth } from "../../context/AuthContext";
 import { RoadSafetyBackground } from "../RoadSafetyBackground";
 import { CompleteProfile } from "../auth/CompleteProfile";
@@ -51,67 +46,68 @@ type NavItem = {
   adminOnly?: boolean;
 };
 
-const USER_NAV_ITEMS: NavItem[] = [
-  { name: "User Dashboard", to: "/", icon: LayoutDashboard },
-  { name: "SafeRide Guardian 🏍️", to: "/saferide", icon: Bike },
-  { name: "Smart Incident Map", to: "/map", icon: MapIcon },
-  { name: "SOS (Golden Hour)", to: "/sos", icon: ShieldAlert, alert: true },
-  { name: "Emergency Wallet 💳", to: "/wallet", icon: ShieldAlert },
-  { name: "AI First Aid", to: "/first-aid", icon: Stethoscope },
-  { name: "Report Hazard", to: "/report", icon: AlertTriangle },
-  { name: "Good Samaritan Network", to: "/community", icon: Users },
-  { name: "Lifesaver Training", to: "/training", icon: BookOpen },
-  { name: "Notifications", to: "/notifications", icon: Bell },
-  { name: "My Profile", to: "/profile", icon: User },
-  { name: "Sync Center 🔄", to: "/sync", icon: Wifi },
-];
+type NavGroup = {
+  title: string;
+  items: NavItem[];
+};
 
-const TRAINER_NAV_ITEMS: NavItem[] = [
-  { name: "Trainer Dashboard 🎓", to: "/trainer", icon: Award },
-  { name: "Training Programs & Courses", to: "/training", icon: BookOpen },
-  { name: "SafeRide Guardian 🏍️", to: "/saferide", icon: Bike },
-  { name: "Smart Incident Map", to: "/map", icon: MapIcon },
-  { name: "Emergency Wallet 💳", to: "/wallet", icon: ShieldAlert },
-  { name: "AI First Aid Assistant", to: "/first-aid", icon: Stethoscope },
-  { name: "Report Hazard", to: "/report", icon: AlertTriangle },
-  { name: "Good Samaritan Network", to: "/community", icon: Users },
-  { name: "Notifications", to: "/notifications", icon: Bell },
-  { name: "Sync Center 🔄", to: "/sync", icon: Wifi },
-  { name: "Trainer Profile", to: "/profile", icon: User },
-];
+const CITIZEN_HOME_GROUP: NavGroup = {
+  title: "HOME",
+  items: [
+    { name: "Emergency Help", to: "/sos", icon: ShieldAlert, alert: true },
+    { name: "Report a Road Problem", to: "/report", icon: AlertTriangle },
+    { name: "Find Help", to: "/map", icon: MapIcon },
+    { name: "Safety & First Aid", to: "/first-aid", icon: Stethoscope },
+    { name: "My Activity", to: "/profile", icon: Users },
+  ]
+};
 
-const ADMIN_NAV_ITEMS: NavItem[] = [
-  { name: "Admin Command Center 🛡️", to: "/admin", icon: ShieldAlert, adminOnly: true },
-  { name: "Trainer Portal 🎓", to: "/trainer", icon: Award },
-  { name: "Main System Dashboard", to: "/", icon: LayoutDashboard },
-  { name: "Smart Incident Map", to: "/map", icon: MapIcon },
-  { name: "Emergency Wallet 💳", to: "/wallet", icon: ShieldAlert },
-  { name: "SafeRide Guardian 🏍️", to: "/saferide", icon: Bike },
-  { name: "SOS (Golden Hour)", to: "/sos", icon: ShieldAlert, alert: true },
-  { name: "AI First Aid", to: "/first-aid", icon: Stethoscope },
-  { name: "Report Hazard", to: "/report", icon: AlertTriangle },
-  { name: "Lifesaver Academy", to: "/training", icon: BookOpen },
-  { name: "Samaritan Network", to: "/community", icon: Users },
-  { name: "Analytics & Strategy", to: "/impact", icon: TrendingUp },
-  { name: "Notifications & Broadcast", to: "/notifications", icon: Bell },
-  { name: "Sync Center 🔄", to: "/sync", icon: Wifi },
-  { name: "My Profile", to: "/profile", icon: User },
-];
+const CITIZEN_ACCOUNT_GROUP: NavGroup = {
+  title: "ACCOUNT",
+  items: [
+    { name: "My Profile", to: "/profile", icon: User },
+    { name: "Emergency Contacts", to: "/profile?tab=contacts", icon: ShieldAlert },
+    { name: "Settings & Offline", to: "/sync", icon: Wifi },
+  ]
+};
+
+const ADMIN_MANAGEMENT_GROUP: NavGroup = {
+  title: "MANAGEMENT (ADMIN)",
+  items: [
+    { name: "Emergency Control Center", to: "/admin", icon: ShieldIcon, adminOnly: true },
+    { name: "Trainer Portal", to: "/trainer", icon: Award },
+    { name: "Impact Analytics", to: "/impact", icon: TrendingUp },
+  ]
+};
+
+const TRAINER_MANAGEMENT_GROUP: NavGroup = {
+  title: "MANAGEMENT (TRAINER)",
+  items: [
+    { name: "Trainer Dashboard", to: "/trainer", icon: Award },
+    { name: "Lifesaver Training", to: "/training", icon: BookOpen },
+  ]
+};
 
 export function Layout() {
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
-  const { demoMode, toggleDemoMode, startTour, setShowWelcomeModal } = useDemo();
+  
   const { isOnline, pendingCount } = useOfflineSync();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [reminderDismissed, setReminderDismissed] = useState(false);
 
   const role = userProfile?.role || "user";
-  const NAV_ITEMS = (isAdmin || role === "admin")
-    ? ADMIN_NAV_ITEMS
-    : role === "trainer"
-    ? TRAINER_NAV_ITEMS
-    : USER_NAV_ITEMS;
+
+  const navGroups: NavGroup[] = [
+    CITIZEN_HOME_GROUP,
+    CITIZEN_ACCOUNT_GROUP,
+  ];
+
+  if (isAdmin || role === "admin") {
+    navGroups.push(ADMIN_MANAGEMENT_GROUP);
+  } else if (role === "trainer") {
+    navGroups.push(TRAINER_MANAGEMENT_GROUP);
+  }
 
   // Keyboard navigation: Close sidebar on Escape key
   useEffect(() => {
@@ -149,9 +145,6 @@ export function Layout() {
       {/* Full-screen Fixed Animated Road Safety Background */}
       <RoadSafetyBackground />
 
-      <WelcomeModal />
-      <GuidedDemoTour />
-      <AutoSOSModal />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
 
       {/* Backdrop Overlay (All Devices: Mobile, Tablet, Desktop) */}
@@ -188,69 +181,48 @@ export function Layout() {
         </div>
 
         {/* Scrollable Navigation Menu Area (Independent scrolling) */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-4 space-y-5">
-          {/* Hackathon Live Demo Launcher & Simulate Crash */}
-          <div className="mx-4 p-4 rounded-2xl bg-gradient-to-r from-red-600/20 via-amber-600/20 to-amber-500/15 border border-amber-500/30 space-y-3 shrink-0 shadow-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Hackathon Mode</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            </div>
-            <p className="text-xs text-surface-200 font-medium leading-normal">
-              Interactive Guided Live Demo & Crash Simulator
-            </p>
-            <div className="space-y-2 pt-1">
-              <button
-                onClick={() => {
-                  setSidebarOpen(false);
-                  startTour();
-                }}
-                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.02]"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                <span>Start Live Tour</span>
-              </button>
-
-              <SimulateCrashButton variant="compact" className="w-full justify-center rounded-xl min-h-[44px] py-2.5" />
-            </div>
-          </div>
-
-          {/* Navigation Menu Items */}
-          <div className="px-3 space-y-1">
-            {NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.to}
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 px-3.5 min-h-[44px] py-2 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-150 group select-none outline-none",
-                    isActive
-                      ? "bg-gradient-to-r from-amber-500/20 to-amber-500/5 text-amber-400 font-black border-l-4 border-amber-500 shadow-sm"
-                      : "text-surface-300 hover:text-white hover:bg-surface-800/80"
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <item.icon
-                      className={cn(
-                        "w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform group-hover:scale-110 shrink-0",
-                        isActive ? "text-amber-400" : "text-surface-400 group-hover:text-amber-400"
-                      )}
-                    />
-                    <span className={cn("flex-1 text-left leading-snug whitespace-normal py-0.5", item.alert && "text-red-400 font-bold")}>
-                      {item.name}
-                    </span>
-                    {item.alert && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-red-500/20 text-red-400 text-[9px] font-black uppercase border border-red-500/30 animate-pulse shrink-0">
-                        SOS
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-4 space-y-6">
+          {navGroups.map((group) => (
+            <div key={group.title} className="px-3 space-y-1">
+              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-500/90 select-none">
+                {group.title}
+              </div>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.to}
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-3.5 min-h-[44px] py-2 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-150 group select-none outline-none",
+                      isActive
+                        ? "bg-amber-500/15 text-amber-400 font-bold border-l-4 border-amber-500 shadow-xs"
+                        : "text-surface-300 hover:text-white hover:bg-surface-800/80"
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon
+                        className={cn(
+                          "w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform group-hover:scale-110 shrink-0",
+                          isActive ? "text-amber-400" : "text-surface-400 group-hover:text-amber-400"
+                        )}
+                      />
+                      <span className={cn("flex-1 text-left leading-snug whitespace-normal py-0.5", item.alert && "text-red-400 font-bold")}>
+                        {item.name}
                       </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </div>
+                      {item.alert && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/20 text-red-400 text-[9px] font-black uppercase border border-red-500/30 animate-pulse shrink-0">
+                          SOS
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          ))}
         </div>
 
         {/* Sidebar Footer (Fixed/pinned at the bottom) */}
@@ -304,37 +276,6 @@ export function Layout() {
               <span>Sign In / Register</span>
             </button>
           )}
-
-          {/* Quick Controls */}
-          <div className="flex items-center gap-2 pt-1">
-            <button 
-              onClick={toggleDemoMode}
-              className="flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface-800/40 border border-surface-700/35 hover:border-amber-500/30 text-surface-300 hover:text-white transition-all text-xs font-black select-none min-h-[44px]"
-              aria-label="Toggle Demo Mode"
-            >
-              <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${demoMode ? 'bg-amber-400 animate-pulse' : 'bg-surface-600'}`}></span>
-                <span>Demo Mode</span>
-              </div>
-              {demoMode ? (
-                <ToggleRight className="w-5 h-5 text-amber-400 shrink-0" />
-              ) : (
-                <ToggleLeft className="w-5 h-5 text-surface-500 shrink-0" />
-              )}
-            </button>
-
-            <button
-              onClick={() => {
-                setSidebarOpen(false);
-                setShowWelcomeModal(true);
-              }}
-              className="p-2.5 bg-surface-800/40 border border-surface-700/35 hover:border-amber-500/30 text-surface-400 hover:text-amber-400 hover:bg-surface-800/80 rounded-xl transition-all text-xs font-medium shrink-0 flex items-center justify-center w-11 h-11"
-              title="Re-open Welcome Screen"
-              aria-label="Re-open Welcome Screen"
-            >
-              <Info className="w-5 h-5" />
-            </button>
-          </div>
         </div>
       </aside>
 
@@ -390,41 +331,82 @@ export function Layout() {
                 </div>
               </div>
             )}
-            <Outlet context={{ demoMode }} />
+            <Outlet context={{}} />
           </div>
           <Footer />
         </main>
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md border-t border-surface-200 dark:border-surface-800 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-900/95 backdrop-blur-md border-t border-surface-800/80 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.5)]">
         <div className="flex items-center justify-around px-2 py-2">
-          {NAV_ITEMS.slice(0, 4).map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  "flex flex-col items-center justify-center w-16 h-12 gap-1 rounded-xl transition-all",
-                  isActive
-                    ? "text-primary-600 dark:text-primary-400 font-bold"
-                    : "text-surface-500 hover:text-surface-900 dark:hover:text-surface-50"
-                )
-              }
-            >
-              <item.icon className={cn("w-5 h-5", item.alert && "text-red-500")} />
-              <span className="text-[10px] font-medium truncate w-full text-center">
-                {item.name}
-              </span>
-            </NavLink>
-          ))}
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                isActive
+                  ? "text-amber-400 font-bold"
+                  : "text-surface-400 hover:text-white"
+              )
+            }
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="text-[10px] font-semibold truncate text-center">Home</span>
+          </NavLink>
+
+          <NavLink
+            to="/sos"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                isActive
+                  ? "text-red-400 font-bold"
+                  : "text-red-500 hover:text-red-400"
+              )
+            }
+          >
+            <ShieldAlert className="w-5 h-5 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-tight text-center text-red-400">SOS</span>
+          </NavLink>
+
+          <NavLink
+            to="/report"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                isActive
+                  ? "text-amber-400 font-bold"
+                  : "text-surface-400 hover:text-white"
+              )
+            }
+          >
+            <AlertTriangle className="w-5 h-5" />
+            <span className="text-[10px] font-semibold truncate text-center">Report</span>
+          </NavLink>
+
+          <NavLink
+            to="/map"
+            className={({ isActive }) =>
+              cn(
+                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                isActive
+                  ? "text-amber-400 font-bold"
+                  : "text-surface-400 hover:text-white"
+              )
+            }
+          >
+            <MapIcon className="w-5 h-5" />
+            <span className="text-[10px] font-semibold truncate text-center">Find Help</span>
+          </NavLink>
+
           <button 
             onClick={() => setSidebarOpen(true)}
-            className="flex flex-col items-center justify-center w-16 h-12 gap-1 rounded-xl text-surface-500 hover:text-surface-900 dark:hover:text-surface-50 transition-colors"
-            aria-label="Open More Menu"
+            className="flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl text-surface-400 hover:text-white transition-colors"
+            aria-label="Open Navigation Menu"
           >
-            <MoreHorizontal className="w-5 h-5" />
-            <span className="text-[10px] font-medium">More</span>
+            <Menu className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">Menu</span>
           </button>
         </div>
       </nav>

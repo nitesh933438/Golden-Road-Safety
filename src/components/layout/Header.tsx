@@ -11,7 +11,6 @@ import { useTheme } from "../theme/ThemeProvider";
 import { useNotifications, NotificationItem } from "../../context/NotificationContext";
 import { useAuth } from "../../context/AuthContext";
 import { useOfflineSync } from "../../context/OfflineSyncContext";
-import { useDemo } from "../../context/DemoContext";
 import { SmartInput } from "../ui/SmartInput";
 import { Logo } from "../ui/Logo";
 import { triggerEmergencyCall, TEST_EMERGENCY_NUMBER } from "../../lib/emergencyCall";
@@ -48,7 +47,6 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const { currentUser, userProfile, isAdmin, logout } = useAuth();
   const { isOnline, pendingCount } = useOfflineSync();
-  const { startTour, demoMode } = useDemo();
 
   // State
   const [headerSearch, setHeaderSearch] = useState("");
@@ -492,24 +490,6 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
                     )}
                   </div>
 
-                  {/* Demo & Tour Launcher */}
-                  <div className="p-1.5 bg-surface-50 dark:bg-surface-850">
-                    <button
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        startTour();
-                      }}
-                      className="w-full px-3 py-1.5 rounded-xl text-left text-xs font-extrabold text-amber-500 hover:bg-amber-500/10 transition-colors flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>Re-launch Guided Live Demo</span>
-                      </span>
-                      <Sparkles className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Footer Logout */}
                   <div className="p-1.5">
                     <button
                       onClick={async () => {

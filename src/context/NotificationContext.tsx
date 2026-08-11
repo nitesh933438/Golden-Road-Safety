@@ -5,6 +5,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "./AuthContext";
+import { safeLocalStorage } from "../lib/utils";
 
 export type NotificationType = 
   | "emergency" 
@@ -49,7 +50,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    const saved = localStorage.getItem("goldenguard_notifications_cache");
+    const saved = safeLocalStorage.getItem("goldenguard_notifications_cache");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -60,9 +61,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   });
 
   const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      return Notification.permission;
-    }
+    try {
+      if (typeof window !== "undefined" && "Notification" in window && window.Notification) {
+        return window.Notification.permission;
+      }
+    } catch (e) {}
     return "unsupported";
   });
 
@@ -70,9 +73,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Save cache to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem("goldenguard_notifications_cache", JSON.stringify(notifications));
-    } catch (e) {}
+    safeLocalStorage.setItem("goldenguard_notifications_cache", JSON.stringify(notifications));
   }, [notifications]);
 
   // Real-time Firestore Listener

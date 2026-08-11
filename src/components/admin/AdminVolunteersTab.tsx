@@ -34,23 +34,33 @@ export function AdminVolunteersTab() {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Fetch real volunteers from Firestore
+  // Fetch real volunteers and applicants from Firestore
   const fetchVolunteers = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const q = query(
+      const qRole = query(
         collection(db, "users"),
         where("role", "==", "volunteer"),
-        limit(100) // strict query limit to prevent reading entire database
+        limit(100)
       );
-      const snapshot = await getDocs(q);
-      const fetched: VolunteerItem[] = [];
+      const qApplied = query(
+        collection(db, "users"),
+        where("appliedRole", "==", "volunteer"),
+        limit(100)
+      );
 
-      snapshot.docs.forEach((docSnap, index) => {
+      const [snapRole, snapApplied] = await Promise.all([
+        getDocs(qRole),
+        getDocs(qApplied)
+      ]);
+
+      const map = new Map<string, VolunteerItem>();
+
+      const processDoc = (docSnap: any, index: number) => {
         const data = docSnap.data();
         let status: "pending" | "approved" | "suspended" | "rejected" = "pending";
-        if (data.verificationStatus === "VERIFIED") {
+        if (data.verificationStatus === "VERIFIED" && data.role === "volunteer") {
           status = "approved";
         } else if (data.verificationStatus === "REJECTED") {
           status = "rejected";
@@ -58,18 +68,21 @@ export function AdminVolunteersTab() {
           status = "suspended";
         }
 
-        fetched.push({
+        map.set(docSnap.id, {
           id: `V-10${index + 1}`,
           uid: docSnap.id,
           name: data.name || "Volunteer Samaritan",
           status: status,
-          location: data.city && data.state ? `${data.city}, ${data.state}` : data.city || "On-Duty Area",
+          location: data.serviceArea || (data.city && data.state ? `${data.city}, ${data.state}` : data.city || "On-Duty Area"),
           applied: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString() : "Active Now",
-          training: data.qualifications || "CPR, Basic First Aid"
+          training: data.skills || data.qualifications || "CPR, Basic First Aid"
         });
-      });
+      };
 
-      setVolunteers(fetched);
+      snapRole.docs.forEach((docSnap, index) => processDoc(docSnap, index));
+      snapApplied.docs.forEach((docSnap, index) => processDoc(docSnap, index));
+
+      setVolunteers(Array.from(map.values()));
     } catch (err: any) {
       console.error("Failed to load volunteers for admin:", err);
       setError("Failed to fetch volunteer data from database.");
@@ -86,19 +99,37 @@ export function AdminVolunteersTab() {
   const handleUpdateStatus = async (uid: string, name: string, newStatus: "approved" | "suspended" | "rejected") => {
     try {
       const userRef = doc(db, "users", uid);
-      let verificationStatus = "PENDING_VERIFICATION";
+      let verificationStatus = "PENDING";
+      let targetRole: "user" | "volunteer" = "user";
+
       if (newStatus === "approved") {
         verificationStatus = "VERIFIED";
+        targetRole = "volunteer";
       } else if (newStatus === "rejected") {
         verificationStatus = "REJECTED";
+        targetRole = "user";
       } else if (newStatus === "suspended") {
         verificationStatus = "SUSPENDED";
+        targetRole = "volunteer";
       }
 
       await updateDoc(userRef, {
+        role: targetRole,
         verificationStatus: verificationStatus,
-        isVolunteerActive: newStatus === "approved" // Active by default when approved
+        isVolunteerActive: newStatus === "approved"
       });
+
+      // Update volunteers collection document if present
+      try {
+        const volRef = doc(db, "volunteers", uid);
+        await updateDoc(volRef, {
+          status: newStatus === "approved" ? "VERIFIED" : newStatus.toUpperCase(),
+          approvalStatus: newStatus === "approved" ? "VERIFIED" : newStatus.toUpperCase(),
+          verificationStatus: verificationStatus
+        });
+      } catch (volErr) {
+        // Document might not exist in volunteers sub-collection, ignore
+      }
 
       setVolunteers(prev => prev.map(v => v.uid === uid ? { ...v, status: newStatus } : v));
       setActionSuccess(`Successfully updated ${name} to status: ${newStatus.toUpperCase()}`);

@@ -57,7 +57,6 @@ export function About() {
           </div>
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider border border-amber-500/30 mb-1">
-              <Sparkles className="w-3.5 h-3.5" /> Hackathon Architectural Blueprint
             </div>
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight text-white">
               About GoldenGuard
@@ -140,7 +139,7 @@ export function About() {
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-bold uppercase tracking-widest text-purple-500">Next Horizon</span>
           <h2 className="text-3xl font-extrabold text-surface-900 dark:text-white">Future Scope & Roadmap</h2>
-          <p className="text-sm text-surface-500 dark:text-surface-400">Upcoming integrations planned for post-hackathon nationwide scaling.</p>
+          <p className="text-sm text-surface-500 dark:text-surface-400">Upcoming integrations planned for nationwide scaling.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

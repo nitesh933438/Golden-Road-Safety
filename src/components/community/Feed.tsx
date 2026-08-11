@@ -18,60 +18,10 @@ interface Post {
   comments: number;
 }
 
-const MOCK_POSTS: Post[] = [
-  {
-    id: "1",
-    author: "City Traffic Police",
-    role: "Official Authority",
-    avatarInitials: "TP",
-    avatarColor: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
-    time: "2 hours ago",
-    content: "Road Safety Campaign this weekend! Join us at Central Park to learn about blind spots and safe pedestrian crossings. Free reflective gear for the first 100 attendees.",
-    type: "campaign",
-    likes: 342,
-    comments: 45
-  },
-  {
-    id: "2",
-    author: "Sarah Jenkins",
-    role: "Golden Guardian Volunteer",
-    avatarInitials: "SJ",
-    avatarColor: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
-    time: "4 hours ago",
-    content: "Just completed my 5th successful rescue. A reminder to everyone: if you see an accident, don't just record it. Ensure the scene is safe and call for help immediately. The Good Samaritan Law protects you!",
-    type: "success",
-    likes: 892,
-    comments: 102
-  },
-  {
-    id: "3",
-    author: "Michael Chang",
-    role: "Community Member",
-    avatarInitials: "MC",
-    avatarColor: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
-    time: "5 hours ago",
-    content: "Hazard Alert: Large pothole on the right lane of Highway 42 near Exit 5. Several cars have already blown tires. Please drive carefully!",
-    type: "hazard",
-    likes: 156,
-    comments: 23
-  },
-  {
-    id: "4",
-    author: "Dr. Ananya Sharma",
-    role: "Medical Professional",
-    avatarInitials: "AS",
-    avatarColor: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
-    time: "1 day ago",
-    content: "First Aid Tip of the Day: When applying pressure to a severe bleed, do NOT remove the first layer of cloth if blood soaks through. Just add another layer on top and keep pressing. Removing the cloth rips away clotting factors.",
-    type: "tip",
-    likes: 1205,
-    comments: 89
-  }
-];
 
 export function Feed() {
   const { userProfile } = useAuth();
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [newPostText, setNewPostText] = useState("");
   const [postType, setPostType] = useState<"tip" | "hazard" | "success" | "campaign">("tip");
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});

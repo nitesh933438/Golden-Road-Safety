@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
+import { safeLocalStorage } from "../lib/utils";
 
 interface RideHistoryItem {
   id: string;
@@ -24,7 +25,7 @@ interface RideHistoryItem {
 }
 
 export function SafeRide() {
-  const { triggerCrashSimulation, activeEmergency } = useCrashDetection();
+  const { activeEmergency } = useCrashDetection();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -45,7 +46,7 @@ export function SafeRide() {
 
   // Ride History State
   const [rideHistory, setRideHistory] = useState<RideHistoryItem[]>(() => {
-    const saved = localStorage.getItem("goldenguard_ride_history");
+    const saved = safeLocalStorage.getItem("goldenguard_ride_history");
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -108,7 +109,7 @@ export function SafeRide() {
 
   // Save Ride History to LocalStorage
   useEffect(() => {
-    localStorage.setItem("goldenguard_ride_history", JSON.stringify(rideHistory));
+    safeLocalStorage.setItem("goldenguard_ride_history", JSON.stringify(rideHistory));
   }, [rideHistory]);
 
   // Active Ride Timer and Telemetry Simulator
@@ -197,21 +198,17 @@ export function SafeRide() {
   const handleSimulateAnomaly = (type: string) => {
     switch (type) {
       case "crash":
-        triggerCrashSimulation("High-Speed Impact Anomaly (SafeRide Telemetry)");
         break;
       case "sudden_stop":
         setCurrentSpeed(0);
         setTimeout(() => {
-          triggerCrashSimulation("Sudden Velocity Drop Anomaly (>40 km/h to 0 in 0.4s)");
         }, 800);
         break;
       case "inactivity":
         setIsPaused(true);
-        triggerCrashSimulation("Long Route Inactivity Anomaly (>2 Mins Zero Movement)");
         break;
       case "gps_jump":
         setCurrentAddress("Signal Re-route: Km 28 Expressway (Position Anomaly)");
-        triggerCrashSimulation("Sudden Telemetry GPS Discrepancy & Impact");
         break;
     }
   };

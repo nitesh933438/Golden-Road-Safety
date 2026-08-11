@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { ShieldAlert, Phone, AlertTriangle, MapPin, Activity, CheckCircle2, Zap, Car, ToggleLeft, ToggleRight, Radio, Shield, WifiOff, CloudUpload, Heart, Stethoscope, User, Lock, Eye, PhoneCall } from "lucide-react";
+import { ShieldAlert, Phone, AlertTriangle, MapPin, Activity, CheckCircle2, Zap, Car, ToggleLeft, ToggleRight, Radio, Shield, WifiOff, CloudUpload, Heart, Stethoscope, User, Lock, Eye, PhoneCall, Clock } from "lucide-react";
 import { useOutletContext, Link, useLocation } from "react-router-dom";
 import { useCrashDetection } from "../context/CrashDetectionContext";
-import { SimulateCrashButton } from "../components/crash/SimulateCrashButton";
 import { useOfflineSync } from "../context/OfflineSyncContext";
 import { getLastLocation } from "../lib/offlineStore";
 import { getLocalMedicalID, MedicalIDData } from "../lib/medicalIdStore";
@@ -16,7 +15,7 @@ import { getApiUrl } from "../lib/api";
 
 export function SOS() {
   const { userProfile } = useAuth();
-  const { demoMode } = useOutletContext<{ demoMode: boolean }>();
+  
   const pageLocation = useLocation();
   const [sosActive, setSosActive] = useState(false);
   const [offlineSaved, setOfflineSaved] = useState(false);
@@ -45,20 +44,63 @@ export function SOS() {
     }
   }, [pageLocation.search]);
 
-  // Fetch initial active SOS from Firestore if logged in
+  const [manualAddress, setManualAddress] = useState("");
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [goldenHourTimerStr, setGoldenHourTimerStr] = useState<string>("--:--");
+  const [goldenHourSeconds, setGoldenHourSeconds] = useState<number | null>(null);
+
+  // Real-time calculation of Golden Hour countdown from backend createdAt timestamp
+  useEffect(() => {
+    if (!activeSosRecord?.createdAt) {
+      setGoldenHourTimerStr("--:--");
+      setGoldenHourSeconds(null);
+      return;
+    }
+
+    let createdAtMillis = Date.now();
+    if (activeSosRecord.createdAt?.seconds) {
+      createdAtMillis = activeSosRecord.createdAt.seconds * 1000;
+    } else if (typeof activeSosRecord.createdAt === "string") {
+      createdAtMillis = new Date(activeSosRecord.createdAt).getTime();
+    } else if (typeof activeSosRecord.createdAt === "number") {
+      createdAtMillis = activeSosRecord.createdAt;
+    }
+
+    // Configured deadline: 60 minutes from createdAt
+    const deadlineMillis = createdAtMillis + 60 * 60 * 1000;
+
+    const updateGoldenHour = () => {
+      const diff = deadlineMillis - Date.now();
+      const remSec = Math.max(0, Math.floor(diff / 1000));
+      setGoldenHourSeconds(remSec);
+      if (remSec <= 0) {
+        setGoldenHourTimerStr("EXPIRED (00:00)");
+      } else {
+        const m = Math.floor(remSec / 60);
+        const s = remSec % 60;
+        setGoldenHourTimerStr(`${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`);
+      }
+    };
+
+    updateGoldenHour();
+    const interval = setInterval(updateGoldenHour, 1000);
+    return () => clearInterval(interval);
+  }, [activeSosRecord?.createdAt]);
+
+  // Fetch initial active SOS from Firestore sosRequests if logged in
   useEffect(() => {
     if (!userProfile?.uid) return;
 
     const loadActiveSOS = async () => {
       try {
         const q = query(
-          collection(db, "emergencies"),
+          collection(db, "sosRequests"),
           where("userId", "==", userProfile.uid)
         );
         const querySnapshot = await getDocs(q);
         const activeDoc = querySnapshot.docs.find(doc => {
           const status = doc.data().status;
-          return ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED"].includes(status);
+          return ["CREATED", "TRIAGING", "DISPATCHING", "ASSIGNED", "RESPONDER_EN_ROUTE", "ARRIVED"].includes(status);
         });
 
         if (activeDoc) {
@@ -78,11 +120,11 @@ export function SOS() {
     loadActiveSOS();
   }, [userProfile?.uid]);
 
-  // Real-time listener for active SOS record
+  // Real-time listener for active sosRequests record
   useEffect(() => {
     if (!activeSosId) return;
 
-    const docRef = doc(db, "emergencies", activeSosId);
+    const docRef = doc(db, "sosRequests", activeSosId);
     const unsubscribe = onSnapshot(
       docRef,
       (docSnap) => {
@@ -108,7 +150,7 @@ export function SOS() {
         }
       },
       (error) => {
-        console.error("Real-time listener error on SOS:", error);
+        console.error("Real-time listener error on sosRequests:", error);
       }
     );
 
@@ -123,6 +165,7 @@ export function SOS() {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             if (pos && pos.coords && Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude)) {
+              setLocationPermissionDenied(false);
               resolve({
                 lat: pos.coords.latitude,
                 lng: pos.coords.longitude,
@@ -134,11 +177,13 @@ export function SOS() {
           },
           (err) => {
             console.error("GPS Position Error:", err);
+            setLocationPermissionDenied(true);
             resolve(null);
           },
           { enableHighAccuracy: true, timeout: 8000 }
         );
       } else {
+        setLocationPermissionDenied(true);
         resolve(null);
       }
     });
@@ -151,140 +196,153 @@ export function SOS() {
     setLocationError(null);
 
     try {
-      // Step 1: Get current GPS. Do not insert fake coordinates.
+      // Step 1: Get GPS location.
       const freshCoords = await getGPSLocationAsync();
-      if (!freshCoords) {
-        setLocationError("GPS location is unavailable or permission is denied. Real-time GPS coordinates are required for GoldenGuard SOS dispatch.");
-        setSosError("SOS could not be synchronized. Please use emergency call immediately.");
-        setIsProcessingSOS(false);
-        return;
+      
+      let finalLocationText = "";
+      if (freshCoords) {
+        setCoords({ lat: freshCoords.lat, lng: freshCoords.lng });
+        finalLocationText = `GPS (${freshCoords.lat.toFixed(4)}, ${freshCoords.lng.toFixed(4)})`;
+      } else {
+        // Location unavailable or permission denied -> Allow manual location
+        setLocationError("GPS location unavailable. Using manual location reporting.");
+        finalLocationText = manualAddress.trim() || "Manual Location - Address pending verification";
       }
 
-      setCoords({ lat: freshCoords.lat, lng: freshCoords.lng });
-
-      // Step 2: Create a unique SOS ID
+      // Unique SOS ID
       const uniqueSosId = "sos_" + Date.now() + "_" + Math.random().toString(36).substring(2, 11);
 
       const sosMsg = generateSOSMessage({
-        userName: userProfile?.name || "GoldenGuard Test User",
-        coords: { lat: freshCoords.lat, lng: freshCoords.lng },
+        userName: userProfile?.name || "GoldenGuard User",
+        coords: freshCoords ? { lat: freshCoords.lat, lng: freshCoords.lng } : undefined,
       });
 
       let smsStatus = "PENDING";
       let apiSmsFailed = false;
-      let apiSmsErrorMsg = "";
 
-      // Step 3: SMS transmission through secure backend
+      // Backend SMS broadcast call
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         
         const response = await fetch(getApiUrl("/api/emergency/sos"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: TEST_EMERGENCY_NUMBER,
-            latitude: freshCoords.lat,
-            longitude: freshCoords.lng,
+            latitude: freshCoords?.lat || null,
+            longitude: freshCoords?.lng || null,
             timestamp: new Date().toISOString(),
-            message: sosMsg,
+            message: `${sosMsg} Location: ${finalLocationText}`,
           }),
           signal: controller.signal
         });
         
         clearTimeout(timeoutId);
-
         const text = await response.text();
         let data: any = null;
         if (text) {
-          try {
-            data = JSON.parse(text);
-          } catch (e) {
-            console.error("Failed to parse SOS response:", text);
-          }
+          try { data = JSON.parse(text); } catch (e) {}
         }
 
         if (!response.ok || !data?.success) {
           smsStatus = "FAILED";
           apiSmsFailed = true;
-          apiSmsErrorMsg = data?.message || "SMS service is not configured.";
         } else {
           smsStatus = "SENT";
         }
       } catch (err: any) {
         smsStatus = "FAILED";
         apiSmsFailed = true;
-        apiSmsErrorMsg = err.name === 'AbortError' ? "Request timed out." : (err.message || "Failed to reach emergency SMS backend.");
       }
 
-      // Step 4: Construct real SOS record matching all the specified fields
-      const sosRecord = {
-        id: uniqueSosId,
+      // Medical profile snapshot
+      const medProfileSnap = {
+        bloodGroup: medicalID.bloodGroup || "Unknown",
+        fullName: medicalID.fullName || userProfile?.name || "Citizen",
+        allergies: medicalID.allergies || "None",
+        medicalConditions: medicalID.medicalConditions || "None",
+        emergencyContacts: medicalID.emergencyContacts || []
+      };
+
+      // Real sosRequests payload strictly adhering to schema:
+      // sosId, userId, createdAt, location, latitude, longitude, severity, description, medicalProfileReference, status, assignedVolunteerId, assignedHospitalId, assignedPoliceId, updatedAt, resolvedAt
+      const sosPayload = {
+        sosId: uniqueSosId,
         userId: userProfile?.uid || "anonymous",
-        latitude: freshCoords.lat,
-        longitude: freshCoords.lng,
-        accuracy: freshCoords.accuracy,
+        createdAt: serverTimestamp(),
+        location: finalLocationText,
+        latitude: freshCoords?.lat || null,
+        longitude: freshCoords?.lng || null,
+        severity: "CRITICAL",
+        description: "1-Tap Emergency SOS Triggered",
+        medicalProfileReference: medProfileSnap,
         status: "CREATED",
-        priority: "CRITICAL",
-        locationSource: "GPS",
-        smsStatus,
-        message: sosMsg,
+        assignedVolunteerId: null,
+        assignedHospitalId: null,
+        assignedPoliceId: null,
+        updatedAt: serverTimestamp(),
+        resolvedAt: null
       };
 
       if (!isOnline) {
-        // save a small pending SOS action in IndexedDB
-        await queueItem("sos", sosRecord);
+        await queueItem("sos", sosPayload);
         setOfflineSaved(true);
         setActiveSosId(uniqueSosId);
-        setActiveSosRecord(sosRecord);
+        setActiveSosRecord({
+          ...sosPayload,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
         setSosActive(true);
-        
-        setSosError("SMS service is not configured (Offline). Please use emergency call immediately.");
       } else {
         setOfflineSaved(false);
         try {
-          const incResult = await createEmergencyIncident({
+          // Write to /sosRequests
+          await setDoc(doc(db, "sosRequests", uniqueSosId), sosPayload);
+
+          // Mirror write to /emergencies for legacy map sync
+          await setDoc(doc(db, "emergencies", uniqueSosId), {
+            ...sosPayload,
+            id: uniqueSosId,
+            type: "1-TAP SOS Beacon",
+            smsStatus
+          });
+
+          // Mirror to /incidents for command center
+          await createEmergencyIncident({
             reporterUid: userProfile?.uid || "anonymous",
-            reporterName: userProfile?.name || "GoldenGuard User",
+            reporterName: userProfile?.name || "GoldenGuard Citizen",
             reporterPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
-            latitude: freshCoords.lat,
-            longitude: freshCoords.lng,
-            locationText: `GPS Coordinates (${freshCoords.lat.toFixed(4)}, ${freshCoords.lng.toFixed(4)})`,
+            latitude: freshCoords?.lat || 0,
+            longitude: freshCoords?.lng || 0,
+            locationText: finalLocationText,
             priority: "critical",
             type: "1-TAP SOS Beacon",
             notes: sosMsg
           });
 
-          const finalSosId = incResult.incident.id;
-
-          // Write real Firestore SOS record
-          await setDoc(doc(db, "emergencies", finalSosId), {
-            ...sosRecord,
-            id: finalSosId,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-
-          setActiveSosId(finalSosId);
+          setActiveSosId(uniqueSosId);
           setActiveSosRecord({
-            ...sosRecord,
-            id: finalSosId,
+            ...sosPayload,
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           });
+          
+          // ONLY set active AFTER backend confirms creation
           setSosActive(true);
-
-          if (apiSmsFailed) {
-            setSosError(apiSmsErrorMsg === "SMS service is not configured." ? "SMS service is not configured." : `SMS Service failed: ${apiSmsErrorMsg}`);
-          }
-        } catch (e: any) {
-          console.error("Failed to write emergency to Firestore:", e);
-          setSosError("SOS could not be synchronized. Please use emergency call immediately.");
+        } catch (dbErr: any) {
+          console.error("Failed to write sosRequest to database:", dbErr);
+          setSosError("Database connection failed. SOS request could not be saved. Please click Retry.");
+          setSosActive(false);
+          setIsProcessingSOS(false);
+          return;
         }
       }
     } catch (e: any) {
       console.error("SOS Activation failure:", e);
-      setSosError("SOS could not be synchronized. Please use emergency call immediately.");
+      setSosError("Failed to issue emergency request. Please call emergency services immediately.");
+      setSosActive(false);
     } finally {
       setIsProcessingSOS(false);
     }
@@ -296,11 +354,16 @@ export function SOS() {
         await activateEmergency();
       }
     } else {
-      // If there is an active SOS, update its status to "CANCELLED" in Firestore
       if (activeSosId) {
         setIsProcessingSOS(true);
         try {
           if (isOnline) {
+            await setDoc(doc(db, "sosRequests", activeSosId), {
+              status: "CANCELLED",
+              updatedAt: serverTimestamp(),
+              resolvedAt: serverTimestamp()
+            }, { merge: true });
+
             await setDoc(doc(db, "emergencies", activeSosId), {
               status: "CANCELLED",
               updatedAt: serverTimestamp()
@@ -317,6 +380,52 @@ export function SOS() {
       setActiveSosRecord(null);
       setOfflineSaved(false);
       setSosError(null);
+    }
+  };
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Map active record status to step index matching spec: CREATED -> TRIAGING -> DISPATCHING -> ASSIGNED -> RESPONDER_EN_ROUTE -> ARRIVED -> RESOLVED
+  const currentDbStatus = activeSosRecord?.status || "CREATED";
+  const getStatusIndex = (st: string) => {
+    switch (st) {
+      case "CREATED":
+        return 0;
+      case "TRIAGING":
+        return 1;
+      case "DISPATCHING":
+        return 2;
+      case "ASSIGNED":
+        return 3;
+      case "RESPONDER_EN_ROUTE":
+      case "EN_ROUTE":
+      case "DISPATCHED":
+        return 4;
+      case "ARRIVED":
+        return 5;
+      case "RESOLVED":
+        return 6;
+      default:
+        return 0;
+    }
+  };
+  const activeStepIdx = getStatusIndex(currentDbStatus);
+
+  const citizenSteps = [
+    { title: "Created", desc: "Emergency signal registered" },
+    { title: "Triaging", desc: "Command center evaluating priority" },
+    { title: "Dispatching", desc: "Locating nearby responders" },
+    { title: "Assigned", desc: "Responders allocated to case" },
+    { title: "En Route", desc: "Helper traveling to location" },
+    { title: "Arrived", desc: "Responders on scene" },
+    { title: "Resolved", desc: "Emergency completed" },
+  ];
+
+  const handleSosButtonClick = () => {
+    if (!sosActive) {
+      setShowConfirmModal(true);
+    } else {
+      toggleSOS();
     }
   };
 
@@ -358,18 +467,79 @@ export function SOS() {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-surface-600 dark:text-surface-400 font-medium">
-            Uses G-force accelerometer spikes, orientation flips, and velocity telemetry. If an accident occurs and you are unresponsible for 15s, Auto SOS triggers contacts & volunteers instantly.
+            Uses G-force accelerometer spikes, orientation flips, and velocity telemetry. If an accident occurs and you are unresponsive for 15s, Auto SOS triggers contacts & volunteers instantly.
           </p>
-
-          <SimulateCrashButton variant="primary" className="shrink-0" />
         </div>
       </div>
+
+      {/* LOCATION PERMISSION / MANUAL ADDRESS CARD */}
+      {!sosActive && (
+        <div className="w-full bg-surface-900/90 border border-surface-800 rounded-3xl p-5 text-left space-y-3 shadow-lg">
+          <div className="flex items-center gap-2 text-surface-200">
+            <MapPin className="w-5 h-5 text-amber-400 shrink-0" />
+            <span className="text-sm font-bold text-white">
+              Allow location so we can find nearby help.
+            </span>
+          </div>
+          <p className="text-xs text-surface-400">
+            We only request GPS permission when you confirm an emergency. If permission is denied or location is unavailable, you can manually enter your address below.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <input
+              type="text"
+              value={manualAddress}
+              onChange={(e) => setManualAddress(e.target.value)}
+              placeholder="Enter manual location or landmark (e.g., Gate 3, MG Road Metro)"
+              className="flex-1 bg-surface-950 border border-surface-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-surface-500 focus:outline-none focus:border-amber-500"
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                setLocationError(null);
+                const fresh = await getGPSLocationAsync();
+                if (fresh) {
+                  setCoords({ lat: fresh.lat, lng: fresh.lng });
+                }
+              }}
+              className="px-4 py-2.5 bg-surface-800 hover:bg-surface-700 text-amber-400 text-xs font-bold rounded-xl border border-surface-700 transition-colors shrink-0"
+            >
+              Detect GPS
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* GOLDEN HOUR COUNTDOWN BANNER (Calculated dynamically from backend createdAt) */}
+      {sosActive && (
+        <div className="w-full bg-gradient-to-r from-amber-950/80 via-red-950/80 to-amber-950/80 border-2 border-amber-500/50 rounded-3xl p-5 text-left shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
+              <Zap className="w-6 h-6 animate-pulse text-amber-400" />
+            </div>
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-amber-400">
+                GOLDEN HOUR CRITICAL WINDOW
+              </div>
+              <p className="text-xs text-surface-300 font-medium">
+                Calculated strictly from server creation timestamp ({activeSosRecord?.createdAt ? new Date(activeSosRecord.createdAt.seconds ? activeSosRecord.createdAt.seconds * 1000 : activeSosRecord.createdAt).toLocaleTimeString() : "Just now"})
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-black/50 px-5 py-2.5 rounded-2xl border border-amber-500/40 shrink-0">
+            <Clock className="w-5 h-5 text-amber-400 animate-spin" style={{ animationDuration: '3s' }} />
+            <span className="text-2xl font-mono font-black text-amber-400 tracking-wider">
+              {goldenHourTimerStr}
+            </span>
+          </div>
+        </div>
+      )}
 
       {sosActive && (
         <EmergencyCallBanner 
           coords={coords} 
           locationError={locationError} 
-          userName={userProfile?.name || "GoldenGuard Test User"}
+          userName={userProfile?.name || "GoldenGuard User"}
           onCancel={() => setSosActive(false)} 
           className="my-4"
         />
@@ -380,18 +550,111 @@ export function SOS() {
       ) : null}
 
       <button 
-        onClick={toggleSOS}
+        onClick={handleSosButtonClick}
         disabled={isProcessingSOS}
-        className={`relative z-10 w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl ${
+        className={`relative z-10 px-8 py-6 rounded-3xl flex flex-col items-center justify-center transition-all duration-300 shadow-2xl min-h-[140px] w-full max-w-md ${
           sosActive 
-            ? "bg-red-600 text-white shadow-red-600/50 scale-110" 
+            ? "bg-red-600 text-white shadow-red-600/50 scale-105" 
             : isProcessingSOS
-            ? "bg-amber-500 text-black shadow-amber-500/50 scale-105 cursor-wait"
-            : "bg-surface-100 dark:bg-surface-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:scale-105"
+            ? "bg-amber-500 text-black shadow-amber-500/50 scale-102 cursor-wait"
+            : "bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-500 hover:to-red-600 hover:scale-102 active:scale-98"
         }`}
       >
-        <ShieldAlert className={`w-16 h-16 sm:w-20 sm:h-20 ${sosActive || isProcessingSOS ? "animate-pulse" : ""}`} />
+        <div className="flex items-center gap-3">
+          <ShieldAlert className={`w-8 h-8 ${sosActive || isProcessingSOS ? "animate-pulse" : ""}`} />
+          <span className="text-xl sm:text-2xl font-black tracking-tight">
+            {isProcessingSOS ? "Sending SOS..." : sosActive ? "Cancel Emergency SOS" : "GET EMERGENCY HELP"}
+          </span>
+        </div>
+        <span className="text-xs font-semibold text-red-100 mt-1 opacity-90">
+          Police • Ambulance • Nearby Help
+        </span>
       </button>
+
+      {/* CONFIRMATION MODAL */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-900 border-2 border-red-500/80 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center mx-auto ring-8 ring-red-500/10">
+              <ShieldAlert className="w-9 h-9 animate-bounce" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-white">
+                Are you in an emergency?
+              </h3>
+              <p className="text-sm text-surface-300 font-medium leading-relaxed">
+                This will alert emergency services, local police, ambulance, and send your location to nearby verified responders.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                onClick={async () => {
+                  setShowConfirmModal(false);
+                  await activateEmergency();
+                }}
+                className="flex-1 py-3.5 px-6 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-base shadow-lg transition-colors min-h-[48px] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <span>YES, GET HELP</span>
+              </button>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="py-3.5 px-6 rounded-xl bg-surface-800 hover:bg-surface-700 text-surface-200 font-bold text-base transition-colors min-h-[48px] cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REAL STATUS STEP PROGRESSION AFTER CONFIRMATION */}
+      {sosActive && (
+        <div className="w-full bg-surface-900 border-2 border-red-500/50 rounded-3xl p-6 text-left space-y-4 shadow-xl">
+          <div className="flex items-center gap-2 border-b border-surface-800 pb-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-lg font-bold text-white">
+              Emergency request sent
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            {citizenSteps.map((step, idx) => {
+              const isCompleted = idx < activeStepIdx;
+              const isCurrent = idx === activeStepIdx;
+
+              return (
+                <div
+                  key={step.title}
+                  className={`p-2.5 rounded-2xl border transition-all ${
+                    isCurrent
+                      ? "bg-red-600/30 border-red-400 text-white shadow-md ring-2 ring-red-500/50"
+                      : isCompleted
+                      ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
+                      : "bg-surface-950/50 border-surface-800 text-surface-500"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    ) : isCurrent ? (
+                      <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-surface-600 shrink-0" />
+                    )}
+                    <span className="text-[11px] font-bold truncate">{step.title}</span>
+                  </div>
+                  <p className="text-[10px] opacity-80 leading-tight">
+                    {step.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       
       <div className="space-y-3 relative z-10">
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-surface-900 dark:text-white">

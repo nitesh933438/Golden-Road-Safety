@@ -123,7 +123,7 @@ const INITIAL_PLACES: MapPlace[] = [];
 
 export default function SmartMap() {
   const { theme } = useTheme();
-  const context = useOutletContext<{ demoMode?: boolean; userRole?: string }>() || {};
+  const context = useOutletContext<{ userRole?: string }>() || {};
   const userRole = context.userRole || "user"; // "admin", "trainer", "user", "responder"
 
   // Refs & Map Instance
@@ -869,14 +869,13 @@ export default function SmartMap() {
       {/* Filter Chips Bar */}
       <div className="absolute top-20 left-4 right-4 md:right-auto z-[999] flex items-center gap-1.5 overflow-x-auto pb-2 pointer-events-auto no-scrollbar">
         {[
-          { id: "all", label: "All Pins", icon: Shield },
+          { id: "all", label: "All Services", icon: Shield },
           { id: "hospital", label: "Hospitals", icon: Stethoscope },
-          { id: "ambulance", label: "Ambulances", icon: Car },
           { id: "police", label: "Police", icon: Shield },
-          { id: "fire", label: "Fire", icon: Flame },
-          { id: "blood", label: "Blood Bank", icon: HeartPulse },
+          { id: "ambulance", label: "Emergency Services", icon: Car },
+          { id: "volunteer", label: "Verified Volunteers", icon: Users },
           { id: "pharmacy", label: "Pharmacy", icon: Building2 },
-          { id: "hazard", label: "Hazards", icon: AlertTriangle },
+          { id: "hazard", label: "Road Problems", icon: AlertTriangle },
         ].map((cat) => {
           const Icon = cat.icon;
           const isActive = selectedCategory === cat.id;

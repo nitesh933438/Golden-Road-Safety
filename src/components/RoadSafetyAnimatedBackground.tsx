@@ -91,6 +91,13 @@ export function RoadSafetyAnimatedBackground() {
     let lightOffset = 0;
 
     const render = () => {
+      if (width <= 0 || height <= 0) {
+        if (!prefersReducedMotion && document.visibilityState === "visible") {
+          animId = requestAnimationFrame(render);
+        }
+        return;
+      }
+
       time += 0.016; // Approx 60fps time step
       lightOffset = (lightOffset + 0.004) % 1;
 

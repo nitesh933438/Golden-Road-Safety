@@ -188,7 +188,7 @@ export function Impact() {
             to="/sos"
             className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold rounded-2xl shadow-xl shadow-red-500/20 transition-all hover:scale-105"
           >
-            <span>Experience Guided Demo</span>
+            <span>Access Emergency Dashboard</span>
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>

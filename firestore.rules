@@ -68,6 +68,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // sosRequests collection
+    match /sosRequests/{sosId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
     // Hierarchical Notifications collection
     match /notifications/{userId}/items/{notificationId} {
       allow read: if isOwner(userId) || isAdmin();

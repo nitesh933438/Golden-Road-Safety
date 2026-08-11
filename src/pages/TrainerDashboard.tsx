@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 type TrainerTab = "sessions" | "trainees" | "curriculum" | "quizzes" | "certificates";
 
 export function TrainerDashboard() {
-  const { demoMode } = useOutletContext<{ demoMode: boolean }>();
+  
   const { userProfile, currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<TrainerTab>("sessions");
   const [searchQuery, setSearchQuery] = useState("");

@@ -9,6 +9,7 @@ import {
   queueOfflineItem
 } from "../lib/offlineStore";
 import { uploadToCloudinary } from "../lib/cloudinary";
+import { safeLocalStorage } from "../lib/utils";
 
 interface OfflineSyncContextType {
   isOnline: boolean;
@@ -28,7 +29,7 @@ export const OfflineSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [syncQueue, setSyncQueue] = useState<PendingSyncItem[]>([]);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<number | null>(() => {
-    const saved = localStorage.getItem("goldenguard_last_sync_time");
+    const saved = safeLocalStorage.getItem("goldenguard_last_sync_time");
     return saved ? parseInt(saved, 10) : null;
   });
 
@@ -175,7 +176,7 @@ export const OfflineSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const now = Date.now();
       setLastSyncedTime(now);
-      localStorage.setItem("goldenguard_last_sync_time", now.toString());
+      safeLocalStorage.setItem("goldenguard_last_sync_time", now.toString());
       await loadQueue();
     } catch (err) {
       console.warn("Background sync execution error:", err);

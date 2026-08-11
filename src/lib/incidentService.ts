@@ -298,6 +298,25 @@ export async function updateIncident(
     if (updates.policeId) legacyPatch.police = updates.policeId;
 
     await updateDoc(doc(db, "emergencies", incidentId), legacyPatch).catch(() => {});
+
+    // Also mirror update to /sosRequests collection
+    const sosPatch: any = { updatedAt: serverTimestamp() };
+    if (updates.status) {
+      switch (updates.status) {
+        case "active": sosPatch.status = "CREATED"; break;
+        case "acknowledged": sosPatch.status = "ASSIGNED"; break;
+        case "responding": sosPatch.status = "RESPONDER_EN_ROUTE"; break;
+        case "hospital-arrived": sosPatch.status = "ARRIVED"; break;
+        case "resolved": sosPatch.status = "RESOLVED"; sosPatch.resolvedAt = serverTimestamp(); break;
+        case "cancelled": sosPatch.status = "CANCELLED"; sosPatch.resolvedAt = serverTimestamp(); break;
+        default: sosPatch.status = updates.status.toUpperCase();
+      }
+    }
+    if (updates.volunteerId !== undefined) sosPatch.assignedVolunteerId = updates.volunteerId;
+    if (updates.hospitalId !== undefined) sosPatch.assignedHospitalId = updates.hospitalId;
+    if (updates.policeId !== undefined) sosPatch.assignedPoliceId = updates.policeId;
+
+    await updateDoc(doc(db, "sosRequests", incidentId), sosPatch).catch(() => {});
   } catch (err: any) {
     console.error("Failed to update incident in Firestore:", err);
     throw new Error("Unable to update incident in Firebase.");

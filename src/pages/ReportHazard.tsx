@@ -16,12 +16,12 @@ import { useNavigate } from "react-router-dom";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 const HAZARD_TYPES = [
-  { id: "pothole", label: "Pothole & Road Damage", icon: AlertTriangle, desc: "Cracks, cave-ins, or surface erosion" },
-  { id: "blackspot", label: "Accident Blackspot", icon: ShieldAlert, desc: "High-risk blind turn or unsafe intersection" },
-  { id: "flooding", label: "Flooding & Waterlogging", icon: AlertTriangle, desc: "Submerged lane or water build-up" },
-  { id: "traffic_light", label: "Broken Traffic Light", icon: FileText, desc: "Signal failure or broken signage" },
-  { id: "oil_spill", label: "Oil / Chemical Spill", icon: AlertTriangle, desc: "Slippery substance on roadway" },
-  { id: "debris", label: "Obstruction & Debris", icon: Trash2, desc: "Fallen tree, cargo, or construction debris" },
+  { id: "pothole", label: "Pothole", icon: AlertTriangle, desc: "Road surface damage or cave-in" },
+  { id: "accident", label: "Accident", icon: ShieldAlert, desc: "Vehicle collision or crash site" },
+  { id: "streetlight", label: "Broken streetlight", icon: FileText, desc: "Dark road or non-working light" },
+  { id: "dangerous_road", label: "Dangerous road", icon: AlertTriangle, desc: "Hazardous curve, debris, or oil spill" },
+  { id: "traffic_problem", label: "Traffic problem", icon: Trash2, desc: "Broken traffic signal or lane blockage" },
+  { id: "other", label: "Other", icon: FileText, desc: "Any other road hazard or problem" },
 ];
 
 import { uploadToCloudinary } from "../lib/cloudinary";
@@ -186,16 +186,16 @@ export function ReportHazard() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
       
       {/* Header Banner */}
-      <div className="rounded-3xl bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 p-8 text-white shadow-2xl relative overflow-hidden">
+      <div className="rounded-3xl bg-surface-900 border border-surface-800 p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" /> Crowdsourced Road Safety
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider">
+            <AlertTriangle className="w-3.5 h-3.5" /> Road Safety
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight leading-snug">
-            Report Road Hazard
+            Report a Road Problem
           </h1>
-          <p className="text-sm sm:text-base text-amber-100 leading-relaxed font-medium">
-            Flag blackspots, potholes, or highway obstructions to alert nearby drivers and trigger municipal repair dispatch automatically.
+          <p className="text-sm sm:text-base text-surface-300 leading-relaxed font-normal">
+            Flag potholes, vehicle accidents, broken streetlights, or dangerous road conditions to warn nearby drivers and alert maintenance services.
           </p>
         </div>
       </div>

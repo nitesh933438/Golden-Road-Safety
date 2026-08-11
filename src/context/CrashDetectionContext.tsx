@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { addDoc, collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { useDemo } from "./DemoContext";
 import { useAuth } from "./AuthContext";
 
 export interface EmergencyContactNotice {
@@ -38,7 +37,6 @@ interface CrashDetectionContextType {
   countdown: number;
   unconsciousMode: boolean;
   activeEmergency: AutoEmergencyPayload | null;
-  triggerCrashSimulation: (reason?: string) => void;
   cancelCrashAlert: () => void;
   confirmSOSNow: () => void;
   resetEmergencyState: () => void;
@@ -72,10 +70,15 @@ function playUrgentBeep(frequency = 880, duration = 0.15) {
 }
 
 export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { demoMode, triggerDemoEmergency } = useDemo();
   const { userProfile } = useAuth();
   
-  const [sensorActive, setSensorActive] = useState<boolean>(true);
+  const [sensorActive, setSensorActive] = useState<boolean>(() => {
+    try {
+      return window.self === window.top; // Enable by default on main tab, false in sandboxed iframe
+    } catch (e) {
+      return false; // Safe fallback
+    }
+  });
   const [isCrashDetected, setIsCrashDetected] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(15);
   const [unconsciousMode, setUnconsciousMode] = useState<boolean>(false);
@@ -143,7 +146,11 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         
         // Sudden High Impact Threshold (e.g. > 26 m/s² ~ 2.6G deceleration/impact or drop)
         if (gForce > 28) {
-          triggerCrashSimulation("High G-Force Telemetry Impact Detected");
+          setIsCrashDetected(true);
+          setCountdown(15);
+          setUnconsciousMode(false);
+          setActiveEmergency(null);
+          playUrgentBeep(1200, 0.3);
         }
 
         lastX = x;
@@ -188,8 +195,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     setActiveEmergency(emergencyPayload);
 
     // Save to Firestore (if available)
-    if (!demoMode) {
-      setDoc(doc(db, "emergencies", emergencyId), {
+    setDoc(doc(db, "emergencies", emergencyId), {
         id: emergencyId,
         userId: userProfile?.uid || "anonymous",
         type: emergencyPayload.type,
@@ -209,10 +215,6 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }).catch((err) => console.warn("Firestore Auto SOS write notice:", err));
-    }
-
-    // Sync to Demo Context
-    triggerDemoEmergency(`Auto Crash SOS (${!wasUserResponded ? "Unconscious Victim" : "Crash Triggered"})`);
 
     // Start Golden Hour Ticker
     if (goldenHourTimerRef.current) clearInterval(goldenHourTimerRef.current);
@@ -224,7 +226,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       });
     }, 60000);
 
-  }, [userCoords, demoMode, triggerDemoEmergency]);
+  }, [userCoords]);
 
   // Handle Countdown Ticker
   useEffect(() => {
@@ -248,15 +250,6 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       playUrgentBeep(countdown % 2 === 0 ? 880 : 1040, 0.12);
     }
   }, [countdown, isCrashDetected, unconsciousMode, activeEmergency, dispatchAutoSOS]);
-
-  // Trigger Crash Simulation (Hackathon Demo)
-  const triggerCrashSimulation = (reason = "Simulated High-Speed Vehicle Impact") => {
-    setIsCrashDetected(true);
-    setCountdown(15);
-    setUnconsciousMode(false);
-    setActiveEmergency(null);
-    playUrgentBeep(1200, 0.3);
-  };
 
   // User clicked "I'm Safe"
   const cancelCrashAlert = () => {
@@ -295,7 +288,6 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         countdown,
         unconsciousMode,
         activeEmergency,
-        triggerCrashSimulation,
         cancelCrashAlert,
         confirmSOSNow,
         resetEmergencyState,

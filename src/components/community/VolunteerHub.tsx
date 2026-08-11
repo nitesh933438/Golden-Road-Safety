@@ -2,11 +2,9 @@ import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { VolunteerRegistration } from "./VolunteerRegistration";
 import { VolunteerDashboard } from "./VolunteerDashboard";
-import { useDemo } from "../../context/DemoContext";
 
 export function VolunteerHub() {
   const { userProfile, updateProfileData } = useAuth();
-  const { demoMode } = useDemo();
   // We still use local state for pending to simulate the flow for demo purposes if not approved yet
   const [localStatus, setLocalStatus] = useState<"unregistered" | "pending">("unregistered");
 
@@ -27,16 +25,6 @@ export function VolunteerHub() {
           <p className="text-surface-600 dark:text-surface-400 mb-8">
             Your volunteer application is currently under review by the admin team. You will be notified once approved.
           </p>
-          <button 
-            onClick={() => {
-              if (demoMode && updateProfileData) {
-                updateProfileData({ role: "volunteer" });
-              }
-            }} // Hidden bypass for demo purposes
-            className="text-xs text-surface-400 hover:text-primary-500 transition-colors underline"
-          >
-            (Simulate Admin Approval)
-          </button>
         </div>
       );
     }

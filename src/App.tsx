@@ -4,7 +4,6 @@ import { AlertTriangle, WifiOff } from "lucide-react";
 import { ThemeProvider } from "./components/theme/ThemeProvider";
 import { AuthProvider } from "./context/AuthContext";
 import { OfflineSyncProvider } from "./context/OfflineSyncContext";
-import { DemoProvider } from "./context/DemoContext";
 import { IncidentProvider } from "./context/IncidentContext";
 import { CrashDetectionProvider } from "./context/CrashDetectionContext";
 import { NotificationProvider } from "./context/NotificationContext";
@@ -12,6 +11,9 @@ import { Layout } from "./components/layout/Layout";
 import { Placeholder } from "./components/ui/Placeholder";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+
+import { Admin } from "./pages/Admin";
+import { AccessDenied } from "./pages/AccessDenied";
 
 const Dashboard = React.lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const SafeRide = React.lazy(() => import("./pages/SafeRide").then(m => ({ default: m.SafeRide })));
@@ -21,9 +23,7 @@ const FirstAid = React.lazy(() => import("./pages/FirstAid").then(m => ({ defaul
 const SmartMap = React.lazy(() => import("./pages/SmartMap").then(m => ({ default: m.default })));
 const Training = React.lazy(() => import("./pages/Training").then(m => ({ default: m.Training })));
 const Community = React.lazy(() => import("./pages/Community").then(m => ({ default: m.Community })));
-const Admin = React.lazy(() => import("./pages/Admin").then(m => ({ default: m.Admin })));
 const TrainerDashboard = React.lazy(() => import("./pages/TrainerDashboard").then(m => ({ default: m.TrainerDashboard })));
-const AccessDenied = React.lazy(() => import("./pages/AccessDenied").then(m => ({ default: m.AccessDenied })));
 const Impact = React.lazy(() => import("./pages/Impact").then(m => ({ default: m.Impact })));
 const About = React.lazy(() => import("./pages/About").then(m => ({ default: m.About })));
 const Team = React.lazy(() => import("./pages/Team").then(m => ({ default: m.Team })));
@@ -85,59 +85,59 @@ const OfflineIndicator = () => {
 
 export default function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="goldenguard-theme">
-      <AuthProvider>
-        <OfflineSyncProvider>
-          <DemoProvider>
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="system" storageKey="goldenguard-theme">
+        <AuthProvider>
+          <OfflineSyncProvider>
             <IncidentProvider>
               <NotificationProvider>
                 <Router>
                   <CrashDetectionProvider>
-                  <Routes>
-                    {/* Standalone Lockscreen Emergency View */}
-                    <Route path="/medical-id/view" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
-                    <Route path="/emergency-id" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
+                    <Routes>
+                      {/* Standalone Lockscreen Emergency View */}
+                      <Route path="/medical-id/view" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
+                      <Route path="/emergency-id" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
 
-                    <Route path="/" element={<Layout />}>
-                      <Route index element={<SafeLazyRoute><Dashboard /></SafeLazyRoute>} />
-                      <Route path="saferide" element={<SafeLazyRoute><SafeRide /></SafeLazyRoute>} />
-                      <Route path="sos" element={<SafeLazyRoute><SOS /></SafeLazyRoute>} />
-                      <Route path="wallet" element={<SafeLazyRoute><MedicalWallet /></SafeLazyRoute>} />
-                      <Route path="medical-id" element={<SafeLazyRoute><MedicalWallet /></SafeLazyRoute>} />
-                      <Route path="sync" element={<SafeLazyRoute><SyncCenter /></SafeLazyRoute>} />
-                      <Route path="first-aid" element={<SafeLazyRoute><FirstAid /></SafeLazyRoute>} />
-                      <Route path="map" element={<SafeLazyRoute><SmartMap /></SafeLazyRoute>} />
-                      <Route path="impact" element={<SafeLazyRoute><Impact /></SafeLazyRoute>} />
-                      <Route path="about" element={<SafeLazyRoute><About /></SafeLazyRoute>} />
-                      <Route path="team" element={<SafeLazyRoute><Team /></SafeLazyRoute>} />
-                      <Route path="report" element={<SafeLazyRoute><ReportHazard /></SafeLazyRoute>} />
-                      <Route path="training" element={<SafeLazyRoute><Training /></SafeLazyRoute>} />
-                      <Route path="trainer" element={
-                        <ProtectedRoute allowedRoles={["admin", "trainer"]}>
-                          <SafeLazyRoute><TrainerDashboard /></SafeLazyRoute>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="community" element={<SafeLazyRoute><Community /></SafeLazyRoute>} />
-                      <Route path="admin" element={
-                        <ProtectedRoute allowedRoles={["admin"]}>
-                          <SafeLazyRoute><Admin /></SafeLazyRoute>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="access-denied" element={<SafeLazyRoute><AccessDenied /></SafeLazyRoute>} />
-                      <Route path="profile" element={<SafeLazyRoute><Profile /></SafeLazyRoute>} />
-                      <Route path="notifications" element={<SafeLazyRoute><Notifications /></SafeLazyRoute>} />
-                      <Route path="search" element={<SafeLazyRoute><Search /></SafeLazyRoute>} />
-                      <Route path="*" element={<NotFound />} />
-                    </Route>
-                  </Routes>
-                </CrashDetectionProvider>
-              </Router>
-            </NotificationProvider>
-          </IncidentProvider>
-        </DemoProvider>
-        </OfflineSyncProvider>
-      </AuthProvider>
-    </ThemeProvider>
+                      <Route path="/" element={<Layout />}>
+                        <Route index element={<SafeLazyRoute><Dashboard /></SafeLazyRoute>} />
+                        <Route path="saferide" element={<SafeLazyRoute><SafeRide /></SafeLazyRoute>} />
+                        <Route path="sos" element={<SafeLazyRoute><SOS /></SafeLazyRoute>} />
+                        <Route path="wallet" element={<SafeLazyRoute><MedicalWallet /></SafeLazyRoute>} />
+                        <Route path="medical-id" element={<SafeLazyRoute><MedicalWallet /></SafeLazyRoute>} />
+                        <Route path="sync" element={<SafeLazyRoute><SyncCenter /></SafeLazyRoute>} />
+                        <Route path="first-aid" element={<SafeLazyRoute><FirstAid /></SafeLazyRoute>} />
+                        <Route path="map" element={<SafeLazyRoute><SmartMap /></SafeLazyRoute>} />
+                        <Route path="impact" element={<SafeLazyRoute><Impact /></SafeLazyRoute>} />
+                        <Route path="about" element={<SafeLazyRoute><About /></SafeLazyRoute>} />
+                        <Route path="team" element={<SafeLazyRoute><Team /></SafeLazyRoute>} />
+                        <Route path="report" element={<SafeLazyRoute><ReportHazard /></SafeLazyRoute>} />
+                        <Route path="training" element={<SafeLazyRoute><Training /></SafeLazyRoute>} />
+                        <Route path="trainer" element={
+                          <ProtectedRoute allowedRoles={["admin", "trainer"]}>
+                            <SafeLazyRoute><TrainerDashboard /></SafeLazyRoute>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="community" element={<SafeLazyRoute><Community /></SafeLazyRoute>} />
+                        <Route path="admin" element={
+                          <ProtectedRoute allowedRoles={["admin"]}>
+                            <SafeLazyRoute><Admin /></SafeLazyRoute>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="access-denied" element={<SafeLazyRoute><AccessDenied /></SafeLazyRoute>} />
+                        <Route path="profile" element={<SafeLazyRoute><Profile /></SafeLazyRoute>} />
+                        <Route path="notifications" element={<SafeLazyRoute><Notifications /></SafeLazyRoute>} />
+                        <Route path="search" element={<SafeLazyRoute><Search /></SafeLazyRoute>} />
+                        <Route path="*" element={<NotFound />} />
+                      </Route>
+                    </Routes>
+                  </CrashDetectionProvider>
+                </Router>
+              </NotificationProvider>
+            </IncidentProvider>
+          </OfflineSyncProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

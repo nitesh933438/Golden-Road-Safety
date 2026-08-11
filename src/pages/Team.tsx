@@ -72,7 +72,6 @@ export function Team() {
       <div className="rounded-3xl bg-gradient-to-r from-surface-900 via-surface-900 to-amber-950 text-white p-8 sm:p-12 border border-surface-800 shadow-2xl relative overflow-hidden">
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-wider border border-amber-500/30">
-            <Users className="w-3.5 h-3.5" /> Hackathon Founders & Engineers
           </div>
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
             Meet Team GoldenGuard
@@ -190,7 +189,7 @@ export function Team() {
       <div className="bg-surface-900 text-white rounded-3xl p-8 sm:p-12 border border-surface-800 shadow-2xl space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-bold uppercase tracking-widest text-amber-400">Get in Touch</span>
-          <h2 className="text-3xl font-extrabold">Contact & Hackathon Inquiries</h2>
+          <h2 className="text-3xl font-extrabold">Contact Inquiries</h2>
           <p className="text-sm text-surface-300">Interested in deploying GoldenGuard in your municipality or joining our emergency network?</p>
         </div>
 

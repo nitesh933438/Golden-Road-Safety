@@ -112,7 +112,7 @@ export function FirstAid() {
                       onClick={() => startChat(symptomSearch)}
                       className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shrink-0 text-xs"
                     >
-                      <Search className="w-4 h-4" /> Get AI Triage
+                      <Search className="w-4 h-4" /> Get First Aid Instructions
                     </button>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
+import { safeLocalStorage } from "./utils";
 
 export interface EmergencyContact {
   id: string;
@@ -59,7 +60,7 @@ const LOCAL_STORAGE_KEY = "goldenguard_medical_id";
  * Get Medical ID from Local Storage or Default fallback
  */
 export function getLocalMedicalID(): MedicalIDData {
-  const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+  const stored = safeLocalStorage.getItem(LOCAL_STORAGE_KEY);
   if (stored) {
     try {
       return JSON.parse(stored);
@@ -80,7 +81,7 @@ export async function saveMedicalID(data: MedicalIDData): Promise<void> {
   };
 
   // Save in LocalStorage for offline lockscreen access
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+  safeLocalStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
 
   // If online & valid UID, sync to Firestore
   if (navigator.onLine && data.uid && data.uid !== "default_user") {
@@ -110,7 +111,7 @@ export async function fetchRemoteMedicalID(uid: string): Promise<MedicalIDData> 
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const remoteData = snap.data() as MedicalIDData;
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remoteData));
+        safeLocalStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remoteData));
         return remoteData;
       }
     }

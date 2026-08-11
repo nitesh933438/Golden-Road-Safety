@@ -6,6 +6,7 @@ import {
 import { ValidationRules, ValidationResult } from "../../lib/validation";
 import { detectAIIntent, AIIntentSuggestion } from "../../lib/aiIntent";
 import { useNavigate } from "react-router-dom";
+import { safeLocalStorage } from "../../lib/utils";
 
 export interface SmartInputProps {
   value: string;
@@ -59,7 +60,7 @@ export function SmartInput({
   useEffect(() => {
     if (historyKey) {
       try {
-        const stored = localStorage.getItem(`gg_input_hist_${historyKey}`);
+        const stored = safeLocalStorage.getItem(`gg_input_hist_${historyKey}`);
         if (stored) setHistory(JSON.parse(stored));
       } catch (e) {
         console.warn("Error loading input history", e);
@@ -73,7 +74,7 @@ export function SmartInput({
     const updated = [item, ...history.filter(h => h.toLowerCase() !== item.toLowerCase())].slice(0, 5);
     setHistory(updated);
     try {
-      localStorage.setItem(`gg_input_hist_${historyKey}`, JSON.stringify(updated));
+      safeLocalStorage.setItem(`gg_input_hist_${historyKey}`, JSON.stringify(updated));
     } catch (e) {
       console.warn("Error saving input history", e);
     }

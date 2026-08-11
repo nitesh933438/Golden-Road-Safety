@@ -166,19 +166,25 @@ export function CompleteProfile() {
       const userRef = doc(db, "users", uid);
 
       // Construct base profile
+      // CRITICAL RULE: Registration role is always "user" by default.
+      // Specialized roles (volunteer, hospital, police, trainer) require admin verification (PENDING status).
+      const isSpecializedRoleRequested = selectedRole !== "user";
+
       const profileUpdates: any = {
         uid,
         name: name.trim(),
         email: currentUser.email || "",
         phone: phone.trim(),
-        role: selectedRole,
+        role: "user", // Default registration role is strictly "user"
+        appliedRole: isSpecializedRoleRequested ? selectedRole : "user",
+        verificationStatus: isSpecializedRoleRequested ? "PENDING" : "VERIFIED",
         provider: currentUser.providerData.some(p => p.providerId === "google.com") ? "google" : "password",
         photoURL,
         city: "",
         state: "",
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),
-        isOnline: selectedRole !== "volunteer", // Volunteer is OFFLINE by default
+        isOnline: true,
         isProfileComplete: true // CRITICAL!
       };
 
@@ -191,9 +197,9 @@ export function CompleteProfile() {
         profileUpdates.serviceArea = serviceArea.trim();
         profileUpdates.skills = skills.trim();
         profileUpdates.isOnline = false; // OFFLINE by default
-        profileUpdates.availability = false; // "Never automatically mark a volunteer ONLINE"
+        profileUpdates.availability = false; // Never auto mark online
         
-        // Also seed volunteers collection
+        // Seed volunteers collection with PENDING verification status
         const volRef = doc(db, "volunteers", uid);
         await setDoc(volRef, {
           userId: uid,
@@ -204,26 +210,30 @@ export function CompleteProfile() {
           availability: false,
           status: "OFFLINE",
           trainingStatus: "Level 1",
-          approvalStatus: "Approved", // Approved immediately for standard operation
+          approvalStatus: "PENDING",
+          verificationStatus: "PENDING",
           completedRescues: 0,
           rating: 5.0,
           createdAt: serverTimestamp()
         });
       } else if (selectedRole === "hospital") {
+        profileUpdates.hospitalName = name.trim();
         profileUpdates.address = hospitalAddress.trim();
-        profileUpdates.services = hospitalServices.trim();
+        profileUpdates.phone = phone.trim();
+        profileUpdates.emergencyAvailability = "24/7 ER Active";
+        profileUpdates.traumaCapacity = hospitalServices.trim();
         profileUpdates.location = hospitalLocation.trim();
-        profileUpdates.verificationStatus = "PENDING_VERIFICATION"; // Default verification status
+        profileUpdates.verificationStatus = "PENDING";
       } else if (selectedRole === "police") {
         profileUpdates.stationName = name.trim();
         profileUpdates.officialContact = phone.trim();
-        profileUpdates.serviceArea = policeServiceArea.trim();
+        profileUpdates.jurisdiction = policeServiceArea.trim();
         profileUpdates.location = policeLocation.trim();
-        profileUpdates.verificationStatus = "PENDING_VERIFICATION"; // Default verification status
+        profileUpdates.verificationStatus = "PENDING";
       } else if (selectedRole === "trainer") {
         profileUpdates.qualifications = trainerQualifications.trim();
         profileUpdates.trainerInfo = trainerInfo.trim();
-        profileUpdates.verificationStatus = "PENDING_VERIFICATION"; // Default verification status
+        profileUpdates.verificationStatus = "PENDING";
       }
 
       // Write user profile document

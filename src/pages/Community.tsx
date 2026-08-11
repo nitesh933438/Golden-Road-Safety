@@ -8,7 +8,7 @@ import { Leaderboard } from "../components/community/Leaderboard";
 type TabType = "feed" | "volunteer" | "leaderboard";
 
 export function Community() {
-  const { demoMode } = useOutletContext<{ demoMode: boolean }>();
+  
   const [activeTab, setActiveTab] = useState<TabType>("feed");
 
   return (
@@ -27,7 +27,7 @@ export function Community() {
           </div>
           <div>
             <div className="text-xs text-emerald-100 font-semibold uppercase tracking-wider">Active Volunteers</div>
-            <div className="text-sm font-bold">{demoMode ? "14,205 Online" : "2,405 Online"}</div>
+            <div className="text-sm font-bold">2,405 Online</div>
           </div>
         </div>
       </div>

@@ -3,6 +3,8 @@
  * Handles full offline persistence and background sync queueing
  */
 
+import { safeLocalStorage } from "./utils";
+
 export interface PendingSyncItem {
   id: string;
   type: "sos" | "hazard" | "community" | "ride" | "notification" | "volunteer";
@@ -19,28 +21,35 @@ const DB_VERSION = 1;
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      
-      if (!db.objectStoreNames.contains("syncQueue")) {
-        const syncStore = db.createObjectStore("syncQueue", { keyPath: "id" });
-        syncStore.createIndex("type", "type", { unique: false });
-        syncStore.createIndex("status", "status", { unique: false });
+    try {
+      if (typeof window === "undefined" || !("indexedDB" in window) || !window.indexedDB) {
+        return reject(new Error("IndexedDB is unavailable"));
       }
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-      if (!db.objectStoreNames.contains("offlineGuides")) {
-        db.createObjectStore("offlineGuides", { keyPath: "id" });
-      }
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        
+        if (!db.objectStoreNames.contains("syncQueue")) {
+          const syncStore = db.createObjectStore("syncQueue", { keyPath: "id" });
+          syncStore.createIndex("type", "type", { unique: false });
+          syncStore.createIndex("status", "status", { unique: false });
+        }
 
-      if (!db.objectStoreNames.contains("cachedLocation")) {
-        db.createObjectStore("cachedLocation", { keyPath: "id" });
-      }
-    };
+        if (!db.objectStoreNames.contains("offlineGuides")) {
+          db.createObjectStore("offlineGuides", { keyPath: "id" });
+        }
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+        if (!db.objectStoreNames.contains("cachedLocation")) {
+          db.createObjectStore("cachedLocation", { keyPath: "id" });
+        }
+      };
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -229,14 +238,14 @@ export async function clearSyncQueue(): Promise<void> {
  * Store / Get Last Known GPS Location
  */
 export async function saveLastLocation(loc: { lat: number; lng: number; address: string }): Promise<void> {
-  localStorage.setItem("goldenguard_last_location", JSON.stringify({
+  safeLocalStorage.setItem("goldenguard_last_location", JSON.stringify({
     ...loc,
     updatedAt: Date.now()
   }));
 }
 
 export function getLastLocation(): { lat: number; lng: number; address: string; updatedAt: number } | null {
-  const stored = localStorage.getItem("goldenguard_last_location");
+  const stored = safeLocalStorage.getItem("goldenguard_last_location");
   if (stored) {
     try {
       return JSON.parse(stored);

@@ -8,7 +8,6 @@ import {
   sortIncidentsByPriority, ACTIVE_STATUSES, createEmergencyIncident, updateIncident 
 } from "../lib/incidentService";
 import { useAuth } from "./AuthContext";
-import { useDemo } from "./DemoContext";
 
 interface IncidentContextType {
   activeIncidents: IncidentDoc[];
@@ -52,7 +51,6 @@ const IncidentContext = createContext<IncidentContextType | undefined>(undefined
 
 export function IncidentProvider({ children }: { children: ReactNode }) {
   const { userProfile } = useAuth();
-  const { demoMode } = useDemo();
 
   const [activeIncidents, setActiveIncidents] = useState<IncidentDoc[]>([]);
   const [allIncidents, setAllIncidents] = useState<IncidentDoc[]>([]);
@@ -79,11 +77,6 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
 
   // Real-time Firestore subscription to active incidents
   useEffect(() => {
-    if (demoMode) {
-      setIsLoadingIncidents(false);
-      return;
-    }
-
     setIsLoadingIncidents(true);
     setIncidentError(null);
 
@@ -107,6 +100,40 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
         setIsReconnecting(true);
         setIncidentError("Connection lost. Reconnecting to Firebase...");
         setIsLoadingIncidents(false);
+      }
+    );
+
+    // Also listen in real-time to active /sosRequests collection
+    const qSos = query(
+      collection(db, "sosRequests"),
+      where("status", "in", ["CREATED", "TRIAGING", "DISPATCHING", "ASSIGNED", "RESPONDER_EN_ROUTE", "ARRIVED"])
+    );
+
+    const unsubscribeSos = onSnapshot(
+      qSos,
+      (snapshot) => {
+        const sosDocs = snapshot.docs.map((d) => {
+          const data = d.data();
+          return parseIncidentDoc(d.id, {
+            ...data,
+            incidentId: d.id,
+            reporterUid: data.userId,
+            locationText: data.location,
+            priority: (data.severity || "CRITICAL").toLowerCase(),
+            status: data.status === "CREATED" ? "active" : data.status === "ASSIGNED" ? "acknowledged" : data.status === "RESPONDER_EN_ROUTE" ? "responding" : data.status === "ARRIVED" ? "hospital-arrived" : "active"
+          });
+        });
+
+        // Merge unique sosDocs into activeIncidents
+        setActiveIncidents(prev => {
+          const map = new Map<string, IncidentDoc>();
+          prev.forEach(inc => map.set(inc.id, inc));
+          sosDocs.forEach(inc => map.set(inc.id, inc));
+          return sortIncidentsByPriority(Array.from(map.values()));
+        });
+      },
+      (err) => {
+        console.warn("Firestore sosRequests listener error:", err);
       }
     );
 
@@ -134,9 +161,10 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
 
     return () => {
       unsubscribe();
+      unsubscribeSos();
       unsubscribeAll();
     };
-  }, [demoMode]);
+  }, []);
 
   // Selected Active Incident selection logic:
   // If user selected an ID explicitly, find it. Else pick highest-priority active incident.

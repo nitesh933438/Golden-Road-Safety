@@ -16,8 +16,11 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { auth, googleProvider, db } from "../lib/firebase";
 import { uploadToCloudinary } from "../lib/cloudinary";
+import { safeLocalStorage } from "../lib/utils";
 
-export type AppRole = "admin" | "trainer" | "user" | "volunteer" | "police" | "hospital" | "responder";
+export type AppRole = "admin" | "trainer" | "user" | "volunteer" | "police" | "hospital";
+
+export type VerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "PENDING_VERIFICATION";
 
 export interface UserProfile {
   uid: string;
@@ -25,6 +28,8 @@ export interface UserProfile {
   email: string;
   phone: string;
   role: AppRole;
+  appliedRole?: AppRole;
+  verificationStatus?: VerificationStatus;
   provider: "google" | "password";
   photoURL: string;
   city: string;
@@ -43,15 +48,20 @@ export interface UserProfile {
   };
   profileCompleted?: boolean;
   isProfileComplete?: boolean;
-  verificationStatus?: "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
   address?: string;
   services?: string;
   location?: string;
   stationName?: string;
+  hospitalName?: string;
   officialContact?: string;
   serviceArea?: string;
+  jurisdiction?: string;
+  emergencyAvailability?: string;
+  traumaCapacity?: string;
   qualifications?: string;
   trainerInfo?: string;
+  skills?: string;
+  medicalInfo?: string;
 }
 
 interface AuthContextType {
@@ -60,14 +70,19 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isTrainer: boolean;
+  isVolunteer: boolean;
+  isHospital: boolean;
+  isPolice: boolean;
   isUser: boolean;
+  isVerified: boolean;
   isGoogleAdmin: boolean;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfileData: (updates: Partial<UserProfile>, photoFile?: File) => Promise<void>;
-  setUserRole: (targetUid: string, newRole: AppRole) => Promise<void>;
+  setUserRole: (targetUid: string, newRole: AppRole, newVerificationStatus?: VerificationStatus) => Promise<void>;
+  updateUserVerification: (targetUid: string, status: VerificationStatus, assignedRole?: AppRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -77,7 +92,7 @@ const ADMIN_EMAIL = "nitesh933438@gmail.com";
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    const cached = localStorage.getItem("goldenguard_user_profile");
+    const cached = safeLocalStorage.getItem("goldenguard_user_profile");
     if (cached) {
       try { return JSON.parse(cached); } catch (e) {}
     }
@@ -88,9 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sync profile to localStorage
   useEffect(() => {
     if (userProfile) {
-      localStorage.setItem("goldenguard_user_profile", JSON.stringify(userProfile));
+      safeLocalStorage.setItem("goldenguard_user_profile", JSON.stringify(userProfile));
     } else {
-      localStorage.removeItem("goldenguard_user_profile");
+      safeLocalStorage.removeItem("goldenguard_user_profile");
     }
   }, [userProfile]);
 
@@ -308,20 +323,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Set User Role (Admin management action)
-  const setUserRole = async (targetUid: string, newRole: AppRole) => {
+  const setUserRole = async (targetUid: string, newRole: AppRole, newVerificationStatus?: VerificationStatus) => {
     try {
       const targetRef = doc(db, "users", targetUid);
-      await setDoc(targetRef, {
+      const updateData: any = {
         role: newRole,
-        uid: targetUid,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      };
+      if (newVerificationStatus) {
+        updateData.verificationStatus = newVerificationStatus;
+      } else if (newRole === "user") {
+        updateData.verificationStatus = "VERIFIED";
+      }
+      await setDoc(targetRef, updateData, { merge: true });
 
       if (targetUid === currentUser?.uid) {
-        setUserProfile((prev) => prev ? { ...prev, role: newRole } : null);
+        setUserProfile((prev) => prev ? { 
+          ...prev, 
+          role: newRole, 
+          verificationStatus: newVerificationStatus || prev.verificationStatus 
+        } : null);
       }
     } catch (error) {
       console.error("Error setting user role:", error);
+      throw error;
+    }
+  };
+
+  // Update User Verification Status (Admin management action)
+  const updateUserVerification = async (targetUid: string, status: VerificationStatus, assignedRole?: AppRole) => {
+    try {
+      const targetRef = doc(db, "users", targetUid);
+      const updateData: any = {
+        verificationStatus: status,
+        updatedAt: serverTimestamp()
+      };
+
+      if (status === "VERIFIED" && assignedRole) {
+        updateData.role = assignedRole;
+      }
+
+      await setDoc(targetRef, updateData, { merge: true });
+
+      if (targetUid === currentUser?.uid) {
+        setUserProfile((prev) => prev ? {
+          ...prev,
+          verificationStatus: status,
+          role: (status === "VERIFIED" && assignedRole) ? assignedRole : prev.role
+        } : null);
+      }
+    } catch (error) {
+      console.error("Error updating user verification:", error);
       throw error;
     }
   };
@@ -344,6 +396,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         phone: "",
         role: isAdminEmail ? "admin" : "user",
+        verificationStatus: isAdminEmail ? "VERIFIED" : "VERIFIED",
         provider: "password",
         photoURL: "",
         city: "",
@@ -376,7 +429,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     await signOut(auth);
     setUserProfile(null);
-    localStorage.removeItem("goldenguard_user_profile");
+    safeLocalStorage.removeItem("goldenguard_user_profile");
   };
 
   // Update Profile Data
@@ -389,10 +442,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       photoURL = await uploadToCloudinary(photoFile, "profiles");
     }
 
-    const computedRole: AppRole = 
-      userProfile?.role === "admin" 
-        ? "admin" 
-        : (updates.role && updates.role !== "admin" ? updates.role : userProfile?.role || "user");
+    // CRITICAL SECURITY RULE:
+    // Normal users CANNOT change their `role` or `verificationStatus` directly via updateProfileData.
+    // Roles are ONLY loaded/updated from the backend record or set by Admin.
+    const isCurrentUserAdmin = userProfile?.role === "admin" || (currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+
+    const computedRole: AppRole = isCurrentUserAdmin
+      ? (updates.role || userProfile?.role || "admin")
+      : (userProfile?.role || "user");
+
+    const computedVerificationStatus: VerificationStatus | undefined = isCurrentUserAdmin
+      ? (updates.verificationStatus || userProfile?.verificationStatus)
+      : userProfile?.verificationStatus;
 
     const isComplete = updates.isProfileComplete !== undefined 
       ? updates.isProfileComplete 
@@ -402,6 +463,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...updates,
       photoURL,
       role: computedRole,
+      ...(computedVerificationStatus ? { verificationStatus: computedVerificationStatus } : {}),
       updatedAt: serverTimestamp(),
       profileCompleted: isComplete,
       isProfileComplete: isComplete
@@ -413,6 +475,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile((prev) => prev ? { 
       ...prev, 
       ...finalUpdates, 
+      role: computedRole,
       profileCompleted: isComplete, 
       isProfileComplete: isComplete 
     } : null);
@@ -427,7 +490,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const currentRole = userProfile?.role || "user";
   const isAdmin = isGoogleAdmin || currentRole === "admin";
   const isTrainer = currentRole === "trainer" || isAdmin;
-  const isUser = true;
+  const isVolunteer = currentRole === "volunteer";
+  const isHospital = currentRole === "hospital";
+  const isPolice = currentRole === "police";
+  const isUser = true; // Every authenticated account has citizen capabilities
+  const isVerified = isAdmin || userProfile?.verificationStatus === "VERIFIED";
 
   return (
     <AuthContext.Provider
@@ -437,14 +504,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isAdmin,
         isTrainer,
+        isVolunteer,
+        isHospital,
+        isPolice,
         isUser,
+        isVerified,
         isGoogleAdmin,
         loginWithGoogle,
         loginWithEmail,
         signupWithEmail,
         logout,
         updateProfileData,
-        setUserRole
+        setUserRole,
+        updateUserVerification
       }}
     >
       {children}

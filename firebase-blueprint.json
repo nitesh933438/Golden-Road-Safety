@@ -183,6 +183,27 @@
         { "name": "photoURL", "type": "string", "description": "Cloudinary profile image" },
         { "name": "updatedAt", "type": "timestamp", "description": "Last update timestamp" }
       ]
+    },
+    {
+      "collectionId": "sosRequests",
+      "description": "Real-time emergency SOS requests, citizen tracking, responder assignments, and status pipeline.",
+      "fields": [
+        { "name": "sosId", "type": "string", "description": "Unique SOS document ID" },
+        { "name": "userId", "type": "string", "description": "UID of the citizen requesting help" },
+        { "name": "createdAt", "type": "timestamp", "description": "Creation timestamp from server" },
+        { "name": "location", "type": "string", "description": "Human-readable address or area" },
+        { "name": "latitude", "type": "number", "description": "GPS Latitude coordinate" },
+        { "name": "longitude", "type": "number", "description": "GPS Longitude coordinate" },
+        { "name": "severity", "type": "string", "description": "CRITICAL, HIGH, MEDIUM, LOW" },
+        { "name": "description", "type": "string", "description": "Emergency details or SOS trigger note" },
+        { "name": "medicalProfileReference", "type": "map", "description": "Medical ID / emergency contact snapshot" },
+        { "name": "status", "type": "string", "description": "CREATED, TRIAGING, DISPATCHING, ASSIGNED, RESPONDER_EN_ROUTE, ARRIVED, RESOLVED, CANCELLED" },
+        { "name": "assignedVolunteerId", "type": "string", "description": "UID of assigned verified volunteer" },
+        { "name": "assignedHospitalId", "type": "string", "description": "UID/Name of assigned verified hospital" },
+        { "name": "assignedPoliceId", "type": "string", "description": "UID/Name of assigned verified police station" },
+        { "name": "updatedAt", "type": "timestamp", "description": "Last status change timestamp" },
+        { "name": "resolvedAt", "type": "timestamp", "description": "Resolution timestamp" }
+      ]
     }
   ]
 }
