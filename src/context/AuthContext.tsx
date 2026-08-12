@@ -491,7 +491,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const rawRole = userProfile?.role || "citizen";
   const currentRole = rawRole === "user" ? "citizen" : rawRole;
-  const isAdmin = isGoogleAdmin || currentRole === "admin";
+  const isEmailAdmin = !!(currentUser && currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+  const isAdmin = isEmailAdmin || isGoogleAdmin || currentRole === "admin";
   const isTrainer = currentRole === "trainer" || isAdmin;
   const isVolunteer = currentRole === "volunteer";
   const isHospital = currentRole === "hospital";

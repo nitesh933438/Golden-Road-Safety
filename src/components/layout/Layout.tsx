@@ -54,6 +54,7 @@ type NavGroup = {
 const CITIZEN_HOME_GROUP: NavGroup = {
   title: "HOME",
   items: [
+    { name: "Dashboard", to: "/", icon: LayoutDashboard },
     { name: "Emergency Help", to: "/sos", icon: ShieldAlert, alert: true },
     { name: "Report a Road Problem", to: "/report", icon: AlertTriangle },
     { name: "Find Help", to: "/map", icon: MapIcon },
@@ -150,7 +151,7 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="flex h-[100dvh] w-full bg-surface-50 dark:bg-surface-950 overflow-hidden font-sans relative">
+    <div className="flex h-[100dvh] w-full bg-transparent overflow-hidden font-sans relative">
       {/* Full-screen Fixed Animated Road Safety Background */}
       <RoadSafetyBackground />
 
@@ -361,7 +362,7 @@ export function Layout() {
             }
           >
             <LayoutDashboard className="w-5 h-5" />
-            <span className="text-[10px] font-semibold truncate text-center">Home</span>
+            <span className="text-[10px] font-semibold truncate text-center">Dashboard</span>
           </NavLink>
 
           <NavLink

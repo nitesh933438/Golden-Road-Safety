@@ -268,7 +268,7 @@ export function RoadSafetyAnimatedBackground() {
       <div className="absolute bottom-[58vh] md:bottom-[48vh] left-0 w-full h-[15vh] bg-gradient-to-b from-transparent to-surface-50 dark:to-surface-950 z-[-2]" />
 
       {/* 5. Precision Overlay Mask layer: balances noticeable movement with superb content legibility */}
-      <div className="absolute inset-0 w-full h-full bg-surface-50/70 dark:bg-surface-950/82 backdrop-blur-[0.5px] transition-colors duration-300 z-[-1]" />
+      <div className="absolute inset-0 w-full h-full bg-surface-50/65 dark:bg-surface-950/78 backdrop-blur-[0.5px] transition-colors duration-300 z-[-1]" />
     </div>
   );
 }
