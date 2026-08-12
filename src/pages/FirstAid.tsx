@@ -34,10 +34,10 @@ export function FirstAid() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-6 animate-in fade-in duration-500">
+    <div className="h-auto md:h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-6 animate-in fade-in duration-500">
       
       {/* Main Content Area */}
-      <div className="flex-1 bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 shadow-sm flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 shadow-sm flex flex-col overflow-hidden md:overflow-hidden">
         
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

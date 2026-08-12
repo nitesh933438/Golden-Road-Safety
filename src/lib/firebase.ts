@@ -7,7 +7,7 @@ import {
   browserSessionPersistence, 
   inMemoryPersistence 
 } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 // Use import.meta.glob so that the build does not fail if firebase-applet-config.json is ignored/missing on GitHub/Vercel
 const configs = import.meta.glob('../../firebase-applet-config.json', { eager: true });
@@ -36,7 +36,11 @@ setPersistence(auth, browserLocalPersistence).catch(async (err) => {
   }
 });
 
-export const db = getFirestore(app, fileConfig.firestoreDatabaseId || undefined);
+// Force long polling to bypass iframe/proxy network routing issues in development container environments
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+}, fileConfig.firestoreDatabaseId || undefined);
+
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'

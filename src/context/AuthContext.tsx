@@ -18,7 +18,7 @@ import { auth, googleProvider, db } from "../lib/firebase";
 import { uploadToCloudinary } from "../lib/cloudinary";
 import { safeLocalStorage } from "../lib/utils";
 
-export type AppRole = "admin" | "trainer" | "user" | "volunteer" | "police" | "hospital";
+export type AppRole = "admin" | "trainer" | "citizen" | "user" | "volunteer" | "police" | "hospital" | "dispatcher";
 
 export type VerificationStatus = "PENDING" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "PENDING_VERIFICATION";
 
@@ -147,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (!snap.exists()) {
             // First time login: Create profile safely with setDoc merge: true
-            const initialRole: AppRole = isAdminEmail ? "admin" : "user";
+            const initialRole: AppRole = isAdminEmail ? "admin" : "citizen";
             const newProfileData = {
               uid: user.uid,
               name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
@@ -179,9 +179,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               lastLogin: new Date().toISOString()
             } as UserProfile);
           } else {
-            // Existing user: PRESERVE existing role (never reset to "user")
+            // Existing user: PRESERVE existing role (never reset to citizen, but map legacy "user" to "citizen")
             const existingData = snap.data();
-            const existingRole: AppRole = isAdminEmail ? "admin" : (existingData.role || "user");
+            const rawRole = existingData.role || "citizen";
+            const existingRole: AppRole = isAdminEmail ? "admin" : (rawRole === "user" ? "citizen" : rawRole);
 
             const updateData = {
               role: existingRole,
@@ -211,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (firestoreErr: any) {
           console.warn("Firestore profile sync warning:", firestoreErr.message);
           // Fallback profile if offline/permission issue
-          const fallbackRole: AppRole = isAdminEmail ? "admin" : "user";
+          const fallbackRole: AppRole = isAdminEmail ? "admin" : "citizen";
           setUserProfile((prev) => prev || {
             uid: user.uid,
             name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
@@ -239,7 +240,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubDoc = onSnapshot(userRef, (snapshot) => {
           if (snapshot.exists()) {
             const data = snapshot.data();
-            const existingRole: AppRole = isAdminEmail ? "admin" : (data.role || "user");
+            const rawRole = data.role || "citizen";
+            const existingRole: AppRole = isAdminEmail ? "admin" : (rawRole === "user" ? "citizen" : rawRole);
             const isComplete = data.isProfileComplete !== false && data.profileCompleted !== false;
 
             setUserProfile((prev) => ({
@@ -395,8 +397,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name,
         email,
         phone: "",
-        role: isAdminEmail ? "admin" : "user",
-        verificationStatus: isAdminEmail ? "VERIFIED" : "VERIFIED",
+        role: isAdminEmail ? "admin" : "citizen",
+        verificationStatus: "VERIFIED",
         provider: "password",
         photoURL: "",
         city: "",
@@ -449,7 +451,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const computedRole: AppRole = isCurrentUserAdmin
       ? (updates.role || userProfile?.role || "admin")
-      : (userProfile?.role || "user");
+      : (userProfile?.role || "citizen");
 
     const computedVerificationStatus: VerificationStatus | undefined = isCurrentUserAdmin
       ? (updates.verificationStatus || userProfile?.verificationStatus)
@@ -487,7 +489,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentUser.providerData.some((p) => p.providerId === "google.com")
   );
 
-  const currentRole = userProfile?.role || "user";
+  const rawRole = userProfile?.role || "citizen";
+  const currentRole = rawRole === "user" ? "citizen" : rawRole;
   const isAdmin = isGoogleAdmin || currentRole === "admin";
   const isTrainer = currentRole === "trainer" || isAdmin;
   const isVolunteer = currentRole === "volunteer";

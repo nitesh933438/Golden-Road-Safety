@@ -430,26 +430,26 @@ export function SOS() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col items-center justify-center min-h-[70vh] text-center space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-3xl mx-auto flex flex-col items-center justify-center min-h-0 py-4 sm:py-8 text-center space-y-6 sm:space-y-8 animate-in fade-in duration-500 w-full px-1 min-[360px]:px-2">
       
       {/* Crash Detection Telemetry & Hackathon Card */}
-      <div className="w-full bg-gradient-to-r from-red-600/10 via-amber-500/10 to-red-600/10 border-2 border-amber-500/30 rounded-3xl p-6 text-left space-y-4 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 to-amber-600 text-white flex items-center justify-center shadow-md">
+      <div className="w-full bg-gradient-to-r from-red-600/10 via-amber-500/10 to-red-600/10 border-2 border-amber-500/30 rounded-3xl p-4 min-[360px]:p-6 text-left space-y-4 shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 to-amber-600 text-white flex items-center justify-center shadow-md shrink-0">
               <Car className="w-5 h-5 animate-pulse" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] min-[360px]:text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 break-words">
                   AUTOMATIC CRASH DETECTION & AUTO SOS
                 </span>
-                <span className="flex h-2.5 w-2.5 relative">
+                <span className="flex h-2.5 w-2.5 relative shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
               </div>
-              <h3 className="text-base font-black text-surface-900 dark:text-white">
+              <h3 className="text-sm min-[360px]:text-base font-black text-surface-900 dark:text-white truncate">
                 Unconscious Victim Protection System
               </h3>
             </div>
@@ -457,7 +457,7 @@ export function SOS() {
 
           <button
             onClick={toggleSensorActive}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-xs font-bold text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors shrink-0"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-[11px] min-[360px]:text-xs font-bold text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors shrink-0 w-full md:w-auto justify-center"
           >
             <Radio className={`w-4 h-4 ${sensorActive ? "text-emerald-500 animate-pulse" : "text-surface-400"}`} />
             <span>Sensors: {sensorActive ? "ACTIVE" : "PAUSED"}</span>
@@ -474,7 +474,7 @@ export function SOS() {
 
       {/* LOCATION PERMISSION / MANUAL ADDRESS CARD */}
       {!sosActive && (
-        <div className="w-full bg-surface-900/90 border border-surface-800 rounded-3xl p-5 text-left space-y-3 shadow-lg">
+        <div className="w-full bg-surface-900/90 border border-surface-800 rounded-3xl p-4 min-[360px]:p-5 text-left space-y-3 shadow-lg">
           <div className="flex items-center gap-2 text-surface-200">
             <MapPin className="w-5 h-5 text-amber-400 shrink-0" />
             <span className="text-sm font-bold text-white">
@@ -512,7 +512,7 @@ export function SOS() {
 
       {/* GOLDEN HOUR COUNTDOWN BANNER (Calculated dynamically from backend createdAt) */}
       {sosActive && (
-        <div className="w-full bg-gradient-to-r from-amber-950/80 via-red-950/80 to-amber-950/80 border-2 border-amber-500/50 rounded-3xl p-5 text-left shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="w-full bg-gradient-to-r from-amber-950/80 via-red-950/80 to-amber-950/80 border-2 border-amber-500/50 rounded-3xl p-4 min-[360px]:p-5 text-left shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
               <Zap className="w-6 h-6 animate-pulse text-amber-400" />
@@ -526,9 +526,9 @@ export function SOS() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-black/50 px-5 py-2.5 rounded-2xl border border-amber-500/40 shrink-0">
+          <div className="flex items-center gap-2 bg-black/50 px-4 py-2 min-[360px]:px-5 min-[360px]:py-2.5 rounded-2xl border border-amber-500/40 shrink-0">
             <Clock className="w-5 h-5 text-amber-400 animate-spin" style={{ animationDuration: '3s' }} />
-            <span className="text-2xl font-mono font-black text-amber-400 tracking-wider">
+            <span className="text-xl min-[360px]:text-2xl font-mono font-black text-amber-400 tracking-wider">
               {goldenHourTimerStr}
             </span>
           </div>
@@ -552,7 +552,7 @@ export function SOS() {
       <button 
         onClick={handleSosButtonClick}
         disabled={isProcessingSOS}
-        className={`relative z-10 px-8 py-6 rounded-3xl flex flex-col items-center justify-center transition-all duration-300 shadow-2xl min-h-[140px] w-full max-w-md ${
+        className={`relative z-10 px-4 min-[360px]:px-8 py-5 min-[360px]:py-6 rounded-3xl flex flex-col items-center justify-center transition-all duration-300 shadow-2xl min-h-[110px] sm:min-h-[140px] w-full max-w-md ${
           sosActive 
             ? "bg-red-600 text-white shadow-red-600/50 scale-105" 
             : isProcessingSOS
@@ -561,12 +561,12 @@ export function SOS() {
         }`}
       >
         <div className="flex items-center gap-3">
-          <ShieldAlert className={`w-8 h-8 ${sosActive || isProcessingSOS ? "animate-pulse" : ""}`} />
-          <span className="text-xl sm:text-2xl font-black tracking-tight">
+          <ShieldAlert className={`w-7 h-7 sm:w-8 sm:h-8 ${sosActive || isProcessingSOS ? "animate-pulse" : ""}`} />
+          <span className="text-lg min-[360px]:text-xl sm:text-2xl font-black tracking-tight">
             {isProcessingSOS ? "Sending SOS..." : sosActive ? "Cancel Emergency SOS" : "GET EMERGENCY HELP"}
           </span>
         </div>
-        <span className="text-xs font-semibold text-red-100 mt-1 opacity-90">
+        <span className="text-[11px] sm:text-xs font-semibold text-red-100 mt-1 opacity-90">
           Police • Ambulance • Nearby Help
         </span>
       </button>
@@ -816,11 +816,11 @@ export function SOS() {
           onClick={(e) => {
             triggerEmergencyCall(TEST_EMERGENCY_NUMBER);
           }}
-          className="flex flex-col items-center gap-3 p-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white rounded-2xl transition-all shadow-xl ring-2 ring-amber-400/40 hover:-translate-y-1 sm:col-span-1"
+          className="flex flex-col items-center gap-2 p-4 min-[360px]:p-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white rounded-2xl transition-all shadow-xl ring-2 ring-amber-400/40 hover:-translate-y-1 sm:col-span-1"
         >
           <PhoneCall className="w-8 h-8 animate-bounce text-amber-300" />
-          <div className="font-black text-xl">9334387983</div>
-          <div className="text-xs font-extrabold uppercase tracking-wider text-amber-200">Test Emergency Contact</div>
+          <div className="font-black text-lg min-[360px]:text-xl break-all">9334387983</div>
+          <div className="text-[10px] min-[360px]:text-xs font-extrabold uppercase tracking-wider text-amber-200">Test Emergency Contact</div>
         </a>
 
         <a 
@@ -831,10 +831,10 @@ export function SOS() {
               alert("Dialing 108 (National Ambulance)... Direct line connected to regional dispatch.");
             }
           }}
-          className="flex flex-col items-center gap-3 p-6 bg-surface-900 dark:bg-surface-800 hover:bg-surface-800 text-white rounded-2xl transition-all shadow-lg hover:-translate-y-1"
+          className="flex flex-col items-center gap-2 p-4 min-[360px]:p-6 bg-surface-900 dark:bg-surface-800 hover:bg-surface-800 text-white rounded-2xl transition-all shadow-lg hover:-translate-y-1"
         >
           <Phone className="w-7 h-7 text-red-400" />
-          <div className="font-bold text-lg">Call 108</div>
+          <div className="font-bold text-base min-[360px]:text-lg">Call 108</div>
           <div className="text-xs text-surface-300">National Ambulance</div>
         </a>
 
@@ -846,10 +846,10 @@ export function SOS() {
               alert("Dialing 112 (General Emergency Helpline)... Priority dispatch initiated.");
             }
           }}
-          className="flex flex-col items-center gap-3 p-6 bg-surface-900 dark:bg-surface-800 hover:bg-surface-800 text-white rounded-2xl transition-all shadow-lg hover:-translate-y-1"
+          className="flex flex-col items-center gap-2 p-4 min-[360px]:p-6 bg-surface-900 dark:bg-surface-800 hover:bg-surface-800 text-white rounded-2xl transition-all shadow-lg hover:-translate-y-1"
         >
           <Phone className="w-7 h-7 text-blue-400" />
-          <div className="font-bold text-lg">Call 112</div>
+          <div className="font-bold text-base min-[360px]:text-lg">Call 112</div>
           <div className="text-xs text-surface-300">General Helpline</div>
         </a>
       </div>

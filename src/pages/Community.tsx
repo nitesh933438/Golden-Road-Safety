@@ -12,7 +12,7 @@ export function Community() {
   const [activeTab, setActiveTab] = useState<TabType>("feed");
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6 h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto flex flex-col gap-6 h-auto md:h-[calc(100vh-8rem)] animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 sm:p-8 text-white shadow-lg shrink-0 hover:shadow-xl transition-shadow">
         <div>

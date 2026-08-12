@@ -36,7 +36,12 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
   // Active State
   const [emergencyId, setEmergencyId] = useState<string | null>(null);
   const [timeElapsed, setTimeElapsed] = useState(0);
-  const [timelineProgress, setTimelineProgress] = useState(0);
+  const [dbStatus, setDbStatus] = useState("active");
+  const [assignedResponders, setAssignedResponders] = useState<{volunteer?: string, hospital?: string, police?: string}>({});
+  const [dbTimeline, setDbTimeline] = useState<string[]>([
+    "Location Captured",
+    "Emergency Incident Created"
+  ]);
 
   const handleSpeakGuidance = () => {
     if ('speechSynthesis' in window) {
@@ -86,14 +91,37 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
     if (step === "active") {
       interval = setInterval(() => {
         setTimeElapsed(prev => prev + 1);
-        if (timelineProgress < 8) {
-          // Simulate timeline progression every 3 seconds
-          setTimelineProgress(prev => prev + 1);
-        }
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [step, timelineProgress]);
+  }, [step]);
+
+  // Real-time listener for the active emergency from Firestore
+  useEffect(() => {
+    if (step === "active" && emergencyId) {
+      const unsub = onSnapshot(doc(db, "emergencies", emergencyId), (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data.status) setDbStatus(data.status);
+          if (data.timeline) setDbTimeline(data.timeline);
+          setAssignedResponders({
+            volunteer: data.volunteer || data.volunteerId || undefined,
+            hospital: data.hospital || data.hospitalId || undefined,
+            police: data.police || data.policeId || undefined
+          });
+
+          // If resolved or cancelled, move to summary
+          const lowerStatus = (data.status || "").toLowerCase();
+          if (lowerStatus === "resolved" || lowerStatus === "resolved_by_admin" || lowerStatus === "cancelled") {
+            setStep("summary");
+          }
+        }
+      }, (error) => {
+        console.error("Error listening to emergency:", error);
+      });
+      return () => unsub();
+    }
+  }, [step, emergencyId]);
 
   const handleSendSOS = async () => {
     const sosMsg = generateSOSMessage({
@@ -178,7 +206,6 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
       });
       setEmergencyId(createdIncId || uniqueSosId);
       setStep("active");
-      setTimelineProgress(2);
     } catch (error) {
       console.error("Error creating emergency in Firestore:", error);
       setSosError("SOS failed to synchronize. Network or permissions error.");
@@ -356,15 +383,21 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
                   <h3 className="text-xs font-bold uppercase tracking-wider text-surface-500">Live Response</h3>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2"><User className="w-4 h-4 text-blue-500"/> Volunteers</div>
-                    <span className="font-bold text-blue-600 dark:text-blue-400">ETA: 4 mins</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      {assignedResponders.volunteer ? `Assigned: ${assignedResponders.volunteer}` : "Searching..."}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2"><Activity className="w-4 h-4 text-red-500"/> Ambulance</div>
-                    <span className="font-bold text-red-600 dark:text-red-400">ETA: 9 mins</span>
+                    <div className="flex items-center gap-2"><Activity className="w-4 h-4 text-red-500"/> Medical Facility</div>
+                    <span className="font-bold text-red-600 dark:text-red-400">
+                      {assignedResponders.hospital ? `Assigned: ${assignedResponders.hospital}` : "Dispatching hospital..."}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-indigo-500"/> Police</div>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">ETA: 12 mins</span>
+                    <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-indigo-500"/> Police Station</div>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                      {assignedResponders.police ? `Assigned: ${assignedResponders.police}` : "Dispatching police..."}
+                    </span>
                   </div>
                 </div>
 
@@ -372,24 +405,14 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
                 <div className="bg-white dark:bg-surface-800 rounded-2xl p-4 border border-surface-200 dark:border-surface-700 shadow-sm flex-1 overflow-y-auto">
                    <h3 className="text-xs font-bold uppercase tracking-wider text-surface-500 mb-4">Emergency Timeline</h3>
                    <div className="space-y-4 relative before:absolute before:inset-y-0 before:left-2.5 before:w-0.5 before:bg-surface-200 dark:before:bg-surface-700">
-                     {[
-                       "Location Captured",
-                       "Emergency Created",
-                       "Nearby Volunteers Notified",
-                       "Nearby Hospitals Notified",
-                       "Police Alert Sent",
-                       "Emergency Contacts Notified",
-                       "AI First Aid Started",
-                       "Waiting for Response"
-                     ].map((item, idx) => (
-                       <div key={idx} className={`relative pl-8 transition-opacity duration-500 ${idx <= timelineProgress ? 'opacity-100' : 'opacity-30'}`}>
+                     {dbTimeline.map((item, idx) => (
+                       <div key={idx} className="relative pl-8 transition-opacity duration-500 opacity-100">
                          <div className={`absolute left-0 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
-                           idx < timelineProgress ? 'bg-green-500 text-white' : 
-                           idx === timelineProgress ? 'bg-blue-500 text-white animate-pulse' : 'bg-surface-200 dark:bg-surface-700 text-transparent'
+                           idx < dbTimeline.length - 1 ? 'bg-green-500 text-white' : 'bg-blue-500 text-white animate-pulse'
                          }`}>
-                           {idx < timelineProgress && <CheckCircle2 className="w-3 h-3" />}
+                           {idx < dbTimeline.length - 1 ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                          </div>
-                         <div className={`text-sm ${idx === timelineProgress ? 'font-bold text-surface-900 dark:text-white' : 'font-medium text-surface-600 dark:text-surface-400'}`}>
+                         <div className={`text-sm ${idx === dbTimeline.length - 1 ? 'font-bold text-surface-900 dark:text-white' : 'font-medium text-surface-600 dark:text-surface-400'}`}>
                            {item}
                          </div>
                        </div>

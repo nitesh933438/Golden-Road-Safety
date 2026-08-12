@@ -33,6 +33,7 @@ const Notifications = React.lazy(() => import("./pages/Notifications").then(m =>
 const MedicalWallet = React.lazy(() => import("./pages/MedicalWallet").then(m => ({ default: m.MedicalWallet })));
 const EmergencyMedicalIDView = React.lazy(() => import("./pages/EmergencyMedicalIDView").then(m => ({ default: m.EmergencyMedicalIDView })));
 const Search = React.lazy(() => import("./pages/Search").then(m => ({ default: m.Search })));
+const Legal = React.lazy(() => import("./pages/Legal").then(m => ({ default: m.Legal })));
 
 const NotFound = () => (
   <Placeholder 
@@ -101,9 +102,21 @@ export default function App() {
                       <Route path="/" element={<Layout />}>
                         <Route index element={<SafeLazyRoute><Dashboard /></SafeLazyRoute>} />
                         <Route path="saferide" element={<SafeLazyRoute><SafeRide /></SafeLazyRoute>} />
-                        <Route path="sos" element={<SafeLazyRoute><SOS /></SafeLazyRoute>} />
-                        <Route path="wallet" element={<SafeLazyRoute><MedicalWallet /></SafeLazyRoute>} />
-                        <Route path="medical-id" element={<SafeLazyRoute><MedicalWallet /></SafeLazyRoute>} />
+                        <Route path="sos" element={
+                          <ProtectedRoute requireProfileComplete={true}>
+                            <SafeLazyRoute><SOS /></SafeLazyRoute>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="wallet" element={
+                          <ProtectedRoute requireProfileComplete={true}>
+                            <SafeLazyRoute><MedicalWallet /></SafeLazyRoute>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="medical-id" element={
+                          <ProtectedRoute requireProfileComplete={true}>
+                            <SafeLazyRoute><MedicalWallet /></SafeLazyRoute>
+                          </ProtectedRoute>
+                        } />
                         <Route path="sync" element={<SafeLazyRoute><SyncCenter /></SafeLazyRoute>} />
                         <Route path="first-aid" element={<SafeLazyRoute><FirstAid /></SafeLazyRoute>} />
                         <Route path="map" element={<SafeLazyRoute><SmartMap /></SafeLazyRoute>} />
@@ -127,6 +140,7 @@ export default function App() {
                         <Route path="profile" element={<SafeLazyRoute><Profile /></SafeLazyRoute>} />
                         <Route path="notifications" element={<SafeLazyRoute><Notifications /></SafeLazyRoute>} />
                         <Route path="search" element={<SafeLazyRoute><Search /></SafeLazyRoute>} />
+                        <Route path="legal" element={<SafeLazyRoute><Legal /></SafeLazyRoute>} />
                         <Route path="*" element={<NotFound />} />
                       </Route>
                     </Routes>

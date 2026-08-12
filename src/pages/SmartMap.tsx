@@ -766,7 +766,7 @@ export default function SmartMap() {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] min-h-[620px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-xl" ref={mapContainerRef}>
+    <div className="flex flex-col h-[calc(100vh-10rem)] md:h-[calc(100vh-6rem)] min-h-[460px] md:min-h-[620px] bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 overflow-hidden relative shadow-xl" ref={mapContainerRef}>
       
       {/* Top Floating Header & Search Bar */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pointer-events-none">

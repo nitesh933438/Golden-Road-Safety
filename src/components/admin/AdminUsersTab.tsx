@@ -150,10 +150,12 @@ export function AdminUsersTab() {
             <option value="all">All Roles</option>
             <option value="admin">Admin</option>
             <option value="trainer">Trainer</option>
-            <option value="user">User (Citizen)</option>
+            <option value="citizen">Citizen</option>
+            <option value="user">User (Legacy)</option>
             <option value="volunteer">Volunteer</option>
             <option value="police">Police</option>
             <option value="hospital">Hospital</option>
+            <option value="dispatcher">Dispatcher</option>
           </select>
         </div>
       </div>
@@ -223,12 +225,14 @@ export function AdminUsersTab() {
                         onChange={(e) => handleRoleChange(user.uid, user.name, e.target.value as AppRole)}
                         className="px-2.5 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-700 text-xs font-bold border border-surface-200 dark:border-surface-600 text-surface-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
                       >
-                        <option value="user">USER (Citizen)</option>
+                        <option value="citizen">CITIZEN</option>
+                        <option value="user">USER (Legacy)</option>
                         <option value="trainer">TRAINER</option>
                         <option value="admin">ADMIN</option>
                         <option value="volunteer">VOLUNTEER</option>
                         <option value="police">POLICE</option>
                         <option value="hospital">HOSPITAL</option>
+                        <option value="dispatcher">DISPATCHER</option>
                       </select>
                     </div>
                   </td>

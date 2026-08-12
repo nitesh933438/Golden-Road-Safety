@@ -1,1 +1,1 @@
-export { RoadSafetyAnimatedBackground, RoadSafetyBackground } from "./RoadSafetyAnimatedBackground";
+export { RoadSafetyAnimatedBackground, RoadSafetyBackground, AnimatedBackground } from "./RoadSafetyAnimatedBackground";

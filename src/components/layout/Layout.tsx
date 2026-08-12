@@ -132,6 +132,15 @@ export function Layout() {
     };
   }, [isSidebarOpen]);
 
+  // Listen to global open-auth-modal triggers (e.g. from ProtectedRoute)
+  useEffect(() => {
+    const handleOpenAuth = () => {
+      setAuthModalOpen(true);
+    };
+    window.addEventListener("open-auth-modal", handleOpenAuth);
+    return () => window.removeEventListener("open-auth-modal", handleOpenAuth);
+  }, []);
+
   // Dispatch a window resize event to trigger Leaflet map invalidateSize or other redraws
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -141,7 +150,7 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="flex h-screen w-full bg-surface-50 dark:bg-surface-950 overflow-hidden font-sans relative">
+    <div className="flex h-[100dvh] w-full bg-surface-50 dark:bg-surface-950 overflow-hidden font-sans relative">
       {/* Full-screen Fixed Animated Road Safety Background */}
       <RoadSafetyBackground />
 
@@ -162,7 +171,7 @@ export function Layout() {
         aria-modal="true"
         aria-label="Navigation Menu"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-full max-w-[320px] flex flex-col bg-surface-950 text-white shadow-2xl border-r border-surface-800/80 transition-transform duration-300 ease-in-out h-[100dvh] max-h-[100dvh] overflow-hidden shrink-0 pt-[env(safe-area-inset-top)]",
+          "fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[290px] flex flex-col bg-surface-950 text-white shadow-2xl border-r border-surface-800/80 transition-transform duration-300 ease-in-out h-[100dvh] max-h-[100dvh] overflow-hidden shrink-0 pt-[env(safe-area-inset-top)]",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -280,7 +289,7 @@ export function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 bg-surface-50/80 dark:bg-surface-950/60 backdrop-blur-[2px] h-full overflow-hidden relative z-10">
+      <div className="flex flex-col flex-1 min-w-0 bg-transparent h-full overflow-hidden relative z-10">
         <CrashTopBanner />
 
         {/* Header */}
@@ -305,8 +314,8 @@ export function Layout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto relative flex flex-col custom-scrollbar">
-          <div className="flex-1 p-4 sm:p-8 pb-24 lg:pb-8">
-            {currentUser && userProfile?.isProfileComplete === false && !reminderDismissed && (
+          <div className="flex-1 p-4 sm:p-8 pb-28 lg:pb-8">
+            {currentUser && userProfile?.isProfileComplete === false && !reminderDismissed && !isAdmin && (
               <div className="mb-6 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in">
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 shrink-0" />

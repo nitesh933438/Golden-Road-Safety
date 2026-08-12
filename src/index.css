@@ -29,6 +29,10 @@
 }
 
 @layer base {
+  html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
   body {
     @apply bg-surface-50 text-surface-900 dark:bg-surface-950 dark:text-surface-50 antialiased;
   }

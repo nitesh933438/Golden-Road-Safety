@@ -23,7 +23,10 @@ export default async function handler(req: any, res: any) {
     if (result.success) {
       return res.status(200).json(result);
     } else {
-      return res.status(500).json(result);
+      return res.status(200).json({
+        ...result,
+        notice: "Automated SMS gateway unavailable or limited. Direct device SMS option available."
+      });
     }
   } catch (error: any) {
     console.error("API Emergency SOS Error:", error);

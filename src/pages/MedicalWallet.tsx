@@ -161,10 +161,10 @@ export function MedicalWallet() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-6 text-sm font-bold">
+      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-4 sm:gap-6 text-xs sm:text-sm font-bold overflow-x-auto whitespace-nowrap custom-scrollbar pb-1">
         <button
           onClick={() => setActiveTab("card")}
-          className={`pb-4 flex items-center gap-2 border-b-2 transition-all ${
+          className={`shrink-0 pb-4 flex items-center gap-2 border-b-2 transition-all ${
             activeTab === "card"
               ? "border-amber-500 text-amber-600 dark:text-amber-400"
               : "border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-white"
@@ -176,7 +176,7 @@ export function MedicalWallet() {
 
         <button
           onClick={() => setActiveTab("edit")}
-          className={`pb-4 flex items-center gap-2 border-b-2 transition-all ${
+          className={`shrink-0 pb-4 flex items-center gap-2 border-b-2 transition-all ${
             activeTab === "edit"
               ? "border-amber-500 text-amber-600 dark:text-amber-400"
               : "border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-white"
@@ -188,7 +188,7 @@ export function MedicalWallet() {
 
         <button
           onClick={() => setActiveTab("contacts")}
-          className={`pb-4 flex items-center gap-2 border-b-2 transition-all ${
+          className={`shrink-0 pb-4 flex items-center gap-2 border-b-2 transition-all ${
             activeTab === "contacts"
               ? "border-amber-500 text-amber-600 dark:text-amber-400"
               : "border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-white"

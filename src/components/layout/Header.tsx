@@ -88,10 +88,10 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
   return (
     <>
       <header className="sticky top-0 z-30 h-16 w-full bg-white/85 dark:bg-surface-900/85 backdrop-blur-xl border-b border-surface-200/80 dark:border-surface-800/80 transition-all shadow-sm">
-        <div className="h-full px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4 max-w-[1920px] mx-auto">
+        <div className="h-full px-2 min-[360px]:px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-1 sm:gap-4 max-w-[1920px] mx-auto">
           
           {/* ==================== LEFT SIDE ==================== */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-3 shrink-0">
             {/* Hamburger Button (All Devices) */}
             <button
               onClick={onOpenSidebar}
@@ -150,12 +150,12 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
           </form>
 
           {/* ==================== RIGHT SIDE CONTROLS ==================== */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-0.5 min-[360px]:gap-1 sm:gap-2.5 shrink-0 flex-nowrap">
             
             {/* Mobile Search Icon Button (< md screens) */}
             <button
               onClick={() => setIsMobileSearchOpen(true)}
-              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 md:hidden transition-colors"
+              className="p-1 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 md:hidden transition-colors shrink-0"
               aria-label="Open Search"
               title="Search System"
             >
@@ -168,19 +168,19 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
               onClick={() => {
                 triggerEmergencyCall(TEST_EMERGENCY_NUMBER);
               }}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs shadow-xs hover:scale-105 transition-all shrink-0"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 min-[360px]:px-2.5 min-[360px]:py-1.5 rounded-full bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-[10px] min-[360px]:text-xs shadow-xs hover:scale-105 transition-all shrink-0"
               title="Trigger 1-Tap SOS Emergency Dispatch"
             >
               <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
               <span className="hidden sm:inline">1-TAP SOS</span>
-              <span className="sm:hidden text-[10px]">SOS</span>
+              <span className="sm:hidden">SOS</span>
             </Link>
 
             {/* Notification Bell */}
-            <div ref={notificationRef} className="relative">
+            <div ref={notificationRef} className="relative shrink-0">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className={`p-1.5 sm:p-2 rounded-xl transition-all relative outline-none ${
+                className={`p-1 sm:p-2 rounded-xl transition-all relative outline-none shrink-0 ${
                   isNotificationOpen
                     ? "bg-amber-500/20 text-amber-500"
                     : "text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800"
@@ -198,7 +198,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
 
               {/* Notification Popover Drawer */}
               {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-surface-100 dark:divide-surface-800 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 mt-2 w-[calc(100vw-24px)] max-w-[340px] sm:w-96 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-surface-100 dark:divide-surface-800 animate-in fade-in zoom-in-95 duration-150">
                   {/* Header */}
                   <div className="p-3.5 bg-surface-50 dark:bg-surface-850 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -329,7 +329,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none transition-colors"
+              className="p-1 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none transition-colors shrink-0"
               aria-label="Toggle Theme"
               title="Toggle Light / Dark Mode"
             >
@@ -337,7 +337,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
             </button>
 
             {/* Profile Avatar & Unified Menu */}
-            <div ref={profileRef} className="relative">
+            <div ref={profileRef} className="relative shrink-0">
               <button 
                 onClick={() => {
                   if (currentUser) {
@@ -346,7 +346,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
                     onOpenAuthModal();
                   }
                 }} 
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-600 to-red-500 text-white flex items-center justify-center font-black text-xs shadow-xs hover:scale-105 transition-all overflow-hidden relative ring-2 ring-amber-500/30 outline-none" 
+                className="w-7 h-7 min-[360px]:w-8 min-[360px]:h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-600 to-red-500 text-white flex items-center justify-center font-black text-xs shadow-xs hover:scale-105 transition-all overflow-hidden relative ring-2 ring-amber-500/30 outline-none" 
                 title={currentUser ? `${userProfile?.name || 'User'} Menu` : "Sign In / Register"}
               >
                 {userProfile?.photoURL ? (
@@ -354,14 +354,14 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
                 ) : (
                   <span>{userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : "GG"}</span>
                 )}
-                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-surface-900 ${
+                <span className={`absolute bottom-0 right-0 w-2 h-2 min-[360px]:w-2.5 min-[360px]:h-2.5 rounded-full border-2 border-white dark:border-surface-900 ${
                   isOnline ? "bg-emerald-400" : "bg-red-500 animate-pulse"
                 }`}></span>
               </button>
 
               {/* Profile & Settings Unified Menu */}
               {isProfileOpen && currentUser && (
-                <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-surface-100 dark:divide-surface-800 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 mt-2 w-[calc(100vw-24px)] max-w-[280px] sm:max-w-xs sm:w-80 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-surface-100 dark:divide-surface-800 animate-in fade-in zoom-in-95 duration-150">
                   
                   {/* User Profile Card Header */}
                   <div className="p-3.5 bg-gradient-to-br from-surface-50 to-amber-500/10 dark:from-surface-850 dark:to-surface-900 flex items-center gap-3">

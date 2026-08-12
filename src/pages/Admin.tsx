@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   ShieldAlert, LayoutDashboard, Map as MapIcon, Users, 
   Activity, Bell, BarChart3, Settings, LogOut, Lock, AlertTriangle, AlertCircle
 } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getFriendlyAuthErrorMessage } from "../lib/authUtils";
 import { AdminDashboardTab } from "../components/admin/AdminDashboardTab";
@@ -23,9 +23,22 @@ type AdminTab =
 export function Admin() {
   
   const { currentUser, userProfile, isAdmin, loginWithGoogle, logout, loading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as AdminTab;
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [error, setError] = useState<string | null>(null);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
+
+  useEffect(() => {
+    if (tabParam && ["dashboard", "map", "emergencies", "volunteers", "users", "hazards", "notifications", "analytics", "settings"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab: AdminTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   const handleGoogleLogin = async () => {
     setError(null);
@@ -48,7 +61,7 @@ export function Admin() {
 
   if (!isAuthorizedAdmin) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div className="flex flex-col items-center justify-center h-auto md:h-[calc(100vh-8rem)] min-h-[400px] animate-in fade-in duration-500">
         <div className="bg-white dark:bg-surface-800 p-8 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl text-center max-w-md w-full space-y-5">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
             <ShieldAlert className="w-8 h-8" />
@@ -131,7 +144,7 @@ export function Admin() {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as AdminTab)}
+            onClick={() => handleTabChange(tab.id as AdminTab)}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
               activeTab === tab.id
                 ? "bg-amber-500 text-black shadow-md"
@@ -158,7 +171,7 @@ export function Admin() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as AdminTab)}
+              onClick={() => handleTabChange(tab.id as AdminTab)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
                 activeTab === tab.id
                   ? "bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400 font-bold"

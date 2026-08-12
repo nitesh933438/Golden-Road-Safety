@@ -389,46 +389,6 @@ export function SafeRide() {
             )}
           </div>
 
-          {/* AI Ride Anomaly Simulator Controls (Hackathon Feature) */}
-          <div className="border-t border-surface-200 dark:border-surface-800 pt-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                <Zap className="w-4 h-4 fill-current" /> Hackathon Telemetry Anomaly Simulator
-              </span>
-              <span className="text-[11px] text-surface-500 font-medium">Triggers Auto SOS & Unconscious Flow</span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <button
-                onClick={() => handleSimulateAnomaly("crash")}
-                className="py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all text-center"
-              >
-                🚗 High G Impact
-              </button>
-
-              <button
-                onClick={() => handleSimulateAnomaly("sudden_stop")}
-                className="py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all text-center"
-              >
-                🛑 Sudden Velocity Drop
-              </button>
-
-              <button
-                onClick={() => handleSimulateAnomaly("inactivity")}
-                className="py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all text-center"
-              >
-                ⏳ 2-Min Inactivity
-              </button>
-
-              <button
-                onClick={() => handleSimulateAnomaly("gps_jump")}
-                className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all text-center"
-              >
-                📍 GPS Jump Anomaly
-              </button>
-            </div>
-          </div>
-
         </div>
       )}
 

@@ -24,7 +24,6 @@ export function Notifications() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [isTestPanelOpen, setIsTestPanelOpen] = useState(false);
 
   // Category mapping helper
   const getCategoryMatches = (itemType: NotificationType, filterCategory: string): boolean => {
@@ -194,110 +193,8 @@ export function Notifications() {
             </button>
           )}
 
-          <button
-            onClick={() => setIsTestPanelOpen(!isTestPanelOpen)}
-            className="py-2.5 px-4 rounded-2xl bg-surface-900 text-white hover:bg-surface-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>{isTestPanelOpen ? "Hide Tester" : "Simulate Alerts"}</span>
-          </button>
         </div>
       </div>
-
-      {/* Broadcast & Incident Simulation Panel (Hackathon Feature) */}
-      {isTestPanelOpen && (
-        <div className="bg-surface-900 text-white p-6 rounded-3xl border border-surface-700 shadow-xl space-y-4 animate-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between border-b border-surface-800 pb-3">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-400" />
-              <h3 className="font-black text-sm uppercase tracking-wide">Real-time Alert Generator</h3>
-            </div>
-            <span className="text-xs text-surface-400 font-medium">Fires Firestore & PWA Notifications instantly</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-            <button
-              onClick={() => sendTestNotification("emergency")}
-              className="p-3 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-red-400 font-extrabold flex items-center gap-1">🚨 Emergency</div>
-              <div className="text-[10px] text-surface-300 font-normal">Crash Anomaly</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("sos")}
-              className="p-3 rounded-xl bg-red-900/80 hover:bg-red-800 border border-red-500/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-red-300 font-extrabold flex items-center gap-1">🆘 Auto SOS</div>
-              <div className="text-[10px] text-surface-300 font-normal">Dispatch #882</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("volunteer")}
-              className="p-3 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-emerald-400 font-extrabold flex items-center gap-1">🤝 Volunteer</div>
-              <div className="text-[10px] text-surface-300 font-normal">Responder En Route</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("hospital")}
-              className="p-3 rounded-xl bg-blue-950/80 hover:bg-blue-900 border border-blue-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-blue-400 font-extrabold flex items-center gap-1">🏥 Hospital</div>
-              <div className="text-[10px] text-surface-300 font-normal">Trauma Room Prepped</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("police")}
-              className="p-3 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-indigo-400 font-extrabold flex items-center gap-1">🚔 Police</div>
-              <div className="text-[10px] text-surface-300 font-normal">Corridor Dispatched</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("ai")}
-              className="p-3 rounded-xl bg-amber-950/80 hover:bg-amber-900 border border-amber-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-amber-400 font-extrabold flex items-center gap-1">🤖 AI First Aid</div>
-              <div className="text-[10px] text-surface-300 font-normal">Triage Protocol</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("hazard")}
-              className="p-3 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-orange-400 font-extrabold flex items-center gap-1">⚠️ Road Hazard</div>
-              <div className="text-[10px] text-surface-300 font-normal">Blackspot Warning</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("community")}
-              className="p-3 rounded-xl bg-teal-950/80 hover:bg-teal-900 border border-teal-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-teal-400 font-extrabold flex items-center gap-1">🌐 Community</div>
-              <div className="text-[10px] text-surface-300 font-normal">Responder Fleet</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("training")}
-              className="p-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-purple-400 font-extrabold flex items-center gap-1">🎓 Training</div>
-              <div className="text-[10px] text-surface-300 font-normal">CPR Badge Due</div>
-            </button>
-
-            <button
-              onClick={() => sendTestNotification("admin")}
-              className="p-3 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-600/40 text-left text-xs font-bold space-y-1 transition-all"
-            >
-              <div className="text-rose-400 font-extrabold flex items-center gap-1">📢 Admin Broadcast</div>
-              <div className="text-[10px] text-surface-300 font-normal">System Weather Alert</div>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">

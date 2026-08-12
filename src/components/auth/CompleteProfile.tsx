@@ -11,7 +11,7 @@ import { db } from "../../lib/firebase";
 export function CompleteProfile() {
   const { currentUser, updateProfileData } = useAuth();
   
-  const [selectedRole, setSelectedRole] = useState<AppRole>("user");
+  const [selectedRole, setSelectedRole] = useState<AppRole>("citizen");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [photoURL, setPhotoURL] = useState("");
@@ -102,7 +102,7 @@ export function CompleteProfile() {
     }
 
     // Role-specific validation
-    if (selectedRole === "user") {
+    if (selectedRole === "citizen" || selectedRole === "user") {
       if (!phone.trim()) {
         setError("Phone number is required.");
         return;
@@ -166,17 +166,17 @@ export function CompleteProfile() {
       const userRef = doc(db, "users", uid);
 
       // Construct base profile
-      // CRITICAL RULE: Registration role is always "user" by default.
+      // CRITICAL RULE: Registration role is always "citizen" by default.
       // Specialized roles (volunteer, hospital, police, trainer) require admin verification (PENDING status).
-      const isSpecializedRoleRequested = selectedRole !== "user";
+      const isSpecializedRoleRequested = selectedRole !== "citizen" && selectedRole !== "user";
 
       const profileUpdates: any = {
         uid,
         name: name.trim(),
         email: currentUser.email || "",
         phone: phone.trim(),
-        role: "user", // Default registration role is strictly "user"
-        appliedRole: isSpecializedRoleRequested ? selectedRole : "user",
+        role: "citizen", // Default registration role is strictly "citizen"
+        appliedRole: isSpecializedRoleRequested ? selectedRole : "citizen",
         verificationStatus: isSpecializedRoleRequested ? "PENDING" : "VERIFIED",
         provider: currentUser.providerData.some(p => p.providerId === "google.com") ? "google" : "password",
         photoURL,
@@ -189,7 +189,7 @@ export function CompleteProfile() {
       };
 
       // Add role-specific data
-      if (selectedRole === "user") {
+      if (selectedRole === "citizen" || selectedRole === "user") {
         profileUpdates.bloodGroup = bloodGroup;
         profileUpdates.medicalInfo = medicalInfo;
         profileUpdates.emergencyContacts = emergencyContacts.filter(c => c.name.trim() && c.phone.trim());
@@ -252,7 +252,7 @@ export function CompleteProfile() {
   };
 
   const rolesList = [
-    { id: "user", title: "Citizen (USER)", desc: "Manage medical profile, register ICE contacts, and access automatic crash guardian.", icon: User },
+    { id: "citizen", title: "Citizen", desc: "Manage medical profile, register ICE contacts, and access automatic crash guardian.", icon: User },
     { id: "volunteer", title: "Good Samaritan (VOLUNTEER)", desc: "Register as a nearby first responder to receive emergency alerts.", icon: Shield },
     { id: "hospital", title: "Trauma Center (HOSPITAL)", desc: "Manage trauma beds, receive incoming crash notifications, and coordinate triage.", icon: Building2 },
     { id: "police", title: "Police / Responder (POLICE)", desc: "Coordinate green corridors and clear accident scenes rapidly.", icon: Car },
@@ -401,8 +401,8 @@ export function CompleteProfile() {
           <div className="space-y-5">
             <h3 className="text-xs font-black uppercase text-surface-400 tracking-wider">Step 3: Role Verification Requirements</h3>
 
-            {/* USER Fields */}
-            {selectedRole === "user" && (
+            {/* Citizen Fields */}
+            {(selectedRole === "citizen" || selectedRole === "user") && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">

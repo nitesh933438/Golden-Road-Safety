@@ -193,7 +193,8 @@ export async function createEmergencyIncident(params: {
     longitude: params.longitude,
     locationText: params.locationText || `${params.latitude.toFixed(4)}, ${params.longitude.toFixed(4)}`,
     createdAt: serverTimestamp(),
-    goldenHourDeadline: serverTimestamp(), // Will be computed on read as createdAt + 60m
+    goldenHourDeadline: new Date(Date.now() + 60 * 60 * 1000),
+    goldenHourDeadlineMs: Date.now() + 60 * 60 * 1000,
     status: "active",
     priority: priority,
     type: type,

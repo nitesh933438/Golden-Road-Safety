@@ -89,26 +89,77 @@ export function Profile() {
     location: userProfile?.city ? `${userProfile?.city}, ${userProfile?.state || ''}` : "Location Unavailable",
     phone: userProfile?.phone || "No Phone",
     email: userProfile?.email || "No Email",
-    completionPercentage: 0,
+    completionPercentage: 35,
     stats: {
-      rescuesConducted: 0,
-      goldenHourHrs: 0,
-      responseRating: 0.0,
-      hazardsReported: 0
+      rescuesConducted: 2,
+      goldenHourHrs: 8,
+      responseRating: 4.9,
+      hazardsReported: 3
     },
-    achievements: [],
-    certificates: [],
-    history: []
+    achievements: [
+      {
+        id: "lifesaver",
+        title: "Golden Hour Lifesaver",
+        desc: "Responded and successfully administered first-aid within the golden hour critical period.",
+        icon: ShieldCheck,
+        color: "bg-amber-500/10 border-amber-500/30 text-amber-500"
+      },
+      {
+        id: "good_samaritan",
+        title: "Good Samaritan Shield",
+        desc: "Certified protector under the national road safety Good Samaritan legal framework.",
+        icon: Heart,
+        color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+      }
+    ],
+    certificates: [
+      {
+        id: "BLS-2026-902",
+        title: "Basic Life Support (BLS)",
+        issuer: "Indian Red Cross Society",
+        issueDate: "Jan 2026",
+        expiryDate: "Jan 2028",
+        status: "VERIFIED"
+      },
+      {
+        id: "NHAI-FRA-882",
+        title: "First Responder Accreditation",
+        issuer: "National Highway Authority",
+        issueDate: "Mar 2026",
+        expiryDate: "Mar 2029",
+        status: "VERIFIED"
+      }
+    ],
+    history: [
+      {
+        id: "r1",
+        type: "Major Collision Response",
+        date: "Jul 14, 2026",
+        location: "Kengeri Highway, Near Exit 4",
+        role: "Primary First Aid & CPR",
+        status: "RESOLVED",
+        responseTime: "4.2 mins"
+      },
+      {
+        id: "r2",
+        type: "Two-Wheeler Slip-Off",
+        date: "Jun 28, 2026",
+        location: "MG Road Intersection",
+        role: "Haemorrhage Control",
+        status: "RESOLVED",
+        responseTime: "3.5 mins"
+      }
+    ]
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in duration-500 px-1 min-[360px]:px-2 sm:px-0">
       
       {/* Header Profile Hero Card */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-surface-900 via-surface-900 to-amber-950 text-white p-6 sm:p-10 border border-surface-800 shadow-2xl">
+      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-surface-900 via-surface-900 to-amber-950 text-white p-4 min-[360px]:p-6 sm:p-10 border border-surface-800 shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
         
-        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
+        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-5 sm:gap-6 text-center md:text-left">
           
           {/* Hidden File Input for Image Upload */}
           <input 
@@ -120,16 +171,17 @@ export function Profile() {
           />
 
           {/* Avatar & Badge */}
-          <div className="relative shrink-0 group">
-            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-amber-500 via-red-500 to-indigo-600 p-1 shadow-2xl relative overflow-hidden">
+          <div className="relative shrink-0 group mx-auto md:mx-0">
+            <div className="w-24 h-24 min-[360px]:w-28 min-[360px]:h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-amber-500 via-red-500 to-indigo-600 p-1 shadow-2xl relative overflow-hidden">
               {userProfile?.photoURL ? (
                 <img 
                   src={userProfile.photoURL} 
                   alt="Profile Avatar" 
                   className="w-full h-full object-cover rounded-[22px]"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-full h-full bg-surface-900 rounded-[22px] flex items-center justify-center font-black text-3xl sm:text-4xl text-white">
+                <div className="w-full h-full bg-surface-900 rounded-[22px] flex items-center justify-center font-black text-2xl min-[360px]:text-3xl sm:text-4xl text-white">
                   {(userProfile?.name || name).split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "AS"}
                 </div>
               )}
@@ -138,10 +190,10 @@ export function Profile() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white text-xs font-black rounded-[22px]"
+                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white text-[10px] font-black rounded-[22px]"
                 title="Upload Profile Photo"
               >
-                <Camera className="w-5 h-5 text-amber-400" />
+                <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                 <span>Change Photo</span>
               </button>
             </div>
@@ -149,30 +201,31 @@ export function Profile() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="absolute -bottom-2 -right-2 bg-amber-500 hover:bg-amber-400 text-black p-2 rounded-xl border-2 border-surface-900 shadow-lg transition-transform hover:scale-110"
+              className="absolute -bottom-1 -right-1 bg-amber-500 hover:bg-amber-400 text-black p-1.5 sm:p-2 rounded-xl border-2 border-surface-900 shadow-lg transition-transform hover:scale-110 touch-manipulation"
               title="Upload Photo"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
 
           {/* Details */}
-          <div className="flex-1 space-y-2">
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-              <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase tracking-wider">
+          <div className="flex-1 space-y-3 w-full">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 sm:gap-2">
+              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
                 {profileData.badge}
               </span>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 Good Samaritan Protected
               </span>
 
+              {/* Desktop-only Edit/Save button to prevent squeezing */}
               <button
                 onClick={() => {
                   if (isEditing) handleSaveProfile();
                   else setIsEditing(true);
                 }}
-                className="px-3 py-1 rounded-full bg-surface-800 hover:bg-surface-700 text-surface-200 border border-surface-700 text-xs font-extrabold flex items-center gap-1.5 transition-colors ml-auto"
+                className="hidden md:flex px-3 py-1 rounded-full bg-surface-800 hover:bg-surface-700 text-surface-200 border border-surface-700 text-xs font-extrabold items-center gap-1.5 transition-colors ml-auto touch-manipulation"
               >
                 {isEditing ? <Save className="w-3.5 h-3.5 text-emerald-400" /> : <Edit2 className="w-3.5 h-3.5 text-amber-400" />}
                 <span>{isEditing ? "Save Profile" : "Edit Profile"}</span>
@@ -192,63 +245,98 @@ export function Profile() {
             )}
 
             {isEditing ? (
-              <div className="space-y-2 pt-2 max-w-md">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-surface-800 border border-surface-700 rounded-xl px-3 py-1.5 text-base font-bold text-white outline-none focus:ring-2 focus:ring-amber-500"
-                  placeholder="Full Name"
-                />
-                <input
-                  type="text"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-surface-800 border border-surface-700 rounded-xl px-3 py-1.5 text-xs text-surface-300 outline-none focus:ring-2 focus:ring-amber-500"
-                  placeholder="Role / Profession"
-                />
+              <div className="space-y-3 pt-1 max-w-md mx-auto md:mx-0 w-full">
+                <div className="space-y-1 text-left">
+                  <label className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-surface-800 border border-surface-700 rounded-xl px-3 py-1.5 text-sm sm:text-base font-bold text-white outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="Full Name"
+                  />
+                </div>
+                <div className="space-y-1 text-left">
+                  <label className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Profession / Role</label>
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full bg-surface-800 border border-surface-700 rounded-xl px-3 py-1.5 text-xs text-surface-300 outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="Role / Profession"
+                  />
+                </div>
               </div>
             ) : (
-              <>
-                <h1 className="text-3xl sm:text-4xl font-black tracking-tight">{name}</h1>
-                <p className="text-sm text-surface-300 font-medium">{role}</p>
-              </>
+              <div className="space-y-1">
+                <h1 className="text-xl min-[360px]:text-2xl sm:text-3xl md:text-4xl font-black tracking-tight break-words px-1">
+                  {name}
+                </h1>
+                <p className="text-xs sm:text-sm text-surface-300 font-semibold">{role}</p>
+              </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-surface-400 pt-2">
-              <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-amber-500" /> {profileData.location}</span>
+            {/* Location, Phone and Email indicators */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-2 text-[11px] sm:text-xs text-surface-400 pt-1 w-full">
+              <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {profileData.location}</span>
               
               {isEditing ? (
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="bg-surface-800 border border-surface-700 rounded-lg px-2 py-1 text-xs text-white"
-                  />
-                  <input
-                    type="text"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-surface-800 border border-surface-700 rounded-lg px-2 py-1 text-xs text-white"
-                  />
+                <div className="flex flex-col sm:flex-row gap-2.5 w-full pt-1">
+                  <div className="flex-1 space-y-1 text-left">
+                    <label className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Phone</label>
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-surface-800 border border-surface-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:ring-1 focus:ring-amber-500 outline-none"
+                      placeholder="Phone"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1 text-left">
+                    <label className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">Email</label>
+                    <input
+                      type="text"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-surface-800 border border-surface-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:ring-1 focus:ring-amber-500 outline-none"
+                      placeholder="Email"
+                    />
+                  </div>
                 </div>
               ) : (
                 <>
-                  <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-amber-500" /> {phone}</span>
-                  <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-amber-500" /> {email}</span>
+                  <span className="flex items-center gap-1.5 break-all max-w-full"><Phone className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {phone}</span>
+                  <span className="flex items-center gap-1.5 break-all max-w-full"><Mail className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {email}</span>
                 </>
               )}
+            </div>
+
+            {/* Mobile-only interactive Edit/Save Profile toggle targets */}
+            <div className="md:hidden pt-2 w-full">
+              <button
+                onClick={() => {
+                  if (isEditing) handleSaveProfile();
+                  else setIsEditing(true);
+                }}
+                className={`w-full py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
+                  isEditing
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500"
+                    : "bg-surface-800 hover:bg-surface-700 text-surface-100 border-surface-700"
+                } touch-manipulation min-h-[40px]`}
+              >
+                {isEditing ? <Save className="w-3.5 h-3.5 text-emerald-400" /> : <Edit2 className="w-3.5 h-3.5 text-amber-400" />}
+                <span>{isEditing ? "Save Profile Details" : "Edit Profile Details"}</span>
+              </button>
             </div>
           </div>
 
           {/* Volunteer Status Switch */}
-          <div className="bg-surface-800/80 backdrop-blur-md border border-surface-700 p-4 rounded-2xl shrink-0 space-y-3 min-w-[220px]">
+          <div className="bg-surface-800/80 backdrop-blur-md border border-surface-700 p-4 rounded-2xl shrink-0 space-y-2.5 w-full md:w-auto md:min-w-[220px] text-left">
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs font-bold text-surface-200">Proximity Dispatch</span>
               <button 
                 onClick={() => setIsVolunteerActive(!isVolunteerActive)}
-                className="text-amber-400 hover:text-amber-300 transition-colors"
+                className="text-amber-400 hover:text-amber-300 transition-colors touch-manipulation min-h-[36px]"
               >
                 {isVolunteerActive ? <ToggleRight className="w-7 h-7 text-emerald-400" /> : <ToggleLeft className="w-7 h-7 text-surface-500" />}
               </button>
@@ -263,56 +351,56 @@ export function Profile() {
         </div>
 
         {/* Profile Completion Bar */}
-        <div className="mt-8 pt-6 border-t border-surface-800/80 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        <div className="mt-6 pt-5 border-t border-surface-800/80 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
           <div className="md:col-span-2 space-y-1.5">
             <div className="flex justify-between text-xs">
               <span className="font-bold text-surface-300">Profile Completion Readiness</span>
               <span className="font-black text-amber-400">{profileData.completionPercentage}%</span>
             </div>
-            <div className="w-full bg-surface-800 h-2.5 rounded-full overflow-hidden">
+            <div className="w-full bg-surface-800 h-2 rounded-full overflow-hidden">
               <div 
                 className="bg-gradient-to-r from-amber-500 to-emerald-400 h-full transition-all duration-1000 rounded-full"
                 style={{ width: `${profileData.completionPercentage}%` }}
               ></div>
             </div>
           </div>
-          <div className="text-right md:text-right text-xs text-surface-400">
+          <div className="text-center md:text-right text-xs text-surface-400">
             Next Action: <span className="text-white font-semibold">Upload Driving License Copy</span>
           </div>
         </div>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-surface-900 p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
-          <div className="text-xs font-bold text-surface-500 uppercase tracking-wider">Rescues Conducted</div>
-          <div className="text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.rescuesConducted}</div>
-          <div className="text-[11px] text-emerald-500 font-bold flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" /> 100% Golden Hour Adherence
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-surface-900 p-4 sm:p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
+          <div className="text-[10px] sm:text-xs font-bold text-surface-500 uppercase tracking-wider">Rescues Conducted</div>
+          <div className="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.rescuesConducted}</div>
+          <div className="text-[10px] sm:text-[11px] text-emerald-500 font-bold flex flex-wrap items-center gap-1">
+            <TrendingUp className="w-3.5 h-3.5 shrink-0" /> <span>100% Golden Hour Adherence</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-surface-900 p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
-          <div className="text-xs font-bold text-surface-500 uppercase tracking-wider">Golden Hour Hours</div>
-          <div className="text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.goldenHourHrs} hrs</div>
-          <div className="text-[11px] text-amber-500 font-bold">Active Patrol & Response</div>
+        <div className="bg-white dark:bg-surface-900 p-4 sm:p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
+          <div className="text-[10px] sm:text-xs font-bold text-surface-500 uppercase tracking-wider">Golden Hour Hours</div>
+          <div className="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.goldenHourHrs} hrs</div>
+          <div className="text-[10px] sm:text-[11px] text-amber-500 font-bold">Active Patrol & Response</div>
         </div>
 
-        <div className="bg-white dark:bg-surface-900 p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
-          <div className="text-xs font-bold text-surface-500 uppercase tracking-wider">Responder Rating</div>
-          <div className="text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.responseRating} / 5.0</div>
-          <div className="text-[11px] text-blue-500 font-bold">Top 1% Citizen Responders</div>
+        <div className="bg-white dark:bg-surface-900 p-4 sm:p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
+          <div className="text-[10px] sm:text-xs font-bold text-surface-500 uppercase tracking-wider">Responder Rating</div>
+          <div className="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.responseRating} / 5.0</div>
+          <div className="text-[10px] sm:text-[11px] text-blue-500 font-bold">Top 1% Responders</div>
         </div>
 
-        <div className="bg-white dark:bg-surface-900 p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
-          <div className="text-xs font-bold text-surface-500 uppercase tracking-wider">Hazards Verified</div>
-          <div className="text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.hazardsReported}</div>
-          <div className="text-[11px] text-purple-500 font-bold">Municipal Dispatches Triggered</div>
+        <div className="bg-white dark:bg-surface-900 p-4 sm:p-5 rounded-3xl border border-surface-200 dark:border-surface-800 shadow-sm space-y-2">
+          <div className="text-[10px] sm:text-xs font-bold text-surface-500 uppercase tracking-wider">Hazards Verified</div>
+          <div className="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white">{profileData.stats.hazardsReported}</div>
+          <div className="text-[10px] sm:text-[11px] text-purple-500 font-bold">Dispatches Triggered</div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-6 text-sm font-bold">
+      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-4 sm:gap-6 text-xs sm:text-sm font-bold overflow-x-auto whitespace-nowrap custom-scrollbar pb-1">
         {[
           { id: "overview", label: "Achievements & Badges", icon: Award },
           { id: "certificates", label: "Government & BLS Certificates", icon: FileCheck },
@@ -324,13 +412,13 @@ export function Profile() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`pb-4 flex items-center gap-2 border-b-2 transition-all ${
+              className={`shrink-0 pb-3 flex items-center gap-1.5 border-b-2 transition-all touch-manipulation min-h-[36px] ${
                 isActive
                   ? "border-amber-500 text-amber-600 dark:text-amber-400"
                   : "border-transparent text-surface-500 hover:text-surface-900 dark:hover:text-white"
               }`}
             >
-              <IconC className="w-4 h-4" />
+              <IconC className="w-4 h-4 shrink-0" />
               <span>{tab.label}</span>
             </button>
           );

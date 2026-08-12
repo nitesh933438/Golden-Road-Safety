@@ -55,9 +55,9 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
       const data = await response.json();
 
       if (!response.ok) {
-        const errCode = data.code || response.status;
-        const errMessage = data.message || "Twilio request failed";
-        const errMoreInfo = data.more_info || "https://www.twilio.com/docs/errors";
+        const errCode = data.code || data.error?.code || response.status;
+        const errMessage = data.message || data.error?.message || "Twilio request failed";
+        const errMoreInfo = data.more_info || data.error?.more_info || "https://www.twilio.com/docs/errors";
         
         console.warn("[Twilio SMS Dispatch Notice]:", {
           code: errCode,
@@ -67,13 +67,17 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
         });
 
         let friendlyMessage = `Emergency alert could not be sent via gateway: ${errMessage}`;
-        if (
+        const isTrialOrTemplateLimit = 
           String(errCode) === "572006" || 
-          errMessage.toLowerCase().includes("template") || 
-          errMessage.toLowerCase().includes("trial font") ||
-          errMessage.toLowerCase().includes("trial") ||
-          String(errMoreInfo).includes("572006")
-        ) {
+          (typeof errMessage === "string" && (
+            errMessage.toLowerCase().includes("template") || 
+            errMessage.toLowerCase().includes("trial font") ||
+            errMessage.toLowerCase().includes("trial phone") ||
+            errMessage.toLowerCase().includes("trial")
+          )) ||
+          (typeof errMoreInfo === "string" && errMoreInfo.includes("572006"));
+
+        if (isTrialOrTemplateLimit) {
           friendlyMessage = `Twilio trial/verification limit (Error 572006): Trial accounts require verified numbers or template approval. Please use the 'Send SMS via Device' manual button on screen.`;
         }
 

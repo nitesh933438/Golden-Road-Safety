@@ -81,12 +81,12 @@ export function Logo({
 
       {/* Wordmark */}
       {showWordmark && (
-        <div className="flex flex-col">
-          <span className={`font-black tracking-tight ${currentSize.text} leading-none text-surface-900 dark:text-white flex items-center gap-1.5`}>
+        <div className="hidden min-[480px]:flex flex-col">
+          <span className={`font-black tracking-tight ${currentSize.text} leading-none text-surface-900 dark:text-white flex items-center gap-1`}>
             Golden<span className="text-amber-500 dark:text-amber-400">Guard</span>
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Live AI Emergency Guardian" />
+            <span className="inline-block w-1 h-1 rounded-full bg-red-500 animate-pulse" title="Live AI Emergency Guardian" />
           </span>
-          <span className="text-[10px] uppercase tracking-widest font-bold text-surface-400 dark:text-surface-500 mt-0.5">
+          <span className="hidden sm:block text-[9px] uppercase tracking-widest font-bold text-surface-400 dark:text-surface-500 mt-0.5">
             AI Road Safety & SOS
           </span>
         </div>
