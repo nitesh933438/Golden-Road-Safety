@@ -156,10 +156,10 @@ export function Profile() {
     <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in duration-500 px-1 min-[360px]:px-2 sm:px-0">
       
       {/* Header Profile Hero Card */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-surface-900 via-surface-900 to-amber-950 text-white p-4 min-[360px]:p-6 sm:p-10 border border-surface-800 shadow-2xl">
+      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-surface-900 via-surface-900 to-amber-950 text-white p-4 min-[360px]:p-4 min-[360px]:p-5 sm:p-6 sm:p-10 border border-surface-800 shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
         
-        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-5 sm:gap-6 text-center md:text-left">
+        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-5 sm:gap-4 min-[360px]:p-5 sm:p-6 text-center md:text-left">
           
           {/* Hidden File Input for Image Upload */}
           <input 
@@ -400,7 +400,7 @@ export function Profile() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-4 sm:gap-6 text-xs sm:text-sm font-bold overflow-x-auto whitespace-nowrap custom-scrollbar pb-1">
+      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-4 sm:gap-4 min-[360px]:p-5 sm:p-6 text-xs sm:text-sm font-bold overflow-x-auto whitespace-nowrap custom-scrollbar pb-1">
         {[
           { id: "overview", label: "Achievements & Badges", icon: Award },
           { id: "certificates", label: "Government & BLS Certificates", icon: FileCheck },
@@ -448,7 +448,7 @@ export function Profile() {
       {activeTab === "certificates" && (
         <div className="space-y-4">
           {profileData.certificates.map((cert) => (
-            <div key={cert.id} className="p-6 rounded-3xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div key={cert.id} className="p-4 min-[360px]:p-5 sm:p-6 rounded-3xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl shrink-0">
                   <FileCheck className="w-6 h-6" />

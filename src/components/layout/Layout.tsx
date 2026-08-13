@@ -314,8 +314,8 @@ export function Layout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto relative flex flex-col custom-scrollbar">
-          <div className="flex-1 p-4 sm:p-8 pb-28 lg:pb-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative flex flex-col custom-scrollbar min-w-0 break-words">
+          <div className="flex-1 p-3 min-[360px]:p-4 sm:p-6 lg:p-8 pb-28 lg:pb-8 w-full max-w-full min-w-0">
             {currentUser && userProfile?.isProfileComplete === false && !reminderDismissed && !isAdmin && (
               <div className="mb-6 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in">
                 <div className="flex items-center gap-3">

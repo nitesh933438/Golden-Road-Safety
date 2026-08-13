@@ -122,10 +122,10 @@ export function MedicalWallet() {
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
       
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-red-950 via-surface-900 to-amber-950 text-white p-6 sm:p-10 rounded-3xl border border-red-900/50 shadow-2xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-red-950 via-surface-900 to-amber-950 text-white p-4 min-[360px]:p-5 sm:p-6 sm:p-10 rounded-3xl border border-red-900/50 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-red-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
 
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 min-[360px]:p-5 sm:p-6">
           <div className="space-y-2 max-w-xl">
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
@@ -161,7 +161,7 @@ export function MedicalWallet() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-4 sm:gap-6 text-xs sm:text-sm font-bold overflow-x-auto whitespace-nowrap custom-scrollbar pb-1">
+      <div className="flex border-b border-surface-200 dark:border-surface-800 gap-4 sm:gap-4 min-[360px]:p-5 sm:p-6 text-xs sm:text-sm font-bold overflow-x-auto whitespace-nowrap custom-scrollbar pb-1">
         <button
           onClick={() => setActiveTab("card")}
           className={`shrink-0 pb-4 flex items-center gap-2 border-b-2 transition-all ${
@@ -205,7 +205,7 @@ export function MedicalWallet() {
           
           {/* Card Visual Badge */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-gradient-to-br from-surface-900 via-surface-900 to-red-950 text-white rounded-3xl p-6 sm:p-8 border border-surface-800 shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-surface-900 via-surface-900 to-red-950 text-white rounded-3xl p-4 min-[360px]:p-5 sm:p-6 sm:p-8 border border-surface-800 shadow-2xl space-y-6 relative overflow-hidden">
               <div className="flex justify-between items-start border-b border-surface-800/80 pb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black">
@@ -297,7 +297,7 @@ export function MedicalWallet() {
           <div className="space-y-6">
             
             {/* Quick Actions Panel */}
-            <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 rounded-3xl space-y-4 shadow-sm">
+            <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-4 min-[360px]:p-5 sm:p-6 rounded-3xl space-y-4 shadow-sm">
               <h3 className="font-bold text-base text-surface-900 dark:text-white flex items-center gap-2">
                 <QrCode className="w-5 h-5 text-amber-500" /> Emergency QR Badge
               </h3>
@@ -345,7 +345,7 @@ export function MedicalWallet() {
 
       {/* TAB 2: EDIT MEDICAL RECORDS */}
       {activeTab === "edit" && (
-        <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 sm:p-10 rounded-3xl space-y-8 shadow-sm">
+        <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-4 min-[360px]:p-5 sm:p-6 sm:p-10 rounded-3xl space-y-8 shadow-sm">
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-6">
             <div>
@@ -379,7 +379,7 @@ export function MedicalWallet() {
           />
 
           {/* Photo Upload Section */}
-          <div className="flex items-center gap-6 bg-surface-50 dark:bg-surface-950/50 p-5 rounded-2xl border border-surface-200 dark:border-surface-800">
+          <div className="flex items-center gap-4 min-[360px]:p-5 sm:p-6 bg-surface-50 dark:bg-surface-950/50 p-5 rounded-2xl border border-surface-200 dark:border-surface-800">
             <div className="w-20 h-20 rounded-2xl bg-surface-200 dark:bg-surface-800 overflow-hidden relative group shrink-0">
               {formData.photoURL ? (
                 <img src={formData.photoURL} alt="Medical ID Photo" className="w-full h-full object-cover" />
@@ -422,7 +422,7 @@ export function MedicalWallet() {
           </div>
 
           {/* Primary Form Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-[360px]:p-5 sm:p-6">
             
             {/* Full Name */}
             <div>
@@ -502,7 +502,7 @@ export function MedicalWallet() {
           </div>
 
           {/* Detailed Clinical Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-surface-200 dark:border-surface-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-[360px]:p-5 sm:p-6 pt-4 border-t border-surface-200 dark:border-surface-800">
             
             {/* Allergies */}
             <div className="space-y-1.5">
@@ -549,7 +549,7 @@ export function MedicalWallet() {
           </div>
 
           {/* Organ Donor & Hospital Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-surface-200 dark:border-surface-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-[360px]:p-5 sm:p-6 pt-4 border-t border-surface-200 dark:border-surface-800">
             
             {/* Organ Donor Toggle */}
             <div className="bg-surface-50 dark:bg-surface-950 p-4 rounded-2xl border border-surface-200 dark:border-surface-800 flex items-center justify-between">
@@ -615,7 +615,7 @@ export function MedicalWallet() {
 
       {/* TAB 3: EMERGENCY CONTACTS MANAGER */}
       {activeTab === "contacts" && (
-        <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 sm:p-10 rounded-3xl space-y-6 shadow-sm">
+        <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-4 min-[360px]:p-5 sm:p-6 sm:p-10 rounded-3xl space-y-6 shadow-sm">
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-6">
             <div>
@@ -729,13 +729,13 @@ export function MedicalWallet() {
       {/* QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 text-center text-surface-900 dark:text-white shadow-2xl relative">
+          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-4 min-[360px]:p-5 sm:p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 text-center text-surface-900 dark:text-white shadow-2xl relative">
             <div className="space-y-1">
               <h3 className="text-xl font-black text-surface-900 dark:text-white">Emergency QR Badge</h3>
               <p className="text-xs text-surface-500 dark:text-surface-400">Scan code with any standard smartphone camera to view medical parameters instantly.</p>
             </div>
 
-            <div className="p-6 bg-white dark:bg-surface-800 rounded-2xl inline-block mx-auto shadow-xl border border-surface-200 dark:border-surface-700">
+            <div className="p-4 min-[360px]:p-5 sm:p-6 bg-white dark:bg-surface-800 rounded-2xl inline-block mx-auto shadow-xl border border-surface-200 dark:border-surface-700">
               <QRCodeSVG value={emergencyViewUrl} size={200} level="H" includeMargin={true} />
             </div>
 
