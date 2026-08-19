@@ -41,6 +41,7 @@ interface CrashDetectionContextType {
   confirmSOSNow: () => void;
   resetEmergencyState: () => void;
   requestSensorPermissions: () => Promise<boolean>;
+  triggerSimulatedCrash: () => void;
 }
 
 const CrashDetectionContext = createContext<CrashDetectionContextType | undefined>(undefined);
@@ -193,6 +194,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     };
 
     setActiveEmergency(emergencyPayload);
+    setIsCrashDetected(false);
 
     // Save to Firestore (if available)
     setDoc(doc(db, "emergencies", emergencyId), {
@@ -278,6 +280,15 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
   const toggleSensorActive = () => setSensorActive((prev) => !prev);
 
+  // Trigger simulated crash for testing / manual demonstration
+  const triggerSimulatedCrash = () => {
+    setIsCrashDetected(true);
+    setCountdown(15);
+    setUnconsciousMode(false);
+    setActiveEmergency(null);
+    playUrgentBeep(1200, 0.3);
+  };
+
   return (
     <CrashDetectionContext.Provider
       value={{
@@ -292,6 +303,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         confirmSOSNow,
         resetEmergencyState,
         requestSensorPermissions,
+        triggerSimulatedCrash,
       }}
     >
       {children}

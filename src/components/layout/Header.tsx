@@ -87,29 +87,29 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-16 w-full bg-white/85 dark:bg-surface-900/85 backdrop-blur-xl border-b border-surface-200/80 dark:border-surface-800/80 transition-all shadow-sm">
-        <div className="h-full px-2 min-[360px]:px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-1 sm:gap-4 max-w-[1920px] mx-auto">
+      <header className="sticky top-0 z-30 h-14 sm:h-16 w-full bg-white/90 dark:bg-surface-900/90 backdrop-blur-md border-b border-surface-200/80 dark:border-surface-800/80 transition-colors shadow-xs">
+        <div className="h-full px-2.5 min-[360px]:px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-1.5 sm:gap-4 max-w-[1920px] mx-auto">
           
           {/* ==================== LEFT SIDE ==================== */}
-          <div className="flex items-center gap-1 sm:gap-3 shrink-0">
-            {/* Hamburger Button (All Devices) */}
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+            {/* Hamburger Button */}
             <button
               onClick={onOpenSidebar}
-              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="p-1.5 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 focus:outline-none transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
               aria-label="Open Navigation Menu"
               aria-expanded={isSidebarOpen}
             >
-              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Menu className="w-5 h-5" />
             </button>
 
-            {/* Brand Logo & Name (Always Visible) */}
+            {/* Brand Logo & Name */}
             <Link to="/" className="flex items-center">
               <Logo size="sm" />
             </Link>
 
-            {/* Current Page Breadcrumb (Hidden on extra small viewports) */}
-            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-surface-200 dark:border-surface-800 ml-1">
-              <span className="text-sm font-extrabold text-surface-800 dark:text-surface-200 truncate max-w-[150px] lg:max-w-[280px]">
+            {/* Current Page Breadcrumb */}
+            <div className="hidden md:flex items-center gap-2 pl-3 border-l border-surface-200 dark:border-surface-800 ml-1">
+              <span className="text-xs font-bold text-surface-600 dark:text-surface-300 truncate max-w-[180px] lg:max-w-[280px]">
                 {activePageTitle}
               </span>
             </div>
@@ -123,7 +123,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
                 navigate(`/search?q=${encodeURIComponent(headerSearch.trim())}`);
               }
             }}
-            className="flex-1 max-w-xl hidden md:block px-2 lg:px-6"
+            className="flex-1 max-w-lg hidden md:block px-2 lg:px-4"
           >
             <SmartInput
               value={headerSearch}
@@ -131,7 +131,7 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
               onSelectSuggestion={(suggestion) => {
                 navigate(`/search?q=${encodeURIComponent(suggestion)}`);
               }}
-              placeholder="Search Users, Hospitals, Police, Volunteers, Hazards, Medical IDs..."
+              placeholder="Search Hospitals, Police, Volunteers, First Aid..."
               historyKey="global_enterprise_header_search"
               suggestions={[
                 "AIIMS Level-1 Trauma Center ICU Bed",
@@ -145,35 +145,32 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
               ]}
               showVoiceInput={true}
               enableAIIntent={true}
-              inputClassName="py-1.5 text-xs bg-surface-100/90 dark:bg-surface-800/90 border-surface-200/80 dark:border-surface-700/80 rounded-full shadow-inner focus:bg-white dark:focus:bg-surface-900"
+              inputClassName="py-1.5 text-xs bg-surface-100 dark:bg-surface-800/80 border border-surface-200/80 dark:border-surface-700/80 rounded-xl focus:bg-white dark:focus:bg-surface-900"
             />
           </form>
 
           {/* ==================== RIGHT SIDE CONTROLS ==================== */}
-          <div className="flex items-center gap-0.5 min-[360px]:gap-1 sm:gap-2.5 shrink-0 flex-nowrap">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0 flex-nowrap">
             
             {/* Mobile Search Icon Button (< md screens) */}
             <button
               onClick={() => setIsMobileSearchOpen(true)}
-              className="p-1 sm:p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 md:hidden transition-colors shrink-0"
+              className="p-2 rounded-xl text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 md:hidden transition-colors shrink-0"
               aria-label="Open Search"
               title="Search System"
             >
-              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+              <Search className="w-4 h-4 text-amber-500" />
             </button>
 
             {/* Quick 1-Tap SOS Button */}
             <Link
-              to="/sos?active=true"
-              onClick={() => {
-                triggerEmergencyCall(TEST_EMERGENCY_NUMBER);
-              }}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 min-[360px]:px-2.5 min-[360px]:py-1.5 rounded-full bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-[10px] min-[360px]:text-xs shadow-xs hover:scale-105 transition-all shrink-0"
+              to="/sos"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-extrabold text-xs shadow-xs hover:shadow-md transition-all shrink-0"
               title="Trigger 1-Tap SOS Emergency Dispatch"
             >
-              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
-              <span className="hidden sm:inline">1-TAP SOS</span>
-              <span className="sm:hidden">SOS</span>
+              <ShieldAlert className="w-4 h-4 text-white" />
+              <span className="hidden min-[380px]:inline">1-TAP SOS</span>
+              <span className="min-[380px]:hidden">SOS</span>
             </Link>
 
             {/* Notification Bell */}

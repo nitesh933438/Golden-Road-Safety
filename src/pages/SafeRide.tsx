@@ -25,7 +25,7 @@ interface RideHistoryItem {
 }
 
 export function SafeRide() {
-  const { activeEmergency } = useCrashDetection();
+  const { activeEmergency, triggerSimulatedCrash } = useCrashDetection();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -198,6 +198,7 @@ export function SafeRide() {
   const handleSimulateAnomaly = (type: string) => {
     switch (type) {
       case "crash":
+        triggerSimulatedCrash();
         break;
       case "sudden_stop":
         setCurrentSpeed(0);

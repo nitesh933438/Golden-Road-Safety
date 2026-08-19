@@ -7,7 +7,13 @@ import {
   browserSessionPersistence, 
   inMemoryPersistence 
 } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  doc,
+  getDocFromServer
+} from 'firebase/firestore';
 
 // Use import.meta.glob so that the build does not fail if firebase-applet-config.json is ignored/missing on GitHub/Vercel
 const configs = import.meta.glob('../../firebase-applet-config.json', { eager: true });
@@ -36,13 +42,27 @@ setPersistence(auth, browserLocalPersistence).catch(async (err) => {
   }
 });
 
-// Force long polling to bypass iframe/proxy network routing issues in development container environments
+// Configure Firestore with auto long-polling detection and persistent/memory local cache to handle offline/network gracefully
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
+  experimentalAutoDetectLongPolling: true,
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 }, fileConfig.firestoreDatabaseId || undefined);
+
+// Validate connection to Firestore as per Firebase skill best practices
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('offline')) {
+      console.warn("Firestore running in offline cache mode.");
+    }
+  }
+}
+testConnection();
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
+
 

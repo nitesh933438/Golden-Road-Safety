@@ -34,16 +34,6 @@ export function SOS() {
     setMedicalID(getLocalMedicalID());
   }, [sosActive]);
 
-  // Check URL params for auto-triggering SOS (e.g., from 1-TAP SOS header link)
-  useEffect(() => {
-    const searchParams = new URLSearchParams(pageLocation.search);
-    if (searchParams.get("active") === "true" || searchParams.get("autoTrigger") === "true") {
-      if (!isProcessingSOS && !sosActive) {
-        activateEmergency();
-      }
-    }
-  }, [pageLocation.search]);
-
   const [manualAddress, setManualAddress] = useState("");
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [goldenHourTimerStr, setGoldenHourTimerStr] = useState<string>("--:--");
@@ -383,8 +373,6 @@ export function SOS() {
     }
   };
 
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-
   // Map active record status to step index matching spec: CREATED -> TRIAGING -> DISPATCHING -> ASSIGNED -> RESPONDER_EN_ROUTE -> ARRIVED -> RESOLVED
   const currentDbStatus = activeSosRecord?.status || "CREATED";
   const getStatusIndex = (st: string) => {
@@ -422,11 +410,7 @@ export function SOS() {
   ];
 
   const handleSosButtonClick = () => {
-    if (!sosActive) {
-      setShowConfirmModal(true);
-    } else {
-      toggleSOS();
-    }
+    toggleSOS();
   };
 
   return (
@@ -571,44 +555,7 @@ export function SOS() {
         </span>
       </button>
 
-      {/* CONFIRMATION MODAL */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface-900 border-2 border-red-500/80 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center mx-auto ring-8 ring-red-500/10">
-              <ShieldAlert className="w-9 h-9 animate-bounce" />
-            </div>
 
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black text-white">
-                Are you in an emergency?
-              </h3>
-              <p className="text-sm text-surface-300 font-medium leading-relaxed">
-                This will alert emergency services, local police, ambulance, and send your location to nearby verified responders.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                onClick={async () => {
-                  setShowConfirmModal(false);
-                  await activateEmergency();
-                }}
-                className="flex-1 py-3.5 px-6 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-base shadow-lg transition-colors min-h-[48px] flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                <span>YES, GET HELP</span>
-              </button>
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="py-3.5 px-6 rounded-xl bg-surface-800 hover:bg-surface-700 text-surface-200 font-bold text-base transition-colors min-h-[48px] cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* REAL STATUS STEP PROGRESSION AFTER CONFIRMATION */}
       {sosActive && (

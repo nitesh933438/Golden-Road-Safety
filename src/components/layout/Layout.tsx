@@ -34,6 +34,7 @@ import { Logo } from "../ui/Logo";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { CrashTopBanner } from "../crash/CrashTopBanner";
+import { CrashDetectionModal } from "../crash/CrashDetectionModal";
 import { useAuth } from "../../context/AuthContext";
 import { RoadSafetyBackground } from "../RoadSafetyBackground";
 import { CompleteProfile } from "../auth/CompleteProfile";
@@ -292,6 +293,7 @@ export function Layout() {
       {/* Main Content Area */}
       <div className="flex flex-col flex-1 min-w-0 bg-transparent h-full overflow-hidden relative z-10">
         <CrashTopBanner />
+        <CrashDetectionModal />
 
         {/* Header */}
         <Header 
@@ -348,16 +350,16 @@ export function Layout() {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-900/95 backdrop-blur-md border-t border-surface-800/80 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center justify-around px-2 py-2">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md border-t border-surface-200/90 dark:border-surface-800/90 pb-[env(safe-area-inset-bottom)] shadow-lg transition-colors">
+        <div className="flex items-center justify-around px-2 py-1.5">
           <NavLink
             to="/"
             className={({ isActive }) =>
               cn(
-                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                "flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 rounded-xl transition-all",
                 isActive
-                  ? "text-amber-400 font-bold"
-                  : "text-surface-400 hover:text-white"
+                  ? "text-amber-500 dark:text-amber-400 font-bold"
+                  : "text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white"
               )
             }
           >
@@ -369,25 +371,25 @@ export function Layout() {
             to="/sos"
             className={({ isActive }) =>
               cn(
-                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                "flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 rounded-xl transition-all",
                 isActive
-                  ? "text-red-400 font-bold"
-                  : "text-red-500 hover:text-red-400"
+                  ? "text-red-600 dark:text-red-400 font-bold"
+                  : "text-red-500 hover:text-red-600 dark:hover:text-red-400"
               )
             }
           >
             <ShieldAlert className="w-5 h-5 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-tight text-center text-red-400">SOS</span>
+            <span className="text-[10px] font-black uppercase tracking-tight text-center text-red-600 dark:text-red-400">SOS</span>
           </NavLink>
 
           <NavLink
             to="/report"
             className={({ isActive }) =>
               cn(
-                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                "flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 rounded-xl transition-all",
                 isActive
-                  ? "text-amber-400 font-bold"
-                  : "text-surface-400 hover:text-white"
+                  ? "text-amber-500 dark:text-amber-400 font-bold"
+                  : "text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white"
               )
             }
           >
@@ -399,10 +401,10 @@ export function Layout() {
             to="/map"
             className={({ isActive }) =>
               cn(
-                "flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl transition-all",
+                "flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 rounded-xl transition-all",
                 isActive
-                  ? "text-amber-400 font-bold"
-                  : "text-surface-400 hover:text-white"
+                  ? "text-amber-500 dark:text-amber-400 font-bold"
+                  : "text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white"
               )
             }
           >
@@ -412,7 +414,7 @@ export function Layout() {
 
           <button 
             onClick={() => setSidebarOpen(true)}
-            className="flex flex-col items-center justify-center min-w-[56px] min-h-[48px] gap-1 rounded-xl text-surface-400 hover:text-white transition-colors"
+            className="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 rounded-xl text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors"
             aria-label="Open Navigation Menu"
           >
             <Menu className="w-5 h-5" />
