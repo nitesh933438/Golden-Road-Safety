@@ -18,6 +18,31 @@ export interface SMSResponse {
 }
 
 /**
+ * Validates if a phone number is in valid E.164 format (+[country code][number]).
+ */
+export function isValidE164(phone: string): boolean {
+  if (!phone) return false;
+  const e164Regex = /^\+[1-9]\d{1,14}$/;
+  return e164Regex.test(phone.trim());
+}
+
+/**
+ * Formats a phone number into E.164 format if possible.
+ */
+export function formatToE164(phone: string): string {
+  if (!phone) return "";
+  let cleaned = phone.trim().replace(/[\s()-]/g, "");
+  if (!cleaned.startsWith("+")) {
+    if (cleaned.length === 10) {
+      cleaned = `+91${cleaned}`;
+    } else {
+      cleaned = `+${cleaned}`;
+    }
+  }
+  return cleaned;
+}
+
+/**
  * Sends an emergency SOS SMS via Twilio or configured SMS provider.
  * Keeps private API credentials strictly server-side.
  */
@@ -25,13 +50,19 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
   const accountSid = process.env.SMS_ACCOUNT_SID;
   const authToken = process.env.SMS_AUTH_TOKEN;
   const fromNumber = process.env.SMS_FROM_NUMBER || "+17372212163";
-  const apiKey = process.env.SMS_API_KEY;
 
-  // Format recipient number in E.164 format (+919334387983)
-  const recipient = payload.phone || "9334387983";
-  const formattedRecipient = recipient.startsWith("+") ? recipient : `+91${recipient}`;
+  const rawPhone = payload.phone || "";
+  const formattedRecipient = formatToE164(rawPhone);
+
+  if (!isValidE164(formattedRecipient)) {
+    return {
+      success: false,
+      status: "FAILED",
+      message: `Emergency alert could not be delivered: Invalid phone number format (${rawPhone}). Must be in valid E.164 format (e.g., +91XXXXXXXXXX).`,
+    };
+  }
   
-  const textMessage = payload.message || `🚨 GOLDENGUARD SOS ALERT 🚨\nEmergency assistance requested.\nTime: ${payload.timestamp}\nLocation: Latitude: ${payload.latitude}, Longitude: ${payload.longitude}\nMap: https://www.google.com/maps?q=${payload.latitude},${payload.longitude}\nThis is a TEST ALERT.`;
+  const textMessage = payload.message || `🚨 GOLDENGUARD SOS ALERT 🚨\nEmergency assistance requested.\nTime: ${payload.timestamp}\nLocation: Latitude: ${payload.latitude}, Longitude: ${payload.longitude}\nMap: https://www.google.com/maps?q=${payload.latitude},${payload.longitude}`;
 
   try {
     // 1. Real Twilio Integration via REST API if credentials are provided
@@ -59,32 +90,17 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
         const errMessage = data.message || data.error?.message || "Twilio request failed";
         const errMoreInfo = data.more_info || data.error?.more_info || "https://www.twilio.com/docs/errors";
         
-        console.warn("[Twilio SMS Dispatch Notice]:", {
+        console.error("[Twilio SMS Dispatch Error]:", {
           code: errCode,
           message: errMessage,
           status: response.status,
           more_info: errMoreInfo,
         });
 
-        let friendlyMessage = `Emergency alert could not be sent via gateway: ${errMessage}`;
-        const isTrialOrTemplateLimit = 
-          String(errCode) === "572006" || 
-          (typeof errMessage === "string" && (
-            errMessage.toLowerCase().includes("template") || 
-            errMessage.toLowerCase().includes("trial font") ||
-            errMessage.toLowerCase().includes("trial phone") ||
-            errMessage.toLowerCase().includes("trial")
-          )) ||
-          (typeof errMoreInfo === "string" && errMoreInfo.includes("572006"));
-
-        if (isTrialOrTemplateLimit) {
-          friendlyMessage = `Twilio trial/verification limit (Error 572006): Trial accounts require verified numbers or template approval. Please use the 'Send SMS via Device' manual button on screen.`;
-        }
-
         return {
           success: false,
           status: "FAILED",
-          message: friendlyMessage,
+          message: `Emergency alert could not be delivered. Twilio Error ${errCode}: ${errMessage}`,
           providerResponse: data,
         };
       }
@@ -101,7 +117,7 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
     return {
       success: false,
       status: "FAILED",
-      message: "SMS service is not configured.",
+      message: "SMS service is not configured (missing Twilio credentials).",
     };
   } catch (error: any) {
     console.error("[SMS Service Dispatch Exception]:", {
@@ -110,8 +126,7 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
     return {
       success: false,
       status: "FAILED",
-      message: `Emergency alert could not be sent: ${error?.message || "Network error"}`,
+      message: `Emergency alert could not be delivered: ${error?.message || "Network error"}`,
     };
   }
 }
-

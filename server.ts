@@ -64,13 +64,10 @@ async function startServer() {
       if (result.success) {
         return res.status(200).json(result);
       } else {
-        const isTrialError = JSON.stringify(result.providerResponse || "").includes("572006") || result.message?.includes("572006");
         return res.status(200).json({
           ...result,
-          success: isTrialError ? true : result.success,
-          notice: isTrialError 
-            ? "Twilio trial restriction (Error 572006): Unverified recipient number. Incident recorded locally and device SMS fallback ready."
-            : "Automated SMS gateway unavailable or limited. Direct device SMS option available."
+          success: false,
+          notice: "Emergency alert could not be delivered. Please verify recipient number or use device SMS fallback."
         });
       }
     } catch (error: any) {

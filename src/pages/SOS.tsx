@@ -30,6 +30,15 @@ export function SOS() {
   const [activeSosId, setActiveSosId] = useState<string | null>(null);
   const [activeSosRecord, setActiveSosRecord] = useState<any | null>(null);
 
+  // Check URL params for auto-triggering SOS from 1-TAP button click, then clean up URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(pageLocation.search);
+    if ((searchParams.get("active") === "true" || searchParams.get("autoTrigger") === "true") && !sosActive && !isProcessingSOS) {
+      activateEmergency();
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [pageLocation.search]);
+
   useEffect(() => {
     setMedicalID(getLocalMedicalID());
   }, [sosActive]);
@@ -260,6 +269,9 @@ export function SOS() {
       const sosPayload = {
         sosId: uniqueSosId,
         userId: userProfile?.uid || "anonymous",
+        userName: userProfile?.name || "GoldenGuard User",
+        userPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+        emergencyType: "General Emergency SOS",
         createdAt: serverTimestamp(),
         location: finalLocationText,
         latitude: freshCoords?.lat || null,

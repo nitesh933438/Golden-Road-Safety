@@ -136,17 +136,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
 
       if (user) {
-        setLoading(true);
         const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
         const isAdminEmail = user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        const fallbackRole: AppRole = isAdminEmail ? "admin" : "citizen";
+
+        // If we don't have a profile yet or it's a different user, set an instant fallback profile so UI loads instantly
+        if (!userProfile || userProfile.uid !== user.uid) {
+          setUserProfile({
+            uid: user.uid,
+            name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
+            email: user.email || "",
+            phone: "",
+            role: fallbackRole,
+            provider: isGoogleProvider ? "google" : "password",
+            photoURL: user.photoURL || "",
+            city: "",
+            state: "",
+            bloodGroup: "",
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+            isOnline: true,
+            emergencyContacts: [],
+            settings: { notifications: true, locationSharing: true, autoSOS: true },
+            profileCompleted: false,
+            isProfileComplete: false
+          } as UserProfile);
+        }
+
+        // Release loading immediately so app is lightning fast
+        setLoading(false);
+
         const userRef = doc(db, "users", user.uid);
 
+        // Fetch/sync Firestore in background non-blocking
         try {
-          // Check if document exists in Firestore
           const snap = await getDoc(userRef);
 
           if (!snap.exists()) {
-            // First time login: Create profile safely with setDoc merge: true
             const initialRole: AppRole = isAdminEmail ? "admin" : "citizen";
             const newProfileData = {
               uid: user.uid,
@@ -179,7 +205,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               lastLogin: new Date().toISOString()
             } as UserProfile);
           } else {
-            // Existing user: PRESERVE existing role (never reset to citizen, but map legacy "user" to "citizen")
             const existingData = snap.data();
             const rawRole = existingData.role || "citizen";
             const existingRole: AppRole = isAdminEmail ? "admin" : (rawRole === "user" ? "citizen" : rawRole);
@@ -211,29 +236,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (firestoreErr: any) {
           console.warn("Firestore profile sync warning:", firestoreErr.message);
-          // Fallback profile if offline/permission issue
-          const fallbackRole: AppRole = isAdminEmail ? "admin" : "citizen";
-          setUserProfile((prev) => prev || {
-            uid: user.uid,
-            name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
-            email: user.email || "",
-            phone: "",
-            role: fallbackRole,
-            provider: isGoogleProvider ? "google" : "password",
-            photoURL: user.photoURL || "",
-            city: "",
-            state: "",
-            bloodGroup: "",
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            isOnline: true,
-            emergencyContacts: [],
-            settings: { notifications: true, locationSharing: true, autoSOS: true },
-            profileCompleted: false,
-            isProfileComplete: false
-          });
-        } finally {
-          setLoading(false);
         }
 
         // Attach real-time snapshot listener for document updates

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
-import { addDoc, collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "./AuthContext";
 
@@ -80,6 +80,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       return false; // Safe fallback
     }
   });
+
   const [isCrashDetected, setIsCrashDetected] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(15);
   const [unconsciousMode, setUnconsciousMode] = useState<boolean>(false);
@@ -87,21 +88,58 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const goldenHourTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const watchIdRef = useRef<number | null>(null);
 
-  // Default User Geolocation
+  // Guards to prevent duplicate triggers / multiple SOS
+  const hasTriggeredSOSRef = useRef<boolean>(false);
+  const isDispatchingRef = useRef<boolean>(false);
+
+  // Default User Geolocation & Status
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"available" | "permission_denied" | "unavailable" | "timeout" | "unsupported">("available");
 
-  // Track Geolocation
+  // Track Geolocation safely without looping
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (!("geolocation" in navigator)) {
+      setLocationStatus("unsupported");
+      return;
+    }
+
+    try {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          if (pos && pos.coords && Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude)) {
+            setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            setLocationStatus("available");
+          } else {
+            setLocationStatus("unavailable");
+          }
         },
-        () => {},
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        (err) => {
+          if (err.code === 1) {
+            console.warn("Geolocation permission denied (likely iframe permissions policy or user denial).");
+            setLocationStatus("permission_denied");
+          } else if (err.code === 2) {
+            console.warn("Geolocation position unavailable.");
+            setLocationStatus("unavailable");
+          } else if (err.code === 3) {
+            console.warn("Geolocation request timed out.");
+            setLocationStatus("timeout");
+          } else {
+            setLocationStatus("unavailable");
+          }
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
       );
+    } catch (e) {
+      setLocationStatus("unavailable");
     }
+
+    return () => {
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
   }, []);
 
   // Request Device Motion Permissions (for iOS 13+ Safari)
@@ -124,9 +162,8 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
   // Real Sensor Listener (Accelerometer / Gyroscope Anomaly Detection)
   useEffect(() => {
-    if (!sensorActive || isCrashDetected) return;
+    if (!sensorActive || isCrashDetected || activeEmergency || isDispatchingRef.current) return;
 
-    let lastX = 0, lastY = 0, lastZ = 0;
     let lastTime = Date.now();
 
     const handleMotion = (event: DeviceMotionEvent) => {
@@ -135,7 +172,6 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
       const currentTime = Date.now();
       if (currentTime - lastTime > 100) {
-        const diffTime = (currentTime - lastTime) / 1000;
         lastTime = currentTime;
 
         const x = acc.x || 0;
@@ -145,31 +181,38 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         // Calculate G-Force Magnitude
         const gForce = Math.sqrt(x * x + y * y + z * z);
         
-        // Sudden High Impact Threshold (e.g. > 26 m/s² ~ 2.6G deceleration/impact or drop)
-        if (gForce > 28) {
+        // Sudden High Impact Threshold (> 28 m/s²)
+        if (gForce > 28 && !isCrashDetected && !hasTriggeredSOSRef.current && !activeEmergency) {
           setIsCrashDetected(true);
           setCountdown(15);
           setUnconsciousMode(false);
-          setActiveEmergency(null);
+          hasTriggeredSOSRef.current = false;
           playUrgentBeep(1200, 0.3);
         }
-
-        lastX = x;
-        lastY = y;
-        lastZ = z;
       }
     };
 
     window.addEventListener("devicemotion", handleMotion);
     return () => window.removeEventListener("devicemotion", handleMotion);
-  }, [sensorActive, isCrashDetected]);
+  }, [sensorActive, isCrashDetected, activeEmergency]);
 
-  // Dispatch Auto SOS Workflow
+  // Dispatch Auto SOS Workflow (guarded against duplicate triggers)
   const dispatchAutoSOS = useCallback((wasUserResponded: boolean) => {
+    if (hasTriggeredSOSRef.current || isDispatchingRef.current || activeEmergency) return;
+    isDispatchingRef.current = true;
+    hasTriggeredSOSRef.current = true;
+
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+
+    setIsCrashDetected(false);
+    setUnconsciousMode(!wasUserResponded);
+
     const emergencyId = `SOS-CRASH-${Math.floor(1000 + Math.random() * 9000)}`;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const mapsLink = userCoords ? `https://www.openstreetmap.org/?mlat=${userCoords.lat}&mlon=${userCoords.lng}#map=18/${userCoords.lat}/${userCoords.lng}` : "";
-    const locationName = "Unknown Location";
+    const locationName = userCoords ? "GPS Verified Location" : "Location Unavailable (Manual Verification Required)";
 
     const contacts: EmergencyContactNotice[] = [
       { name: "Emergency Dispatch 112", phone: "112", relationship: "Control Room", status: "High Priority Relay Dispatched", timeSent: timeStr },
@@ -177,7 +220,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
     const emergencyPayload: AutoEmergencyPayload = {
       id: emergencyId,
-      patientName: userProfile?.name || "User",
+      patientName: userProfile?.name || "GoldenGuard User",
       type: "Automated Vehicle Crash & Impact Alert",
       severity: "critical",
       location: userCoords ? `${locationName} (${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)})` : locationName,
@@ -194,29 +237,28 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     };
 
     setActiveEmergency(emergencyPayload);
-    setIsCrashDetected(false);
 
-    // Save to Firestore (if available)
+    // Save to Firestore safely
     setDoc(doc(db, "emergencies", emergencyId), {
-        id: emergencyId,
-        userId: userProfile?.uid || "anonymous",
-        type: emergencyPayload.type,
-        severity: "critical",
-        priority: "CRITICAL",
-        isAutoSOS: true,
-        crashDetected: true,
-        unconscious: !wasUserResponded,
-        status: "CREATED",
-        patientName: userProfile?.name || "User",
-        location: emergencyPayload.location,
-        latitude: userCoords ? userCoords.lat : 0,
-        longitude: userCoords ? userCoords.lng : 0,
-        accuracy: null,
-        locationSource: "GPS",
-        contactsNotified: contacts,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      }).catch((err) => console.warn("Firestore Auto SOS write notice:", err));
+      id: emergencyId,
+      userId: userProfile?.uid || "anonymous",
+      type: emergencyPayload.type,
+      severity: "critical",
+      priority: "CRITICAL",
+      isAutoSOS: true,
+      crashDetected: true,
+      unconscious: !wasUserResponded,
+      status: "CREATED",
+      patientName: userProfile?.name || "GoldenGuard User",
+      location: emergencyPayload.location,
+      latitude: userCoords ? userCoords.lat : 0,
+      longitude: userCoords ? userCoords.lng : 0,
+      accuracy: null,
+      locationSource: userCoords ? "GPS" : "UNAVAILABLE",
+      contactsNotified: contacts,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }).catch((err) => console.warn("Firestore Auto SOS write notice:", err));
 
     // Start Golden Hour Ticker
     if (goldenHourTimerRef.current) clearInterval(goldenHourTimerRef.current);
@@ -228,66 +270,102 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       });
     }, 60000);
 
-  }, [userCoords]);
+    isDispatchingRef.current = false;
+  }, [userCoords, userProfile, activeEmergency]);
 
-  // Handle Countdown Ticker
+  // Handle Countdown Ticker (exactly 15 -> 0 once)
   useEffect(() => {
-    if (isCrashDetected && countdown > 0 && !unconsciousMode) {
+    if (isCrashDetected && countdown > 0 && !hasTriggeredSOSRef.current) {
       countdownTimerRef.current = setInterval(() => {
-        setCountdown((prev) => Math.max(0, prev - 1));
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
     }
 
     return () => {
-      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
     };
-  }, [isCrashDetected, unconsciousMode]);
+  }, [isCrashDetected]);
 
-  // Handle countdown reaching zero or playing urgent beep
+  // Handle countdown reaching zero -> No Response -> Auto SOS
   useEffect(() => {
-    if (isCrashDetected && countdown === 0 && !unconsciousMode && !activeEmergency) {
-      setUnconsciousMode(true);
+    if (isCrashDetected && countdown === 0 && !hasTriggeredSOSRef.current) {
       dispatchAutoSOS(false);
-    } else if (countdown > 0 && countdown < 15 && isCrashDetected && !unconsciousMode) {
+    } else if (countdown > 0 && countdown < 15 && isCrashDetected && !hasTriggeredSOSRef.current) {
       playUrgentBeep(countdown % 2 === 0 ? 880 : 1040, 0.12);
     }
-  }, [countdown, isCrashDetected, unconsciousMode, activeEmergency, dispatchAutoSOS]);
+  }, [countdown, isCrashDetected, dispatchAutoSOS]);
 
-  // User clicked "I'm Safe"
-  const cancelCrashAlert = () => {
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+  // User selected "I AM SAFE"
+  const cancelCrashAlert = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
     setIsCrashDetected(false);
     setCountdown(15);
     setUnconsciousMode(false);
-  };
+    hasTriggeredSOSRef.current = false;
+  }, []);
 
-  // User clicked "Send SOS Now"
-  const confirmSOSNow = () => {
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    setUnconsciousMode(false);
+  // User selected "I AM NOT SAFE"
+  const confirmSOSNow = useCallback(() => {
+    if (hasTriggeredSOSRef.current || isDispatchingRef.current) return;
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
     dispatchAutoSOS(true);
-  };
+  }, [dispatchAutoSOS]);
 
   // Reset Emergency completely
-  const resetEmergencyState = () => {
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    if (goldenHourTimerRef.current) clearInterval(goldenHourTimerRef.current);
+  const resetEmergencyState = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    if (goldenHourTimerRef.current) {
+      clearInterval(goldenHourTimerRef.current);
+      goldenHourTimerRef.current = null;
+    }
     setIsCrashDetected(false);
     setCountdown(15);
     setUnconsciousMode(false);
     setActiveEmergency(null);
-  };
+    hasTriggeredSOSRef.current = false;
+    isDispatchingRef.current = false;
+  }, []);
 
-  const toggleSensorActive = () => setSensorActive((prev) => !prev);
+  const toggleSensorActive = useCallback(() => setSensorActive((prev) => !prev), []);
 
   // Trigger simulated crash for testing / manual demonstration
-  const triggerSimulatedCrash = () => {
+  const triggerSimulatedCrash = useCallback(() => {
+    if (hasTriggeredSOSRef.current || activeEmergency || isCrashDetected) return;
     setIsCrashDetected(true);
     setCountdown(15);
     setUnconsciousMode(false);
-    setActiveEmergency(null);
+    hasTriggeredSOSRef.current = false;
     playUrgentBeep(1200, 0.3);
-  };
+  }, [activeEmergency, isCrashDetected]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      if (goldenHourTimerRef.current) clearInterval(goldenHourTimerRef.current);
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   return (
     <CrashDetectionContext.Provider

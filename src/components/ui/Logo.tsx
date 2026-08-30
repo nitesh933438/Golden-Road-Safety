@@ -11,6 +11,7 @@ export function Logo({
   className = "",
   size = "md",
   showWordmark = true,
+  variant = "auto",
 }: LogoProps) {
   const sizeMap = {
     sm: { 
@@ -40,6 +41,20 @@ export function Logo({
   };
 
   const currentSize = sizeMap[size];
+
+  const textColorClass = 
+    variant === "light" 
+      ? "text-surface-900" 
+      : variant === "dark" 
+      ? "text-white" 
+      : "text-surface-900 dark:text-white";
+
+  const subtextColorClass =
+    variant === "light"
+      ? "text-surface-500"
+      : variant === "dark"
+      ? "text-amber-400"
+      : "text-surface-500 dark:text-amber-300/90";
 
   return (
     <div className={`flex items-center gap-2 sm:gap-2.5 select-none group shrink-0 ${className}`}>
@@ -101,11 +116,11 @@ export function Logo({
       {/* Wordmark */}
       {showWordmark && (
         <div className="flex flex-col justify-center shrink-0">
-          <span className={`font-black tracking-tight ${currentSize.text} leading-none text-surface-900 dark:text-white flex items-center gap-1`}>
+          <span className={`font-black tracking-tight ${currentSize.text} leading-none ${textColorClass} flex items-center gap-1`}>
             Golden<span className="text-amber-500 dark:text-amber-400">Guard</span>
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="System Active" />
           </span>
-          <span className={`${currentSize.subtext} uppercase tracking-widest font-extrabold text-surface-500 dark:text-amber-300/90 mt-0.5 leading-none`}>
+          <span className={`${currentSize.subtext} uppercase tracking-widest font-extrabold ${subtextColorClass} mt-0.5 leading-none`}>
             Road Safety
           </span>
         </div>

@@ -173,17 +173,17 @@ export function Layout() {
         aria-modal="true"
         aria-label="Navigation Menu"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[290px] flex flex-col bg-surface-950 text-white shadow-2xl border-r border-surface-800/80 transition-transform duration-300 ease-in-out h-[100dvh] max-h-[100dvh] overflow-hidden shrink-0 pt-[env(safe-area-inset-top)]",
+          "fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[290px] flex flex-col bg-white dark:bg-surface-950 text-surface-900 dark:text-white shadow-2xl border-r border-surface-200 dark:border-surface-800/80 transition-transform duration-300 ease-in-out h-[100dvh] max-h-[100dvh] overflow-hidden shrink-0 pt-[env(safe-area-inset-top)]",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Sidebar Header (Fixed/pinned at the top) */}
-        <div className="flex h-16 items-center justify-between px-5 border-b border-surface-800/80 bg-surface-900/50 shrink-0">
+        <div className="flex h-16 items-center justify-between px-5 border-b border-surface-200 dark:border-surface-800/80 bg-surface-50 dark:bg-surface-900/50 shrink-0">
           <Link to="/" onClick={() => setSidebarOpen(false)}>
-            <Logo size="md" />
+            <Logo size="md" variant="auto" />
           </Link>
           <button
-            className="p-2 rounded-xl text-surface-400 hover:text-white hover:bg-surface-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="p-2 rounded-xl text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50 min-w-[44px] min-h-[44px] flex items-center justify-center"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close Navigation Menu"
           >
@@ -195,7 +195,7 @@ export function Layout() {
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar py-4 space-y-6">
           {navGroups.map((group) => (
             <div key={group.title} className="px-3 space-y-1">
-              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-500/90 select-none">
+              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-500/90 select-none">
                 {group.title}
               </div>
               {group.items.map((item) => (
@@ -207,8 +207,8 @@ export function Layout() {
                     cn(
                       "flex items-center gap-3 px-3.5 min-h-[44px] py-2 rounded-xl text-xs sm:text-[13px] font-semibold transition-all duration-150 group select-none outline-none",
                       isActive
-                        ? "bg-amber-500/15 text-amber-400 font-bold border-l-4 border-amber-500 shadow-xs"
-                        : "text-surface-300 hover:text-white hover:bg-surface-800/80"
+                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border-l-4 border-amber-500 shadow-xs"
+                        : "text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-800/80"
                     )
                   }
                 >
@@ -217,14 +217,14 @@ export function Layout() {
                       <item.icon
                         className={cn(
                           "w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform group-hover:scale-110 shrink-0",
-                          isActive ? "text-amber-400" : "text-surface-400 group-hover:text-amber-400"
+                          isActive ? "text-amber-600 dark:text-amber-400" : "text-surface-500 dark:text-surface-400 group-hover:text-amber-600 dark:group-hover:text-amber-400"
                         )}
                       />
-                      <span className={cn("flex-1 text-left leading-snug whitespace-normal py-0.5", item.alert && "text-red-400 font-bold")}>
+                      <span className={cn("flex-1 text-left leading-snug whitespace-normal py-0.5", item.alert && "text-red-600 dark:text-red-400 font-bold")}>
                         {item.name}
                       </span>
                       {item.alert && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/20 text-red-400 text-[9px] font-black uppercase border border-red-500/30 animate-pulse shrink-0">
+                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/20 text-red-600 dark:text-red-400 text-[9px] font-black uppercase border border-red-500/30 animate-pulse shrink-0">
                           SOS
                         </span>
                       )}
@@ -238,14 +238,14 @@ export function Layout() {
 
         {/* Sidebar Footer (Fixed/pinned at the bottom) */}
         <div 
-          className="p-4 border-t border-surface-800/80 bg-surface-900/60 space-y-3 shrink-0"
+          className="p-4 border-t border-surface-200 dark:border-surface-800/80 bg-surface-50 dark:bg-surface-900/60 space-y-3 shrink-0"
           style={{ 
             paddingBottom: "calc(max(16px, env(safe-area-inset-bottom)) + 12px)" 
           }}
         >
           {/* User Profile Card or Login */}
           {currentUser ? (
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-800/60 border border-surface-700/50 min-h-[56px]">
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-100 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700/50 min-h-[56px]">
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <div className="w-9 h-9 rounded-lg bg-amber-500 text-black font-black text-xs flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-amber-400/50">
                   {userProfile?.photoURL ? (
@@ -255,10 +255,10 @@ export function Layout() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate">
+                  <p className="text-xs font-bold text-surface-900 dark:text-white truncate">
                     {userProfile?.name || currentUser.displayName || "GoldenGuard User"}
                   </p>
-                  <p className="text-[10px] text-amber-400 font-semibold truncate">
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate">
                     {userProfile?.role || "Verified Samaritan"}
                   </p>
                 </div>
@@ -268,7 +268,7 @@ export function Layout() {
                   setSidebarOpen(false);
                   await logout();
                 }}
-                className="p-2 text-surface-400 hover:text-red-400 hover:bg-surface-700/50 rounded-lg transition-colors ml-2 shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                className="p-2 text-surface-500 dark:text-surface-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-surface-200 dark:hover:bg-surface-700/50 rounded-lg transition-colors ml-2 shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
                 title="Sign Out"
                 aria-label="Sign Out"
               >
