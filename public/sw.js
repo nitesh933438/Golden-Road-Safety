@@ -1,8 +1,13 @@
-const CACHE_NAME = 'goldenguard-v2';
+const CACHE_NAME = 'goldenguard-v4';
 const urlsToCache = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './favicon.ico',
+  './favicon.svg',
+  './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', event => {
@@ -43,9 +48,10 @@ self.addEventListener('fetch', event => {
         if (response) {
           // If we have a cached version, return it, but also try to update it
           fetch(event.request).then(res => {
-            if (res && res.status === 200) {
+            if (res && res.status === 200 && res.type === 'basic') {
+              const resToCache = res.clone();
               caches.open(CACHE_NAME).then(cache => {
-                cache.put(event.request, res);
+                cache.put(event.request, resToCache);
               });
             }
           }).catch(() => {});
@@ -85,8 +91,8 @@ self.addEventListener('push', event => {
 
   const options = {
     body: data.body,
-    icon: '/icon-192.png',
-    badge: '/favicon.ico',
+    icon: './icon-192.png',
+    badge: './favicon.ico',
     vibrate: [200, 100, 200, 100, 200],
     data: {
       url: data.url || '/notifications'

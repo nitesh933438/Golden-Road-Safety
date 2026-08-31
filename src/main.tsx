@@ -45,32 +45,28 @@ window.addEventListener('error', (event) => {
   console.warn('Window global error notice:', event.error || event.message);
 });
 
-// Register Service Worker for PWA Offline Capability & Push Notifications only in production
+// Register Service Worker for PWA Offline Capability & Push Notifications
 if ('serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
     window.addEventListener('load', () => {
-      const base = import.meta.env.BASE_URL;
+      const base = import.meta.env.BASE_URL || '/';
       const swUrl = base.endsWith('/') ? `${base}sw.js` : `${base}/sw.js`;
-      navigator.serviceWorker.register(swUrl).then(
+      navigator.serviceWorker.register(swUrl, { scope: base }).then(
         (registration) => {
-          console.log('GoldenGuard SW registered successfully:', registration.scope);
+          console.log('GoldenGuard SW registered successfully with scope:', registration.scope);
         },
         (err) => {
-          console.warn('GoldenGuard SW registration failed:', err);
+          console.warn('GoldenGuard SW registration notice:', err);
         }
       );
     });
   } else {
-    // In development, unregister any existing service workers to avoid stale cache/dynamic import issues
+    // In dev mode, unregister any stale service workers that may intercept Vite scripts
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const registration of registrations) {
-        registration.unregister().then((unregistered) => {
-          if (unregistered) {
-            console.log('Stale dev Service Worker cleared successfully.');
-          }
-        });
+        registration.unregister().catch(() => {});
       }
-    }).catch(err => console.warn('Error clearing service workers:', err));
+    }).catch(() => {});
   }
 }
 

@@ -7,6 +7,8 @@ import { OfflineSyncProvider } from "./context/OfflineSyncContext";
 import { IncidentProvider } from "./context/IncidentContext";
 import { CrashDetectionProvider } from "./context/CrashDetectionContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { PWAInstallProvider } from "./context/PWAInstallContext";
+import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { Layout } from "./components/layout/Layout";
 import { Placeholder } from "./components/ui/Placeholder";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
@@ -92,9 +94,11 @@ export default function App() {
           <OfflineSyncProvider>
             <IncidentProvider>
               <NotificationProvider>
-                <Router basename={import.meta.env.BASE_URL}>
-                  <CrashDetectionProvider>
-                    <Routes>
+                <PWAInstallProvider>
+                  <Router basename={import.meta.env.BASE_URL}>
+                    <CrashDetectionProvider>
+                      <PWAInstallBanner />
+                      <Routes>
                       {/* Standalone Lockscreen Emergency View */}
                       <Route path="/medical-id/view" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
                       <Route path="/emergency-id" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
@@ -146,7 +150,8 @@ export default function App() {
                     </Routes>
                   </CrashDetectionProvider>
                 </Router>
-              </NotificationProvider>
+              </PWAInstallProvider>
+            </NotificationProvider>
             </IncidentProvider>
           </OfflineSyncProvider>
         </AuthProvider>

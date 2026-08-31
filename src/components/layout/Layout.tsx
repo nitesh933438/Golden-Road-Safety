@@ -38,6 +38,7 @@ import { CrashDetectionModal } from "../crash/CrashDetectionModal";
 import { useAuth } from "../../context/AuthContext";
 import { RoadSafetyBackground } from "../RoadSafetyBackground";
 import { CompleteProfile } from "../auth/CompleteProfile";
+import { PWAInstallButton } from "../pwa/PWAInstallButton";
 
 type NavItem = {
   name: string;
@@ -243,6 +244,9 @@ export function Layout() {
             paddingBottom: "calc(max(16px, env(safe-area-inset-bottom)) + 12px)" 
           }}
         >
+          {/* PWA App Install Action */}
+          <PWAInstallButton variant="sidebar" />
+
           {/* User Profile Card or Login */}
           {currentUser ? (
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-100 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700/50 min-h-[56px]">

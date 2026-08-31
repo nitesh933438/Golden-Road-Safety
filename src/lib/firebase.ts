@@ -16,13 +16,13 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAP6ksECoGgJsXqmi-hsTpQFuvwct-57-M",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "goldenguard-7a8ee.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "goldenguard-7a8ee",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "goldenguard-7a8ee.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "364129436292",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:364129436292:web:ed797e2cdbddd83db878d1",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-H07B0LRX3Q"
 };
 
 export const app = initializeApp(firebaseConfig);
