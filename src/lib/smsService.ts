@@ -1,6 +1,6 @@
 // SMS Service Abstraction Layer for Backend Emergency Dispatch
 // Supports Twilio REST API integration using server environment variables:
-// SMS_ACCOUNT_SID, SMS_AUTH_TOKEN, SMS_FROM_NUMBER.
+// TWILIO_ACCOUNT_SID / SMS_ACCOUNT_SID, TWILIO_AUTH_TOKEN / SMS_AUTH_TOKEN, TWILIO_FROM_NUMBER / SMS_FROM_NUMBER.
 
 export interface SMSPayload {
   phone: string;
@@ -28,6 +28,7 @@ export function isValidE164(phone: string): boolean {
 
 /**
  * Formats a phone number into E.164 format if possible.
+ * Converts Indian 10-digit numbers to +91XXXXXXXXXX automatically.
  */
 export function formatToE164(phone: string): string {
   if (!phone) return "";
@@ -47,9 +48,9 @@ export function formatToE164(phone: string): string {
  * Keeps private API credentials strictly server-side.
  */
 export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse> {
-  const accountSid = process.env.SMS_ACCOUNT_SID;
-  const authToken = process.env.SMS_AUTH_TOKEN;
-  const fromNumber = process.env.SMS_FROM_NUMBER || "+17372212163";
+  const accountSid = process.env.TWILIO_ACCOUNT_SID || process.env.SMS_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN || process.env.SMS_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_FROM_NUMBER || process.env.SMS_FROM_NUMBER || "+17372212163";
 
   const rawPhone = payload.phone || "";
   const formattedRecipient = formatToE164(rawPhone);
