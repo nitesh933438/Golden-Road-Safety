@@ -70,8 +70,12 @@ if ('serviceWorker' in navigator) {
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <GlobalErrorBoundary>
-    <App />
-  </GlobalErrorBoundary>
-);
+try {
+  createRoot(document.getElementById('root')!).render(
+    <GlobalErrorBoundary>
+      <App />
+    </GlobalErrorBoundary>
+  );
+} catch (e: any) {
+  document.getElementById('root')!.innerHTML = `<div style="color:red;padding:20px;font-family:monospace;"><h3>Initialization Error</h3><pre>${e.message || e}</pre></div>`;
+}

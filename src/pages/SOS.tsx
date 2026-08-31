@@ -13,6 +13,8 @@ import { db } from "../lib/firebase";
 import { createEmergencyIncident } from "../lib/incidentService";
 import { getApiUrl } from "../lib/api";
 import { BatteryStatus } from "../components/BatteryStatus";
+import { VoiceSOSCard } from "../components/voice/VoiceSOSCard";
+import { useVoiceSOS } from "../context/VoiceSOSContext";
 
 export function SOS() {
   const { userProfile } = useAuth();
@@ -23,7 +25,7 @@ export function SOS() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [medicalID, setMedicalID] = useState<MedicalIDData>(() => getLocalMedicalID());
-  const { sensorActive, toggleSensorActive } = useCrashDetection();
+  const { sensorActive, toggleSensorActive, triggerSimulatedCrash, activeEmergency, resetEmergencyState } = useCrashDetection();
   const { isOnline, queueItem } = useOfflineSync();
   const [isProcessingSOS, setIsProcessingSOS] = useState(false);
   const [sosError, setSosError] = useState<string | null>(null);
@@ -31,14 +33,28 @@ export function SOS() {
   const [activeSosId, setActiveSosId] = useState<string | null>(null);
   const [activeSosRecord, setActiveSosRecord] = useState<any | null>(null);
 
-  // Check URL params for auto-triggering SOS from 1-TAP button click, then clean up URL
+  // Sync active emergency from CrashDetectionContext if present
+  useEffect(() => {
+    if (activeEmergency) {
+      setActiveSosId(activeEmergency.id);
+      setActiveSosRecord(activeEmergency);
+      setSosActive(true);
+      if (activeEmergency.lat && activeEmergency.lng) {
+        setCoords({ lat: activeEmergency.lat, lng: activeEmergency.lng });
+      }
+    }
+  }, [activeEmergency]);
+
+  // Check URL params for auto-triggering SOS from 1-TAP button click with 1-click execution, then clean up URL
   useEffect(() => {
     const searchParams = new URLSearchParams(pageLocation.search);
-    if ((searchParams.get("active") === "true" || searchParams.get("autoTrigger") === "true") && !sosActive && !isProcessingSOS) {
-      activateEmergency();
+    if ((searchParams.get("active") === "true" || searchParams.get("autoTrigger") === "true")) {
+      if (!sosActive && !isProcessingSOS && !activeSosId && !activeEmergency) {
+        activateEmergency();
+      }
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [pageLocation.search]);
+  }, [pageLocation.search, sosActive, isProcessingSOS, activeSosId, activeEmergency]);
 
   useEffect(() => {
     setMedicalID(getLocalMedicalID());
@@ -122,7 +138,7 @@ export function SOS() {
 
   // Real-time listener for active sosRequests record
   useEffect(() => {
-    if (!activeSosId) return;
+    if (!activeSosId || !db) return;
 
     const docRef = doc(db, "sosRequests", activeSosId);
     const unsubscribe = onSnapshot(
@@ -191,6 +207,10 @@ export function SOS() {
 
   const activateEmergency = async () => {
     if (isProcessingSOS) return;
+    if (sosActive || activeSosId || activeEmergency) {
+      setSosActive(true);
+      return;
+    }
     setIsProcessingSOS(true);
     setSosError(null);
     setLocationError(null);
@@ -301,6 +321,9 @@ export function SOS() {
       } else {
         setOfflineSaved(false);
         try {
+          if (!db) {
+            throw new Error("Firebase Firestore is not configured. Database unavailable.");
+          }
           // Write to /sosRequests
           await setDoc(doc(db, "sosRequests", uniqueSosId), sosPayload);
 
@@ -378,6 +401,7 @@ export function SOS() {
           setIsProcessingSOS(false);
         }
       }
+      resetEmergencyState();
       setSosActive(false);
       setActiveSosId(null);
       setActiveSosRecord(null);
@@ -471,8 +495,19 @@ export function SOS() {
           <p className="text-xs text-surface-600 dark:text-surface-400 font-medium">
             Uses G-force accelerometer spikes, orientation flips, and velocity telemetry. If an accident occurs and you are unresponsive for 15s, Auto SOS triggers contacts & volunteers instantly.
           </p>
+          <button
+            type="button"
+            onClick={() => triggerSimulatedCrash()}
+            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-1.5 shrink-0 shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <AlertTriangle className="w-4 h-4 text-black" />
+            <span>Test Accident Detection</span>
+          </button>
         </div>
       </div>
+
+      {/* Voice-Activated Hands-Free SOS Card */}
+      <VoiceSOSCard className="w-full" />
 
       {/* LOCATION PERMISSION / MANUAL ADDRESS CARD */}
       {!sosActive && (

@@ -2,6 +2,10 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "./AuthContext";
+import { getApiUrl } from "../lib/api";
+import { createEmergencyIncident } from "../lib/incidentService";
+import { getLocalMedicalID } from "../lib/medicalIdStore";
+import { TEST_EMERGENCY_NUMBER, generateSOSMessage } from "../lib/emergencyCall";
 
 export interface EmergencyContactNotice {
   name: string;
@@ -197,7 +201,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
   }, [sensorActive, isCrashDetected, activeEmergency]);
 
   // Dispatch Auto SOS Workflow (guarded against duplicate triggers)
-  const dispatchAutoSOS = useCallback((wasUserResponded: boolean) => {
+  const dispatchAutoSOS = useCallback(async (wasUserResponded: boolean) => {
     if (hasTriggeredSOSRef.current || isDispatchingRef.current || activeEmergency) return;
     isDispatchingRef.current = true;
     hasTriggeredSOSRef.current = true;
@@ -210,9 +214,11 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     setIsCrashDetected(false);
     setUnconsciousMode(!wasUserResponded);
 
-    const emergencyId = `SOS-CRASH-${Math.floor(1000 + Math.random() * 9000)}`;
+    const emergencyId = `SOS-CRASH-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const locationName = userCoords ? "GPS Verified Location" : "Location Unavailable (Manual Verification Required)";
+    const locationName = userCoords 
+      ? `GPS (${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)})` 
+      : "Location Unavailable (Manual Verification Required)";
 
     const contacts: EmergencyContactNotice[] = [
       { name: "Emergency Dispatch 112", phone: "112", relationship: "Control Room", status: "High Priority Relay Dispatched", timeSent: timeStr },
@@ -221,9 +227,11 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     const emergencyPayload: AutoEmergencyPayload = {
       id: emergencyId,
       patientName: userProfile?.name || "GoldenGuard User",
-      type: "Automated Vehicle Crash & Impact Alert",
+      type: wasUserResponded 
+        ? "Accident Impact Alert (User Confirmed)" 
+        : "Automated Vehicle Crash & Impact Alert (Unresponsive Victim)",
       severity: "critical",
-      location: userCoords ? `${locationName} (${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)})` : locationName,
+      location: locationName,
       lat: userCoords ? userCoords.lat : 0,
       lng: userCoords ? userCoords.lng : 0,
       timestamp: timeStr,
@@ -238,27 +246,97 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
     setActiveEmergency(emergencyPayload);
 
-    // Save to Firestore safely
-    setDoc(doc(db, "emergencies", emergencyId), {
-      id: emergencyId,
-      userId: userProfile?.uid || "anonymous",
-      type: emergencyPayload.type,
-      severity: "critical",
-      priority: "CRITICAL",
-      isAutoSOS: true,
-      crashDetected: true,
-      unconscious: !wasUserResponded,
-      status: "CREATED",
-      patientName: userProfile?.name || "GoldenGuard User",
-      location: emergencyPayload.location,
-      latitude: userCoords ? userCoords.lat : 0,
-      longitude: userCoords ? userCoords.lng : 0,
-      accuracy: null,
-      locationSource: userCoords ? "GPS" : "UNAVAILABLE",
-      contactsNotified: contacts,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }).catch((err) => console.warn("Firestore Auto SOS write notice:", err));
+    // Get medical ID snapshot
+    const medicalID = getLocalMedicalID();
+    const medProfileSnap = {
+      bloodGroup: medicalID.bloodGroup || "Unknown",
+      fullName: medicalID.fullName || userProfile?.name || "Citizen",
+      allergies: medicalID.allergies || "None",
+      medicalConditions: medicalID.medicalConditions || "None",
+      emergencyContacts: medicalID.emergencyContacts || []
+    };
+
+    const sosMsg = generateSOSMessage({
+      userName: userProfile?.name || "GoldenGuard User",
+      coords: userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : undefined,
+    });
+
+    const detailedMsg = wasUserResponded 
+      ? `[CRASH CONFIRMED] ${sosMsg} Impact detected. User confirmed SOS.` 
+      : `[UNRESPONSIVE ACCIDENT] ${sosMsg} Vehicle impact detected. User is unresponsive. Immediate ambulance required!`;
+
+    // Backend SMS dispatch
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
+      await fetch(getApiUrl("/api/emergency/sos"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: TEST_EMERGENCY_NUMBER,
+          latitude: userCoords?.lat || null,
+          longitude: userCoords?.lng || null,
+          timestamp: new Date().toISOString(),
+          message: `${detailedMsg} Location: ${locationName}`,
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+    } catch (smsErr) {
+      console.warn("Auto SOS SMS dispatch notice:", smsErr);
+    }
+
+    // Save to Firestore collections: emergencies, sosRequests, and incidents
+    try {
+      const firestorePayload = {
+        sosId: emergencyId,
+        id: emergencyId,
+        userId: userProfile?.uid || "anonymous",
+        userName: userProfile?.name || "GoldenGuard User",
+        userPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+        emergencyType: emergencyPayload.type,
+        type: emergencyPayload.type,
+        severity: "critical",
+        priority: "CRITICAL",
+        isAutoSOS: true,
+        crashDetected: true,
+        unconscious: !wasUserResponded,
+        status: "CREATED",
+        description: detailedMsg,
+        location: emergencyPayload.location,
+        latitude: userCoords ? userCoords.lat : null,
+        longitude: userCoords ? userCoords.lng : null,
+        accuracy: null,
+        locationSource: userCoords ? "GPS" : "UNAVAILABLE",
+        medicalProfileReference: medProfileSnap,
+        contactsNotified: contacts,
+        assignedVolunteerId: null,
+        assignedHospitalId: null,
+        assignedPoliceId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        resolvedAt: null,
+      };
+
+      await Promise.allSettled([
+        setDoc(doc(db, "emergencies", emergencyId), firestorePayload),
+        setDoc(doc(db, "sosRequests", emergencyId), firestorePayload),
+        createEmergencyIncident({
+          reporterUid: userProfile?.uid || "anonymous",
+          reporterName: userProfile?.name || "GoldenGuard Citizen",
+          reporterPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+          latitude: userCoords?.lat || 0,
+          longitude: userCoords?.lng || 0,
+          locationText: locationName,
+          priority: "critical",
+          type: emergencyPayload.type,
+          notes: detailedMsg,
+        })
+      ]);
+    } catch (err) {
+      console.warn("Firestore Auto SOS write notice:", err);
+    }
 
     // Start Golden Hour Ticker
     if (goldenHourTimerRef.current) clearInterval(goldenHourTimerRef.current);

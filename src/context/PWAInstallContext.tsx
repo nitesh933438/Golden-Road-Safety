@@ -9,22 +9,48 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+export interface PlatformInfo {
+  isIOS: boolean;
+  isSafari: boolean;
+  isAndroid: boolean;
+  isChrome: boolean;
+  isDesktop: boolean;
+  isStandalone: boolean;
+}
+
 export interface PWAInstallContextType {
   isInstallable: boolean;
   isInstalled: boolean;
   isDismissed: boolean;
   canPrompt: boolean;
+  isGuideOpen: boolean;
+  platformInfo: PlatformInfo;
   installApp: () => Promise<boolean>;
+  openInstallGuide: () => void;
+  closeInstallGuide: () => void;
   dismissPrompt: () => void;
   resetDismissal: () => void;
 }
 
+const DEFAULT_PLATFORM_INFO: PlatformInfo = {
+  isIOS: false,
+  isSafari: false,
+  isAndroid: false,
+  isChrome: false,
+  isDesktop: true,
+  isStandalone: false,
+};
+
 const DEFAULT_PWA_STATE: PWAInstallContextType = {
-  isInstallable: false,
+  isInstallable: true,
   isInstalled: false,
-  isDismissed: true,
+  isDismissed: false,
   canPrompt: false,
+  isGuideOpen: false,
+  platformInfo: DEFAULT_PLATFORM_INFO,
   installApp: async () => false,
+  openInstallGuide: () => {},
+  closeInstallGuide: () => {},
   dismissPrompt: () => {},
   resetDismissal: () => {},
 };
@@ -32,6 +58,29 @@ const DEFAULT_PWA_STATE: PWAInstallContextType = {
 const PWAInstallContext = createContext<PWAInstallContextType>(DEFAULT_PWA_STATE);
 
 const DISMISSED_KEY = "goldenguard_pwa_dismissed";
+
+function detectPlatform(): PlatformInfo {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return DEFAULT_PLATFORM_INFO;
+  }
+
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  const isAndroid = /android/i.test(ua);
+  const isChrome = /chrome|chromium|crios/i.test(ua);
+  const isDesktop = !isIOS && !isAndroid && !/mobile/i.test(ua);
+  const isStandalone = checkIsStandalone();
+
+  return {
+    isIOS,
+    isSafari,
+    isAndroid,
+    isChrome,
+    isDesktop,
+    isStandalone,
+  };
+}
 
 function checkIsStandalone(): boolean {
   if (typeof window === "undefined" || typeof document === "undefined") return false;
@@ -49,6 +98,8 @@ function checkIsStandalone(): boolean {
 
 export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [platformInfo, setPlatformInfo] = useState<PlatformInfo>(() => detectPlatform());
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
     try {
       return checkIsStandalone();
@@ -65,6 +116,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
   });
 
   useEffect(() => {
+    setPlatformInfo(detectPlatform());
     try {
       if (checkIsStandalone()) {
         setIsInstalled(true);
@@ -110,6 +162,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      setIsGuideOpen(false);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -132,25 +185,37 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
     };
   }, []);
 
-  const installApp = useCallback(async (): Promise<boolean> => {
-    if (!deferredPrompt) {
-      return false;
-    }
+  const openInstallGuide = useCallback(() => {
+    setIsGuideOpen(true);
+  }, []);
 
-    try {
-      await deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      setDeferredPrompt(null);
-      if (choice?.outcome === "accepted") {
-        setIsInstalled(true);
-        return true;
+  const closeInstallGuide = useCallback(() => {
+    setIsGuideOpen(false);
+  }, []);
+
+  const installApp = useCallback(async (): Promise<boolean> => {
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        setDeferredPrompt(null);
+        if (choice?.outcome === "accepted") {
+          setIsInstalled(true);
+          setIsGuideOpen(false);
+          return true;
+        }
+        return false;
+      } catch (err) {
+        console.warn("Error triggering PWA install prompt:", err);
+        openInstallGuide();
+        return false;
       }
-      return false;
-    } catch (err) {
-      console.warn("Error triggering PWA install prompt:", err);
-      return false;
+    } else {
+      // If browser doesn't expose beforeinstallprompt (like iOS or Safari or before event), show guide
+      openInstallGuide();
+      return true;
     }
-  }, [deferredPrompt]);
+  }, [deferredPrompt, openInstallGuide]);
 
   const dismissPrompt = useCallback(() => {
     setIsDismissed(true);
@@ -170,7 +235,8 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, []);
 
-  const isInstallable = !isInstalled && deferredPrompt !== null;
+  // Installable if not already running in standalone app mode
+  const isInstallable = !isInstalled;
 
   return (
     <PWAInstallContext.Provider
@@ -179,7 +245,11 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
         isInstalled,
         isDismissed,
         canPrompt: deferredPrompt !== null,
+        isGuideOpen,
+        platformInfo,
         installApp,
+        openInstallGuide,
+        closeInstallGuide,
         dismissPrompt,
         resetDismissal,
       }}

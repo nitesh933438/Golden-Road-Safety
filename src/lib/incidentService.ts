@@ -124,7 +124,7 @@ export function sortIncidentsByPriority(incidents: IncidentDoc[]): IncidentDoc[]
  * Check if a user already has an active emergency incident
  */
 export async function getUserActiveIncident(reporterUid: string): Promise<IncidentDoc | null> {
-  if (!reporterUid) return null;
+  if (!reporterUid || !db) return null;
   try {
     const q = query(
       collection(db, "incidents"),
@@ -168,6 +168,9 @@ export async function createEmergencyIncident(params: {
   priority?: IncidentPriority;
   notes?: string;
 }): Promise<{ incident: IncidentDoc; isExisting: boolean }> {
+  if (!db) {
+    throw new Error("Firebase is not configured. Database unavailable.");
+  }
   if (!params.reporterUid) {
     throw new Error("Authentication required. Please log in to trigger an emergency SOS.");
   }
@@ -259,7 +262,7 @@ export async function updateIncident(
     notes: string;
   }>
 ) {
-  if (!incidentId) return;
+  if (!incidentId || !db) return;
 
   const patch: any = {
     updatedAt: serverTimestamp(),

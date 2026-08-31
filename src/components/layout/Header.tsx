@@ -15,6 +15,7 @@ import { SmartInput } from "../ui/SmartInput";
 import { Logo } from "../ui/Logo";
 import { triggerEmergencyCall, TEST_EMERGENCY_NUMBER } from "../../lib/emergencyCall";
 import { PWAInstallButton } from "../pwa/PWAInstallButton";
+import { VoiceSOSToggle } from "../voice/VoiceSOSToggle";
 import { BatteryStatus } from "../BatteryStatus";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -170,9 +171,12 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
             {/* PWA Install Button */}
             <PWAInstallButton variant="header" />
 
+            {/* Hands-Free Voice SOS Toggle */}
+            <VoiceSOSToggle variant="header" />
+
             {/* Quick 1-Tap SOS Button */}
             <Link
-              to="/sos"
+              to="/sos?active=true"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-extrabold text-xs shadow-xs hover:shadow-md transition-all shrink-0"
               title="Trigger 1-Tap SOS Emergency Dispatch"
             >

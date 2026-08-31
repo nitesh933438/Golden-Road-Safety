@@ -8,6 +8,8 @@ import {
 import { useIncidents } from "../context/IncidentContext";
 import { useOfflineSync } from "../context/OfflineSyncContext";
 import { Logo } from "../components/ui/Logo";
+import { PWAInstallButton } from "../components/pwa/PWAInstallButton";
+import { VoiceSOSCard } from "../components/voice/VoiceSOSCard";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -287,6 +289,12 @@ export function Dashboard() {
         </div>
 
       </div>
+
+      {/* Voice-Activated Hands-Free SOS Trigger */}
+      <VoiceSOSCard className="w-full" />
+
+      {/* PWA Home Screen Quick Action Card */}
+      <PWAInstallButton variant="card" />
 
       {/* 4. REAL EMERGENCY NETWORK METRICS (SIMPLE & SCANNABLE) */}
       <div className="bg-white/80 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 space-y-3 shadow-xs">

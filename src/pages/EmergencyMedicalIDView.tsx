@@ -7,6 +7,7 @@ import {
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { getLocalMedicalID, fetchRemoteMedicalID, MedicalIDData, DEFAULT_MEDICAL_ID } from "../lib/medicalIdStore";
 import { QRCodeSVG } from "qrcode.react";
+import { EmergencyInstructions } from "../components/auth/EmergencyInstructions";
 
 export function EmergencyMedicalIDView() {
   const [searchParams] = useSearchParams();
@@ -67,6 +68,11 @@ export function EmergencyMedicalIDView() {
             <span className="hidden sm:inline">QR Badge</span>
           </button>
         </div>
+      </div>
+
+      {/* Emergency Use Only Instructions */}
+      <div className="w-full max-w-lg mb-6">
+        <EmergencyInstructions />
       </div>
 
       {/* Main Medical ID Card */}

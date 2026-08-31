@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Logo } from "../ui/Logo";
 import { useAuth } from "../../context/AuthContext";
+import { PWAInstallButton } from "../pwa/PWAInstallButton";
 import { motion, AnimatePresence } from "motion/react";
 import packageJson from "../../../package.json";
 
@@ -147,7 +148,8 @@ export function Footer() {
               Helping citizens report road hazards, request emergency assistance, and connect with nearby safety resources.
             </p>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-col gap-2">
+              <PWAInstallButton variant="pill" />
               <p className="text-[10px] text-surface-500 dark:text-surface-500 leading-relaxed max-w-sm italic border-l-2 border-surface-300 dark:border-surface-800 pl-3">
                 "GoldenGuard is a safety assistance platform. In a life-threatening emergency, contact your local emergency services."
               </p>

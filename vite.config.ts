@@ -4,8 +4,10 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
 export default defineConfig(({ mode }) => {
-  const isGitHubPages = process.env.DEPLOY_TARGET === 'gh-pages' || process.env.GITHUB_ACTIONS === 'true';
-  const base = isGitHubPages ? '/Golden-Road-Safety/' : '/';
+  const isGitHubPages = process.env.DEPLOY_TARGET === 'gh-pages' || 
+                        process.env.GITHUB_ACTIONS === 'true' || 
+                        process.env.BUILD_TARGET === 'gh-pages';
+  const base = process.env.BASE_URL || (isGitHubPages ? '/Golden-Road-Safety/' : '/');
 
   return {
     base,

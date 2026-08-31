@@ -8,11 +8,15 @@ import { IncidentProvider } from "./context/IncidentContext";
 import { CrashDetectionProvider } from "./context/CrashDetectionContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { PWAInstallProvider } from "./context/PWAInstallContext";
+import { VoiceSOSProvider } from "./context/VoiceSOSContext";
+import { VoiceSOSModal } from "./components/voice/VoiceSOSModal";
 import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
+import { PWAInstallModal } from "./components/pwa/PWAInstallModal";
 import { Layout } from "./components/layout/Layout";
 import { Placeholder } from "./components/ui/Placeholder";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { EmergencyInstructions } from "./components/auth/EmergencyInstructions";
 
 import { Admin } from "./pages/Admin";
 import { AccessDenied } from "./pages/AccessDenied";
@@ -46,9 +50,15 @@ const NotFound = () => (
 );
 
 const FallbackLoader = () => (
-  <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] w-full">
-    <div className="w-12 h-12 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div>
-    <p className="mt-4 text-surface-500 font-medium animate-pulse">Loading...</p>
+  <div className="flex flex-col items-center justify-center min-h-[100dvh] w-full p-4 bg-surface-50 dark:bg-surface-950">
+    <div className="flex-1 flex flex-col items-center justify-center">
+      <div className="w-12 h-12 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div>
+      <p className="mt-4 text-surface-500 font-medium animate-pulse">Loading GoldenGuard...</p>
+    </div>
+    
+    <div className="w-full max-w-lg mt-auto mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
+      <EmergencyInstructions variant="inline" />
+    </div>
   </div>
 );
 
@@ -96,9 +106,12 @@ export default function App() {
               <NotificationProvider>
                 <PWAInstallProvider>
                   <Router basename={import.meta.env.BASE_URL}>
-                    <CrashDetectionProvider>
-                      <PWAInstallBanner />
-                      <Routes>
+                    <VoiceSOSProvider>
+                      <CrashDetectionProvider>
+                        <PWAInstallBanner />
+                        <PWAInstallModal />
+                        <VoiceSOSModal />
+                        <Routes>
                       {/* Standalone Lockscreen Emergency View */}
                       <Route path="/medical-id/view" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
                       <Route path="/emergency-id" element={<SafeLazyRoute><EmergencyMedicalIDView /></SafeLazyRoute>} />
@@ -149,6 +162,7 @@ export default function App() {
                       </Route>
                     </Routes>
                   </CrashDetectionProvider>
+                    </VoiceSOSProvider>
                 </Router>
               </PWAInstallProvider>
             </NotificationProvider>

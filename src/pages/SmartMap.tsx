@@ -357,6 +357,7 @@ export default function SmartMap() {
   useEffect(() => {
     let active = true;
     try {
+      if (!db) return;
       const q = query(
         collection(db, "users"),
         where("role", "in", ["hospital", "police", "volunteer", "responder", "trainer"]),
@@ -407,6 +408,7 @@ export default function SmartMap() {
   // Fetch Firebase Emergencies (Active alerts & incidents)
   useEffect(() => {
     try {
+      if (!db) return;
       const q = query(
         collection(db, "emergencies"),
         where("status", "in", ["CREATED", "ACKNOWLEDGED", "RESPONDER_ASSIGNED", "DISPATCHED", "ARRIVED", "active"]),
@@ -446,6 +448,7 @@ export default function SmartMap() {
   useEffect(() => {
     let active = true;
     try {
+      if (!db) return;
       const q = query(collection(db, "hazards"), orderBy("timestamp", "desc"), limit(50));
       getDocs(q).then((snapshot) => {
         if (!active) return;

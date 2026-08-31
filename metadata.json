@@ -2,7 +2,8 @@
   "name": "GoldenGuard",
   "description": "Enterprise-grade safety and emergency response application.",
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "microphone"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

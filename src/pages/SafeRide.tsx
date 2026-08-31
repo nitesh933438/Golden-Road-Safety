@@ -11,6 +11,9 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { safeLocalStorage } from "../lib/utils";
+import { VoiceSOSCard } from "../components/voice/VoiceSOSCard";
+import { VoiceSOSToggle } from "../components/voice/VoiceSOSToggle";
+import { useVoiceSOS } from "../context/VoiceSOSContext";
 
 interface RideHistoryItem {
   id: string;
@@ -492,6 +495,9 @@ export function SafeRide() {
         </div>
       )}
 
+      {/* Hands-Free Voice SOS Module */}
+      <VoiceSOSCard />
+
       {/* SECTION 3: RIDE HISTORY TABLE & LOGS */}
       <div className="bg-white dark:bg-surface-900 rounded-3xl border border-surface-200 dark:border-surface-800 p-6 sm:p-8 space-y-6 shadow-md">
         
@@ -515,54 +521,100 @@ export function SafeRide() {
             <p className="text-sm font-bold text-surface-500">No rides logged yet. Start your first ride above!</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-50 dark:bg-surface-800/50 border-b border-surface-200 dark:border-surface-700">
-                  <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Date & ID</th>
-                  <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Destination</th>
-                  <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Distance</th>
-                  <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Duration</th>
-                  <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Avg / Max Speed</th>
-                  <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Emergency Triggered</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-100 dark:divide-surface-800 font-medium text-xs">
-                {rideHistory.map((item) => (
-                  <tr key={item.id} className="hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="font-extrabold text-surface-900 dark:text-white">{item.id}</div>
-                      <div className="text-[11px] text-surface-500">{item.date}</div>
-                    </td>
-                    <td className="py-4 px-4 font-semibold text-surface-800 dark:text-surface-200">
-                      {item.destination}
-                    </td>
-                    <td className="py-4 px-4 font-bold text-surface-900 dark:text-white">
-                      {item.distanceKm} KM
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-surface-700 dark:text-surface-300">
-                      {formatTime(item.durationSec)}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="font-bold text-surface-900 dark:text-white">{item.avgSpeedKmh} km/h</span>
-                      <span className="text-[11px] text-amber-500 ml-1.5 font-bold">(Max {item.maxSpeedKmh})</span>
-                    </td>
-                    <td className="py-4 px-4">
+          <>
+            {/* Mobile Card-Based History Layout */}
+            <div className="block md:hidden space-y-3">
+              {rideHistory.map((item) => (
+                <div 
+                  key={item.id} 
+                  className="p-4 rounded-2xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700/60 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2 border-b border-surface-200/60 dark:border-surface-700/60 pb-2.5">
+                    <div>
+                      <div className="font-extrabold text-sm text-surface-900 dark:text-white">{item.destination}</div>
+                      <div className="text-[10px] text-surface-500 font-mono mt-0.5">{item.id} • {item.date}</div>
+                    </div>
+                    <div>
                       {item.emergencyTriggered ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400">
-                          <AlertTriangle className="w-3 h-3" /> YES (Auto SOS)
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 shrink-0">
+                          <AlertTriangle className="w-3 h-3" /> Auto SOS
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 shrink-0">
                           <CheckCircle2 className="w-3 h-3" /> Safe
                         </span>
                       )}
-                    </td>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2 rounded-xl bg-white dark:bg-surface-900/80 border border-surface-200/50 dark:border-surface-700/40">
+                      <div className="text-[9px] uppercase font-bold text-surface-500">Distance</div>
+                      <div className="font-extrabold text-xs text-surface-900 dark:text-white mt-0.5">{item.distanceKm} KM</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white dark:bg-surface-900/80 border border-surface-200/50 dark:border-surface-700/40">
+                      <div className="text-[9px] uppercase font-bold text-surface-500">Duration</div>
+                      <div className="font-mono font-bold text-xs text-surface-900 dark:text-white mt-0.5">{formatTime(item.durationSec)}</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white dark:bg-surface-900/80 border border-surface-200/50 dark:border-surface-700/40">
+                      <div className="text-[9px] uppercase font-bold text-surface-500">Avg Speed</div>
+                      <div className="font-extrabold text-xs text-amber-600 dark:text-amber-400 mt-0.5">{item.avgSpeedKmh} <span className="text-[9px]">km/h</span></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop / Tablet Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-50 dark:bg-surface-800/50 border-b border-surface-200 dark:border-surface-700">
+                    <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Date & ID</th>
+                    <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Destination</th>
+                    <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Distance</th>
+                    <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Duration</th>
+                    <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Avg / Max Speed</th>
+                    <th className="py-3.5 px-4 font-extrabold text-xs uppercase text-surface-500">Emergency Triggered</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-surface-100 dark:divide-surface-800 font-medium text-xs">
+                  {rideHistory.map((item) => (
+                    <tr key={item.id} className="hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
+                      <td className="py-4 px-4">
+                        <div className="font-extrabold text-surface-900 dark:text-white">{item.id}</div>
+                        <div className="text-[11px] text-surface-500">{item.date}</div>
+                      </td>
+                      <td className="py-4 px-4 font-semibold text-surface-800 dark:text-surface-200">
+                        {item.destination}
+                      </td>
+                      <td className="py-4 px-4 font-bold text-surface-900 dark:text-white">
+                        {item.distanceKm} KM
+                      </td>
+                      <td className="py-4 px-4 font-mono font-bold text-surface-700 dark:text-surface-300">
+                        {formatTime(item.durationSec)}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="font-bold text-surface-900 dark:text-white">{item.avgSpeedKmh} km/h</span>
+                        <span className="text-[11px] text-amber-500 ml-1.5 font-bold">(Max {item.maxSpeedKmh})</span>
+                      </td>
+                      <td className="py-4 px-4">
+                        {item.emergencyTriggered ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400">
+                            <AlertTriangle className="w-3.5 h-3.5" /> YES (Auto SOS)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Safe
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
       </div>

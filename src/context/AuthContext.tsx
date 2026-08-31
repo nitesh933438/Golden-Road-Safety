@@ -115,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Handle OAuth Redirect Result on Mount
   useEffect(() => {
+    if (!auth) return;
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
@@ -128,6 +129,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Centralized Auth state & Firestore user document listener
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
     let unsubDoc: (() => void) | undefined;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -170,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setLoading(false);
 
+        if (!db) return;
         const userRef = doc(db, "users", user.uid);
 
         try {
@@ -280,6 +286,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Google Login
   const loginWithGoogle = async () => {
+    if (!auth || !googleProvider) {
+      throw new Error("Firebase Auth is not configured. Please check your environment variables.");
+    }
     try {
       let result;
       try {
@@ -320,6 +329,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Email/Password Login
   const loginWithEmail = async (email: string, pass: string) => {
+    if (!auth) {
+      throw new Error("Firebase Auth is not configured. Please check your environment variables.");
+    }
     try {
       await signInWithEmailAndPassword(auth, email, pass);
     } catch (error: any) {
@@ -330,6 +342,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Set User Role (Admin management action)
   const setUserRole = async (targetUid: string, newRole: AppRole, newVerificationStatus?: VerificationStatus) => {
+    if (!db) {
+      throw new Error("Firebase Firestore is not configured. Please check your environment variables.");
+    }
     try {
       const targetRef = doc(db, "users", targetUid);
       const updateData: any = {
@@ -358,6 +373,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Update User Verification Status (Admin management action)
   const updateUserVerification = async (targetUid: string, status: VerificationStatus, assignedRole?: AppRole) => {
+    if (!db) {
+      throw new Error("Firebase Firestore is not configured. Please check your environment variables.");
+    }
     try {
       const targetRef = doc(db, "users", targetUid);
       const updateData: any = {
@@ -386,6 +404,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Email Signup
   const signupWithEmail = async (email: string, pass: string, name: string) => {
+    if (!auth || !db) {
+      throw new Error("Firebase is not configured. Please check your environment variables.");
+    }
     try {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
       const user = result.user;
@@ -427,7 +448,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Logout
   const logout = async () => {
-    if (currentUser) {
+    if (!auth) return;
+    if (currentUser && db) {
       try {
         const userRef = doc(db, "users", currentUser.uid);
         await setDoc(userRef, { isOnline: false, updatedAt: serverTimestamp() }, { merge: true });
@@ -440,7 +462,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Update Profile Data
   const updateProfileData = async (updates: Partial<UserProfile>, photoFile?: File) => {
-    if (!currentUser) return;
+    if (!currentUser || !db) return;
 
     let photoURL = updates.photoURL || userProfile?.photoURL || "";
 

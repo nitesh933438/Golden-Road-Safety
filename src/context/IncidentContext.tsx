@@ -80,6 +80,12 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
     setIsLoadingIncidents(true);
     setIncidentError(null);
 
+    if (!db) {
+      setIsLoadingIncidents(false);
+      setIncidentError("Database is not configured.");
+      return;
+    }
+
     // Query active incidents from /incidents
     const q = query(
       collection(db, "incidents"),
