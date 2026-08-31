@@ -3,22 +3,29 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss()],
-  define: {
-    'process.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(process.env.VITE_GOOGLE_MAPS_API_KEY || ''),
-    'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(process.env.GOOGLE_MAPS_PLATFORM_KEY || '')
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "."),
+export default defineConfig(({ mode }) => {
+  const isVercel = !!process.env.VERCEL;
+  const isGitHubPages = !!process.env.GITHUB_ACTIONS || !!process.env.GH_PAGES || process.env.DEPLOY_TARGET === 'gh-pages' || (mode === 'production' && !process.env.PORT);
+  const base = isVercel ? '/' : (isGitHubPages ? '/Golden-Road-Safety/' : '/');
+
+  return {
+    base,
+    plugins: [react(), tailwindcss()],
+    define: {
+      'process.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(process.env.VITE_GOOGLE_MAPS_API_KEY || ''),
+      'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(process.env.GOOGLE_MAPS_PLATFORM_KEY || '')
     },
-    dedupe: ["react", "react-dom"],
-  },
-  server: {
-    host: "0.0.0.0",
-    port: 3000,
-    hmr: false,
-    watch: process.env.DISABLE_HMR === 'true' ? null : {},
-  },
-}));
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "."),
+      },
+      dedupe: ["react", "react-dom"],
+    },
+    server: {
+      host: "0.0.0.0",
+      port: 3000,
+      hmr: false,
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+  };
+});

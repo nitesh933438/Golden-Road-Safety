@@ -92,7 +92,7 @@ export default function App() {
           <OfflineSyncProvider>
             <IncidentProvider>
               <NotificationProvider>
-                <Router>
+                <Router basename={import.meta.env.BASE_URL}>
                   <CrashDetectionProvider>
                     <Routes>
                       {/* Standalone Lockscreen Emergency View */}
