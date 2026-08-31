@@ -11,23 +11,27 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ?
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data :
+        null;
     }
 
     function getUserRole() {
-      return getUserData().role;
+      let data = getUserData();
+      return data != null && data.keys().hasAll(['role']) ? data.role : 'citizen';
     }
 
     function isAdmin() {
       return isSignedIn() && (
         (request.auth.token.email == "nitesh933438@gmail.com" && request.auth.token.firebase.sign_in_provider == "google.com") ||
-        getUserRole() == "admin"
+        (getUserData() != null && getUserRole() == "admin")
       );
     }
 
     function isResponder() {
       return isSignedIn() && (
-        getUserRole() in ["admin", "hospital", "police", "volunteer", "responder", "trainer"]
+        isAdmin() ||
+        (getUserData() != null && getUserRole() in ["hospital", "police", "responder", "trainer", "volunteer"])
       );
     }
 

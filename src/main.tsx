@@ -49,7 +49,9 @@ window.addEventListener('error', (event) => {
 if ('serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').then(
+      const base = import.meta.env.BASE_URL;
+      const swUrl = base.endsWith('/') ? `${base}sw.js` : `${base}/sw.js`;
+      navigator.serviceWorker.register(swUrl).then(
         (registration) => {
           console.log('GoldenGuard SW registered successfully:', registration.scope);
         },
