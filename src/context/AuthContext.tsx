@@ -91,16 +91,20 @@ const ADMIN_EMAIL = "nitesh933438@gmail.com";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    const cached = safeLocalStorage.getItem("goldenguard_user_profile");
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) {}
-    }
-    return null;
-  });
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync profile to localStorage
+  const isGoogleProvider = (user: FirebaseUser | null): boolean => {
+    if (!user) return false;
+    return user.providerData.some((p) => p.providerId === "google.com") || user.providerId === "google.com";
+  };
+
+  const isGoogleAdminUser = (user: FirebaseUser | null): boolean => {
+    if (!user || !user.email) return false;
+    return user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && isGoogleProvider(user);
+  };
+
+  // Sync profile to localStorage securely
   useEffect(() => {
     if (userProfile) {
       safeLocalStorage.setItem("goldenguard_user_profile", JSON.stringify(userProfile));
@@ -136,11 +140,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
 
       if (user) {
-        const isGoogleProvider = user.providerData.some((p) => p.providerId === "google.com");
+        const isGoogle = isGoogleProvider(user);
         const isAdminEmail = user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-        const fallbackRole: AppRole = isAdminEmail ? "admin" : "citizen";
+        const isGoogleAdmin = isGoogle && isAdminEmail;
+        const fallbackRole: AppRole = isGoogleAdmin ? "admin" : "citizen";
 
-        // If we don't have a profile yet or it's a different user, set an instant fallback profile so UI loads instantly
+        // If we don't have a profile yet or it's a different user, set an instant fallback profile
         if (!userProfile || userProfile.uid !== user.uid) {
           setUserProfile({
             uid: user.uid,
@@ -148,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: user.email || "",
             phone: "",
             role: fallbackRole,
-            provider: isGoogleProvider ? "google" : "password",
+            provider: isGoogle ? "google" : "password",
             photoURL: user.photoURL || "",
             city: "",
             state: "",
@@ -163,24 +168,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } as UserProfile);
         }
 
-        // Release loading immediately so app is lightning fast
         setLoading(false);
 
         const userRef = doc(db, "users", user.uid);
 
-        // Fetch/sync Firestore in background non-blocking
         try {
           const snap = await getDoc(userRef);
 
           if (!snap.exists()) {
-            const initialRole: AppRole = isAdminEmail ? "admin" : "citizen";
+            const initialRole: AppRole = isGoogleAdmin ? "admin" : "citizen";
             const newProfileData = {
               uid: user.uid,
               name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
               email: user.email || "",
               phone: "",
               role: initialRole,
-              provider: isGoogleProvider ? "google" : "password",
+              provider: isGoogle ? "google" : "password",
               photoURL: user.photoURL || "",
               city: "",
               state: "",
@@ -207,11 +210,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             const existingData = snap.data();
             const rawRole = existingData.role || "citizen";
-            const existingRole: AppRole = isAdminEmail ? "admin" : (rawRole === "user" ? "citizen" : rawRole);
+            // SECURITY: If not Google Admin, force role to citizen if it was incorrectly admin
+            const existingRole: AppRole = isGoogleAdmin ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
 
             const updateData = {
               role: existingRole,
-              provider: isGoogleProvider ? "google" : (existingData.provider || "password"),
+              provider: isGoogle ? "google" : (existingData.provider || "password"),
               photoURL: user.photoURL || existingData.photoURL || "",
               updatedAt: serverTimestamp(),
               lastLogin: serverTimestamp(),
@@ -243,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (snapshot.exists()) {
             const data = snapshot.data();
             const rawRole = data.role || "citizen";
-            const existingRole: AppRole = isAdminEmail ? "admin" : (rawRole === "user" ? "citizen" : rawRole);
+            const existingRole: AppRole = isGoogleAdmin ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
             const isComplete = data.isProfileComplete !== false && data.profileCompleted !== false;
 
             setUserProfile((prev) => ({
@@ -261,6 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       } else {
         setUserProfile(null);
+        safeLocalStorage.removeItem("goldenguard_user_profile");
         setLoading(false);
       }
     });
@@ -283,14 +288,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn("signInWithPopup error/notice:", popupError);
         const errStr = (popupError?.message || popupError?.code || "").toLowerCase();
 
-        // If IndexedDB closed/closing or storage partitioning error occurs
         if (
           errStr.includes("closing") || 
           errStr.includes("indexeddb") || 
           errStr.includes("database") ||
           popupError.code === "auth/internal-error"
         ) {
-          console.log("IndexedDB/session adjustment during popup, switching persistence and retrying...");
           try {
             await setPersistence(auth, browserSessionPersistence);
           } catch (pErr) {
@@ -301,7 +304,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           popupError.code === "auth/popup-blocked" ||
           popupError.code === "auth/cancelled-popup-request"
         ) {
-          console.log("Popup blocked/cancelled, attempting redirect...");
           await signInWithRedirect(auth, googleProvider);
           return;
         } else {
@@ -336,7 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       if (newVerificationStatus) {
         updateData.verificationStatus = newVerificationStatus;
-      } else if (newRole === "user") {
+      } else if (newRole === "user" || newRole === "citizen") {
         updateData.verificationStatus = "VERIFIED";
       }
       await setDoc(targetRef, updateData, { merge: true });
@@ -392,14 +394,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await updateProfile(user, { displayName: name });
       } catch (e) {}
 
-      const isAdminEmail = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      // SECURITY: Email/password signup can NEVER be admin
       const userRef = doc(db, "users", user.uid);
       await setDoc(userRef, {
         uid: user.uid,
         name,
         email,
         phone: "",
-        role: isAdminEmail ? "admin" : "citizen",
+        role: "citizen",
         verificationStatus: "VERIFIED",
         provider: "password",
         photoURL: "",
@@ -446,10 +448,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       photoURL = await uploadToCloudinary(photoFile, "profiles");
     }
 
-    // CRITICAL SECURITY RULE:
-    // Normal users CANNOT change their `role` or `verificationStatus` directly via updateProfileData.
-    // Roles are ONLY loaded/updated from the backend record or set by Admin.
-    const isCurrentUserAdmin = userProfile?.role === "admin" || (currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    const isCurrentUserAdmin = isGoogleAdminUser(currentUser);
 
     const computedRole: AppRole = isCurrentUserAdmin
       ? (updates.role || userProfile?.role || "admin")
@@ -485,21 +484,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } : null);
   };
 
-  const isGoogleAdmin = !!(
-    currentUser && 
-    currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && 
-    currentUser.providerData.some((p) => p.providerId === "google.com")
-  );
+  const isGoogleAdmin = isGoogleAdminUser(currentUser);
+  const isAdmin = isGoogleAdmin; // STRICTLY Google OAuth with ADMIN_EMAIL
 
   const rawRole = userProfile?.role || "citizen";
   const currentRole = rawRole === "user" ? "citizen" : rawRole;
-  const isEmailAdmin = !!(currentUser && currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
-  const isAdmin = isEmailAdmin || isGoogleAdmin || currentRole === "admin";
   const isTrainer = currentRole === "trainer" || isAdmin;
   const isVolunteer = currentRole === "volunteer";
   const isHospital = currentRole === "hospital";
   const isPolice = currentRole === "police";
-  const isUser = true; // Every authenticated account has citizen capabilities
+  const isUser = true;
   const isVerified = isAdmin || userProfile?.verificationStatus === "VERIFIED";
 
   return (

@@ -196,21 +196,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
             {/* Quick Samaritan Direct Sign-In Helper */}
             <div className="bg-surface-50 dark:bg-surface-800/60 p-3 rounded-2xl border border-surface-200 dark:border-surface-700/80 space-y-2">
-              <span className="text-[10px] font-black uppercase text-surface-400 tracking-wider block">⚡ Quick Samaritan Sign-In</span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin("nitesh933438@gmail.com", "admin123456", "Admin Samaritan")}
-                  disabled={loading}
-                  className="py-2 px-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-[11px] font-extrabold border border-amber-500/30 transition-all text-center"
-                >
-                  Admin Access
-                </button>
+              <span className="text-[10px] font-black uppercase text-surface-400 tracking-wider block">⚡ Quick Volunteer Sign-In</span>
+              <div>
                 <button
                   type="button"
                   onClick={() => handleQuickLogin("samaritan@goldenguard.org", "samaritan123", "Good Samaritan Volunteer")}
                   disabled={loading}
-                  className="py-2 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[11px] font-extrabold border border-emerald-500/30 transition-all text-center"
+                  className="w-full py-2 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[11px] font-extrabold border border-emerald-500/30 transition-all text-center"
                 >
                   Volunteer Access
                 </button>
