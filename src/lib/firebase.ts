@@ -15,10 +15,6 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 
-// Use import.meta.glob so that the build does not fail if firebase-applet-config.json is ignored/missing on GitHub/Vercel
-const configs = import.meta.glob('../../firebase-applet-config.json', { eager: true });
-const fileConfig = (configs['../../firebase-applet-config.json'] as any)?.default || {};
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -46,7 +42,7 @@ setPersistence(auth, browserLocalPersistence).catch(async (err) => {
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-}, fileConfig.firestoreDatabaseId || undefined);
+});
 
 // Validate connection to Firestore as per Firebase skill best practices
 async function testConnection() {
