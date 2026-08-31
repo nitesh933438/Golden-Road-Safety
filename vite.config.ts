@@ -4,9 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
 export default defineConfig(({ mode }) => {
-  const isVercel = !!process.env.VERCEL;
-  const isGitHubPages = !!process.env.GITHUB_ACTIONS || !!process.env.GH_PAGES || process.env.DEPLOY_TARGET === 'gh-pages' || (mode === 'production' && !process.env.PORT);
-  const base = isVercel ? '/' : (isGitHubPages ? '/Golden-Road-Safety/' : '/');
+  const isGitHubPages = process.env.DEPLOY_TARGET === 'gh-pages' || process.env.GITHUB_ACTIONS === 'true';
+  const base = isGitHubPages ? '/Golden-Road-Safety/' : '/';
 
   return {
     base,
