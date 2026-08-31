@@ -12,6 +12,7 @@ import { addDoc, collection, serverTimestamp, doc, setDoc, query, where, getDocs
 import { db } from "../lib/firebase";
 import { createEmergencyIncident } from "../lib/incidentService";
 import { getApiUrl } from "../lib/api";
+import { BatteryStatus } from "../components/BatteryStatus";
 
 export function SOS() {
   const { userProfile } = useAuth();
@@ -428,6 +429,11 @@ export function SOS() {
   return (
     <div className="max-w-3xl mx-auto flex flex-col items-center justify-center min-h-0 py-4 sm:py-8 text-center space-y-6 sm:space-y-8 animate-in fade-in duration-500 w-full px-1 min-[360px]:px-2">
       
+      {/* Device Battery Emergency Failure Warning (< 20%) */}
+      <div className="w-full">
+        <BatteryStatus variant="emergency-banner" />
+      </div>
+
       {/* Crash Detection Telemetry & Hackathon Card */}
       <div className="w-full bg-gradient-to-r from-red-600/10 via-amber-500/10 to-red-600/10 border-2 border-amber-500/30 rounded-3xl p-4 min-[360px]:p-6 text-left space-y-4 shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4">

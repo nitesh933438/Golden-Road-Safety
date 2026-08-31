@@ -15,6 +15,7 @@ import { SmartInput } from "../ui/SmartInput";
 import { Logo } from "../ui/Logo";
 import { triggerEmergencyCall, TEST_EMERGENCY_NUMBER } from "../../lib/emergencyCall";
 import { PWAInstallButton } from "../pwa/PWAInstallButton";
+import { BatteryStatus } from "../BatteryStatus";
 
 const ROUTE_TITLES: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -162,6 +163,9 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
             >
               <Search className="w-4 h-4 text-amber-500" />
             </button>
+
+            {/* Battery Status Monitor */}
+            <BatteryStatus variant="compact" />
 
             {/* PWA Install Button */}
             <PWAInstallButton variant="header" />
