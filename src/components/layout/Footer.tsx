@@ -17,7 +17,6 @@ import { Logo } from "../ui/Logo";
 import { useAuth } from "../../context/AuthContext";
 import { PWAInstallButton } from "../pwa/PWAInstallButton";
 import { motion, AnimatePresence } from "motion/react";
-import packageJson from "../../../package.json";
 
 export function Footer() {
   const { currentUser, userProfile, isAdmin } = useAuth();
@@ -128,7 +127,7 @@ export function Footer() {
   };
 
   const accountLinks = getAccountLinks();
-  const appVersion = packageJson.version || "1.0.0";
+  const appVersion = import.meta.env.VITE_APP_VERSION || "1.0.0";
 
   return (
     <footer 
@@ -456,7 +455,7 @@ export function Footer() {
 
               {/* Package version read from actual package.json */}
               <span className="font-black text-surface-600 dark:text-surface-400 px-2 py-1 rounded bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-xs">
-                v{appVersion}
+                GoldenGuard v{appVersion}
               </span>
             </div>
 
