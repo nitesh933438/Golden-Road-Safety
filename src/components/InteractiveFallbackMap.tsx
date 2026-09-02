@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, LayerGroup, LayersControl, ScaleControl, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, LayerGroup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
@@ -129,125 +129,7 @@ function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => v
   return null;
 }
 
-// Custom UI Overlays (Compass, Fullscreen)
-function MapCustomControls({ onLocateMe }: { onLocateMe: () => void }) {
-  const map = useMap();
-  const controlsRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (controlsRef.current) {
-      // L.DomEvent.disableClickPropagation(controlsRef.current);
-      L.DomEvent.disableScrollPropagation(controlsRef.current);
-    }
-  }, []);
-
-  const toggleFullscreen = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const container = map.getContainer();
-      if (!document.fullscreenElement) {
-        if (container.requestFullscreen) {
-          container.requestFullscreen().catch(() => {});
-        } else if ((container as any).webkitRequestFullscreen) {
-          (container as any).webkitRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        } else if ((document as any).webkitExitFullscreen) {
-          (document as any).webkitExitFullscreen();
-        }
-      }
-    } catch (err) {}
-  };
-
-  const resetBearing = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      if ((map as any).setBearing) {
-        (map as any).setBearing(0);
-      }
-      map.setView(map.getCenter(), map.getZoom());
-    } catch (err) {}
-  };
-
-  const handleLocateMe = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onLocateMe();
-  };
-
-  const handleZoomIn = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try { 
-      if (map.getZoom() < map.getMaxZoom()) map.zoomIn(); 
-    } catch (err) {}
-  };
-
-  const handleZoomOut = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try { 
-      if (map.getZoom() > map.getMinZoom()) map.zoomOut(); 
-    } catch (err) {}
-  };
-
-  const isMaxZoom = map.getZoom() >= map.getMaxZoom();
-  const isMinZoom = map.getZoom() <= map.getMinZoom();
-
-  return (
-    <div ref={controlsRef} className="leaflet-top leaflet-right mt-24 mr-2.5 flex flex-col gap-2 z-[1000] pointer-events-auto">
-      <button
-        type="button"
-        onPointerDownCapture={handleZoomIn} onClickCapture={handleZoomIn}
-        disabled={isMaxZoom}
-        className={`w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center shadow-md transition-colors ${
-          isMaxZoom ? "opacity-40 cursor-not-allowed text-surface-400" : "hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300"
-        }`}
-        title="Zoom In"
-      >
-        <span className="text-lg font-bold leading-none">+</span>
-      </button>
-
-      <button
-        type="button"
-        onPointerDownCapture={handleZoomOut} onClickCapture={handleZoomOut}
-        disabled={isMinZoom}
-        className={`w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center shadow-md transition-colors ${
-          isMinZoom ? "opacity-40 cursor-not-allowed text-surface-400" : "hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300"
-        }`}
-        title="Zoom Out"
-      >
-        <span className="text-lg font-bold leading-none">-</span>
-      </button>
-      
-      <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-1" />
-
-      <button
-        type="button"
-        onPointerDownCapture={toggleFullscreen} onClickCapture={toggleFullscreen}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors"
-        title="Toggle Fullscreen"
-      >
-        <Maximize className="w-4 h-4" />
-      </button>
-      <button
-        type="button"
-        onPointerDownCapture={resetBearing} onClickCapture={resetBearing}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-surface-700 dark:text-surface-300 transition-colors"
-        title="Reset Compass (North)"
-      >
-        <Navigation className="w-4 h-4" style={{ transform: 'rotate(45deg)' }} />
-      </button>
-      <button
-        type="button"
-        onPointerDownCapture={handleLocateMe} onClickCapture={handleLocateMe}
-        className="w-[34px] h-[34px] bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded flex items-center justify-center hover:bg-surface-50 dark:hover:bg-surface-700 shadow-md text-blue-600 dark:text-blue-400 transition-colors"
-        title="My Location"
-      >
-        <LocateFixed className="w-4 h-4" />
-      </button>
-    </div>
-  );
-}
 
 export function InteractiveFallbackMap({ 
   userLocation,
@@ -547,92 +429,6 @@ export function InteractiveFallbackMap({
   return (
     <div className="relative w-full h-full min-h-[450px] bg-surface-900 overflow-hidden rounded-3xl border border-surface-200 dark:border-surface-800 shadow-xl flex flex-col select-none">
       
-      {/* Search Header Bar */}
-      <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 pointer-events-none">
-        
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="relative pointer-events-auto flex-1 max-w-md">
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              placeholder="Search city, hospital, or street in India..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/95 dark:bg-surface-900/95 backdrop-blur-md text-surface-900 dark:text-white pl-10 pr-10 py-3 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-            />
-            <button 
-              type="submit"
-              className="absolute left-3.5 text-surface-400 hover:text-surface-600 focus:outline-none p-1 z-10"
-              aria-label="Search"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-            {isSearching ? (
-              <Loader2 className="w-4 h-4 text-amber-500 absolute right-3.5 animate-spin" />
-            ) : searchQuery && (
-              <button 
-                type="button" 
-                onClick={() => { setSearchQuery(""); setSearchResults([]); }}
-                className="absolute right-3.5 text-surface-400 hover:text-surface-600 dark:hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Search Autocomplete Results */}
-          {searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 overflow-hidden max-h-60 overflow-y-auto z-[1010]">
-              {searchResults.map((item, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => selectSearchResult(item)}
-                  className="w-full text-left p-3 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border-b border-surface-100 dark:border-surface-800/50 last:border-0 flex items-start gap-2.5"
-                >
-                  <MapPin className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="text-xs font-bold text-surface-900 dark:text-white leading-snug">{item.display_name.split(",")[0]}</div>
-                    <div className="text-[10px] text-surface-500 truncate max-w-xs">{item.display_name}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {searchError && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 p-4 text-center z-[1010]">
-              <div className="text-red-500 text-xs font-bold mb-2">{searchError}</div>
-              <button 
-                type="button" 
-                onClick={handleSearch}
-                className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-lg"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {!isSearching && hasSearched && searchResults.length === 0 && !searchError && searchQuery.trim().length >= 3 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-700 p-4 text-center z-[1010]">
-              <div className="text-surface-500 text-xs font-bold">No places found</div>
-            </div>
-          )}
-        </form>
-
-        {/* GPS Recenter & Status Action */}
-        <div className="pointer-events-auto flex items-center gap-2">
-          <button
-            onClick={requestUserLocation}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-900 dark:text-white text-xs font-bold rounded-2xl border border-surface-200 dark:border-surface-700 shadow-xl transition-all"
-            title="Locate My GPS Position"
-          >
-            <Navigation className="w-4 h-4 text-emerald-500" />
-            <span className="hidden sm:inline">My GPS</span>
-          </button>
-        </div>
-      </div>
-
       {/* Geolocation Error / Warning Banner */}
       {geoError && (
         <div className="absolute top-20 left-4 right-4 z-[1000] max-w-lg mx-auto bg-amber-500/95 backdrop-blur-md text-surface-950 px-4 py-3 rounded-2xl shadow-xl border border-amber-400 flex items-center justify-between text-xs font-bold animate-in fade-in slide-in-from-top-2 gap-3">
@@ -668,16 +464,6 @@ export function InteractiveFallbackMap({
         </div>
       )}
 
-      {/* Locate Me Button */}
-      <div className="absolute bottom-6 left-4 z-[1000] pointer-events-auto">
-        <button
-          onClick={requestUserLocation}
-          className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl text-surface-900 dark:text-white p-3 rounded-2xl shadow-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors border border-surface-200 dark:border-surface-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          title="Go to Current Location"
-        >
-          <LocateFixed className="w-6 h-6 text-amber-500" />
-        </button>
-      </div>
 
       {/* Leaflet React Map Component */}
       <MapContainer
@@ -690,33 +476,12 @@ export function InteractiveFallbackMap({
         <MapController center={mapCenter} zoom={zoomLevel} />
         <MapResizer />
         <MapClickHandler onClick={handleMapClick} />
-        <MapCustomControls onLocateMe={requestUserLocation} />
 
-        <LayersControl position="topright">
-          <LayersControl.BaseLayer checked={theme !== "dark"} name="OpenStreetMap Standard">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer checked={theme === "dark"} name="Carto Dark (Night Mode)">
-            <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              maxZoom={19}
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="OpenTopoMap">
-            <TileLayer
-              attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
-              url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-              maxZoom={17}
-            />
-          </LayersControl.BaseLayer>
-        </LayersControl>
-
-        <ScaleControl position="bottomleft" imperial={false} />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
+        />
 
         {/* User GPS Location Marker */}
         {userCoords && (
@@ -776,54 +541,6 @@ export function InteractiveFallbackMap({
           ))}
         </LayerGroup>
       </MapContainer>
-
-      {/* Selected Marker Action Card */}
-      {selectedPlace && (
-        <div className="absolute bottom-4 left-4 right-4 z-[1000] max-w-md mx-auto bg-white/95 dark:bg-surface-900/95 backdrop-blur-md text-surface-900 dark:text-white p-5 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-2xl animate-in slide-in-from-bottom-5 duration-300">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wider">
-                {selectedPlace.type}
-              </span>
-              <h3 className="font-extrabold text-base mt-1 leading-snug">{selectedPlace.name}</h3>
-            </div>
-            <button 
-              onClick={() => setSelectedPlace(null)}
-              className="text-surface-400 hover:text-surface-700 dark:hover:text-white p-1 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <p className="text-xs text-surface-500 dark:text-surface-300 mb-4">{selectedPlace.vicinity}</p>
-
-          <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                let url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=`;
-                if (userCoords) {
-                  url += `${userCoords.lat}%2C${userCoords.lng}%3B`;
-                }
-                url += `${selectedPlace.lat}%2C${selectedPlace.lng}`;
-                window.open(url, "_blank");
-              }}
-              className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
-            >
-              <Navigation className="w-4 h-4" />
-              Navigate Route
-            </button>
-            {selectedPlace.phone && (
-              <a 
-                href={`tel:${selectedPlace.phone}`}
-                className="px-4 py-2.5 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-900 dark:text-white font-bold rounded-xl text-xs flex items-center gap-1.5 border border-surface-200 dark:border-surface-700 transition-colors"
-              >
-                <PhoneCall className="w-4 h-4 text-emerald-500" />
-                Call Emergency
-              </a>
-            )}
-          </div>
-        </div>
-      )}
 
     </div>
   );
