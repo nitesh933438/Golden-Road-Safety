@@ -209,6 +209,12 @@ export function Feed() {
 
       {/* Feed Posts */}
       <div className="space-y-6">
+        {posts.length === 0 && !isLoading && (
+          <div className="text-center p-12 bg-surface-50 dark:bg-surface-900/50 rounded-2xl border border-surface-200 dark:border-surface-800">
+            <p className="text-surface-600 font-bold">No community posts yet.</p>
+            <p className="text-sm text-surface-500 mt-2">Be the first to share an update, tip, or report with the network!</p>
+          </div>
+        )}
         {posts.map((post) => {
           const isLiked = likedPosts[post.id];
           return (

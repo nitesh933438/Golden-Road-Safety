@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldAlert, Bot, Navigation, CheckCircle2, Phone } from "lucide-react";
+import { ShieldAlert, Stethoscope, Navigation, CheckCircle2, Phone } from "lucide-react";
 import { useCrashDetection } from "../../context/CrashDetectionContext";
 import { useNavigate } from "react-router-dom";
 
@@ -29,8 +29,8 @@ export function CrashTopBanner() {
           onClick={() => navigate("/first-aid")}
           className="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-black text-xs font-black rounded-lg flex items-center gap-1 shadow-sm transition-all"
         >
-          <Bot className="w-3.5 h-3.5" />
-          <span>AI First Aid</span>
+          <Stethoscope className="w-3.5 h-3.5" />
+          <span>Smart First Aid</span>
         </button>
 
         <button

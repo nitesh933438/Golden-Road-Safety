@@ -469,6 +469,8 @@ export function InteractiveFallbackMap({
       <MapContainer
         center={mapCenter}
         zoom={zoomLevel}
+        minZoom={3}
+        maxZoom={20}
         scrollWheelZoom={true}
         className="w-full h-full z-0"
         zoomControl={false}
@@ -478,8 +480,8 @@ export function InteractiveFallbackMap({
         <MapClickHandler onClick={handleMapClick} />
 
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={theme === 'dark' ? '&copy; <a href="https://carto.com/">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}
+          url={theme === 'dark' ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"}
           maxZoom={19}
         />
 

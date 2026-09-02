@@ -28,7 +28,7 @@ interface RideHistoryItem {
 }
 
 export function SafeRide() {
-  const { activeEmergency, triggerSimulatedCrash } = useCrashDetection();
+  const { activeEmergency } = useCrashDetection();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -197,26 +197,6 @@ export function SafeRide() {
     setCurrentSpeed(0);
   };
 
-  // Trigger Telemetry Anomaly Simulations
-  const handleSimulateAnomaly = (type: string) => {
-    switch (type) {
-      case "crash":
-        triggerSimulatedCrash();
-        break;
-      case "sudden_stop":
-        setCurrentSpeed(0);
-        setTimeout(() => {
-        }, 800);
-        break;
-      case "inactivity":
-        setIsPaused(true);
-        break;
-      case "gps_jump":
-        setCurrentAddress("Signal Re-route: Km 28 Expressway (Position Anomaly)");
-        break;
-    }
-  };
-
   // Format Duration helper
   const formatTime = (totalSec: number) => {
     const hrs = Math.floor(totalSec / 3600);
@@ -297,7 +277,7 @@ export function SafeRide() {
                   <span>Active Ride Session</span>
                   {isPaused && <span className="text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">(PAUSED)</span>}
                 </h2>
-                <p className="text-xs text-surface-500">Live Telemetry & AI Anomaly Sentinel Active</p>
+                <p className="text-xs text-surface-500">Live Telemetry & Automated Anomaly Sentinel Active</p>
               </div>
             </div>
 

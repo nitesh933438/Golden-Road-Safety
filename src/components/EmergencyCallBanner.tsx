@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Phone, PhoneCall, MessageSquare, Copy, Check, AlertTriangle, MapPin, X, ShieldAlert, Monitor, ExternalLink, Loader2 } from "lucide-react";
 import { 
-  TEST_EMERGENCY_NUMBER, 
-  TEST_EMERGENCY_LABEL, 
+  EMERGENCY_DISPATCH_NUMBER, 
+  EMERGENCY_DISPATCH_LABEL, 
   triggerEmergencyCall, 
   triggerEmergencySMS,
   generateSOSMessage, 
@@ -39,7 +39,7 @@ export function EmergencyCallBanner({
   });
 
   const handleCopyNumber = async () => {
-    const success = await copyTextToClipboard(TEST_EMERGENCY_NUMBER);
+    const success = await copyTextToClipboard(EMERGENCY_DISPATCH_NUMBER);
     if (success) {
       setCopiedNum(true);
       setTimeout(() => setCopiedNum(false), 2500);
@@ -65,7 +65,7 @@ export function EmergencyCallBanner({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: TEST_EMERGENCY_NUMBER,
+          phone: EMERGENCY_DISPATCH_NUMBER,
           latitude: coords ? coords.lat : "Location unavailable",
           longitude: coords ? coords.lng : "Location unavailable",
           timestamp: new Date().toISOString(),
@@ -102,7 +102,7 @@ export function EmergencyCallBanner({
   };
 
   const handleCallNow = () => {
-    triggerEmergencyCall(TEST_EMERGENCY_NUMBER);
+    triggerEmergencyCall(EMERGENCY_DISPATCH_NUMBER);
   };
 
   return (
@@ -157,7 +157,7 @@ export function EmergencyCallBanner({
             <span className="text-sm font-black">{statusMessage}</span>
             {sendingStatus === "sent" && (
               <span className="block text-[11px] font-normal text-emerald-200/90">
-                Backend API confirmed SMS transmission to {TEST_EMERGENCY_NUMBER}.
+                Backend API confirmed SMS transmission to {EMERGENCY_DISPATCH_NUMBER}.
               </span>
             )}
             {sendingStatus === "failed" && (
@@ -166,7 +166,7 @@ export function EmergencyCallBanner({
                   Automatic dispatch encountered an issue (such as Twilio trial/template restrictions). You can trigger sending via your device's native SMS app instead.
                 </span>
                 <button
-                  onClick={() => triggerEmergencySMS(TEST_EMERGENCY_NUMBER, sosMessage)}
+                  onClick={() => triggerEmergencySMS(EMERGENCY_DISPATCH_NUMBER, sosMessage)}
                   className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-black rounded-lg transition-all flex items-center gap-1.5 shadow-md active:scale-95"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
@@ -185,11 +185,11 @@ export function EmergencyCallBanner({
         <div className="bg-surface-950/80 border border-red-500/40 rounded-2xl p-4 space-y-2">
           <div className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
             <Phone className="w-3.5 h-3.5 text-amber-400" />
-            Recipient: {TEST_EMERGENCY_LABEL}
+            Recipient: {EMERGENCY_DISPATCH_LABEL}
           </div>
           
           <div className="text-2xl min-[360px]:text-3xl sm:text-4xl font-black text-white font-mono tracking-tight flex items-center gap-3 break-all">
-            <span>{TEST_EMERGENCY_NUMBER}</span>
+            <span>{EMERGENCY_DISPATCH_NUMBER}</span>
           </div>
 
           <div className="pt-1 text-[11px] text-surface-300 font-medium">

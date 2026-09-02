@@ -143,7 +143,7 @@ export function ReportHazard() {
           <div className="space-y-2">
             <h1 className="text-3xl font-black text-surface-900 dark:text-white">Hazard Report Verified</h1>
             <p className="text-sm text-surface-600 dark:text-surface-300">
-              Thank you for keeping our roads safe! Gemini AI has analyzed your report and dispatched an alert to the Municipal Command Center.
+              Thank you for keeping our roads safe! The system has analyzed your report and dispatched an alert to the Municipal Command Center.
             </p>
           </div>
 

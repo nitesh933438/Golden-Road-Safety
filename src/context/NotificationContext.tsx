@@ -273,7 +273,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         link: "/map"
       },
       ai: {
-        title: "🤖 AI Assistant First Aid Advisory",
+        title: "🛡️ Smart Assistant First Aid Advisory",
         message: "Victim is non-responsive. Open airway using chin-lift method and prepare CPR cycles.",
         link: "/first-aid"
       },
@@ -292,9 +292,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         message: "Your Level 2 Bleeding Control certificate refresher is scheduled for this weekend.",
         link: "/training"
       },
+      system: {
+        title: "⚙️ System Update",
+        message: "The system has been updated.",
+        link: "/admin"
+      },
       admin: {
         title: "📢 BROADCAST: Admin System Update",
-        message: "GoldenGuard v2.4 SafeRide Guardian AI Anomaly Engine now deployed.",
+        message: "GoldenGuard v2.4 SafeRide Guardian Anomaly Engine now deployed.",
         link: "/admin"
       }
     };

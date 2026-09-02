@@ -158,21 +158,12 @@ export function VoiceSOSCard({ className, variant = "default" }: VoiceSOSCardPro
         </div>
       </div>
 
-      {/* Footer Simulation & Safety info */}
-      <div className="mt-4 pt-3 border-t border-surface-200 dark:border-surface-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+      {/* Footer Safety info */}
+      <div className="mt-4 pt-3 border-t border-surface-200 dark:border-surface-800/80 flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 text-[11px] text-surface-500 dark:text-surface-400">
           <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
           <span>Has 5s countdown safety window with voice cancel support ("Cancel / Stop")</span>
         </div>
-
-        <button
-          type="button"
-          onClick={() => testVoiceTrigger("help me")}
-          className="w-full sm:w-auto px-3 py-1.5 rounded-xl bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-        >
-          <Play className="w-3 h-3 text-amber-500 fill-amber-500" />
-          <span>Test Voice Trigger</span>
-        </button>
       </div>
     </div>
   );

@@ -56,7 +56,7 @@ export function SearchModal({ isOpen, onClose, headerSearch, setHeaderSearch }: 
               <ShieldAlert className="w-4 h-4" /> 1-Tap Golden SOS
             </button>
             <button onClick={() => { onClose(); navigate("/first-aid"); }} className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-xs flex items-center gap-2">
-              <Stethoscope className="w-4 h-4" /> AI First Aid Assistant
+              <Stethoscope className="w-4 h-4" /> Smart First Aid Assistant
             </button>
             <button onClick={() => { onClose(); navigate("/map"); }} className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-500 font-extrabold text-xs flex items-center gap-2">
               <MapPin className="w-4 h-4" /> Smart Resource Map

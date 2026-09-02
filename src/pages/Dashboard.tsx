@@ -229,7 +229,7 @@ export function Dashboard() {
         </div>
 
         {/* Action 4: SAFETY / FIRST AID */}
-        <div className="bg-white dark:bg-surface-900/90 border border-surface-200 dark:border-surface-800 hover:border-emerald-500/50 rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all duration-200 space-y-4 flex flex-col justify-between group shadow-xs hover:shadow-md">
+        <div className="md:col-span-2 bg-white dark:bg-surface-900/90 border border-surface-200 dark:border-surface-800 hover:border-emerald-500/50 rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all duration-200 space-y-4 flex flex-col justify-between group shadow-xs hover:shadow-md">
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
@@ -254,36 +254,6 @@ export function Dashboard() {
             className="inline-flex items-center justify-between px-4 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-800 hover:bg-emerald-600 hover:text-white text-emerald-700 dark:text-emerald-400 font-bold text-xs sm:text-sm transition-all duration-200 min-h-[42px]"
           >
             <span>View First Aid Instructions</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {/* Action 5: MY REPORTS & ACTIVITY */}
-        <div className="bg-white dark:bg-surface-900/90 border border-surface-200 dark:border-surface-800 hover:border-purple-500/50 rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all duration-200 space-y-4 flex flex-col justify-between group shadow-xs hover:shadow-md">
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                <FileText className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] sm:text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-                Personal Dashboard
-              </span>
-            </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-surface-900 dark:text-white group-hover:text-purple-500 transition-colors">
-                My Reports & Profile
-              </h3>
-              <p className="text-xs sm:text-sm text-surface-600 dark:text-surface-300 mt-1 leading-relaxed">
-                View your submitted road problem reports, active alerts, emergency contacts, and medical safety profile.
-              </p>
-            </div>
-          </div>
-
-          <Link
-            to="/profile"
-            className="inline-flex items-center justify-between px-4 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-800 hover:bg-purple-600 hover:text-white text-purple-700 dark:text-purple-400 font-bold text-xs sm:text-sm transition-all duration-200 min-h-[42px]"
-          >
-            <span>View My Activity</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { 
   User as FirebaseUser,
   onAuthStateChanged,
@@ -100,8 +100,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdminUser = (user: FirebaseUser | null): boolean => {
-    if (!user || !user.email) return false;
-    return user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && isGoogleProvider(user);
+    if (!user) return false;
+    const email = user.email || user.providerData?.[0]?.email || "";
+    if (!email) return false;
+    return email.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
   };
 
   // Sync profile to localStorage securely
@@ -150,27 +152,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const fallbackRole: AppRole = isAdmin ? "admin" : "citizen";
 
         // If we don't have a profile yet or it's a different user, set an instant fallback profile
-        if (!userProfile || userProfile.uid !== user.uid) {
-          setUserProfile({
-            uid: user.uid,
-            name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
-            email: user.email || "",
-            phone: "",
-            role: fallbackRole,
-            provider: isGoogle ? "google" : "password",
-            photoURL: user.photoURL || "",
-            city: "",
-            state: "",
-            bloodGroup: "",
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            isOnline: true,
-            emergencyContacts: [],
-            settings: { notifications: true, locationSharing: true, autoSOS: true },
-            profileCompleted: false,
-            isProfileComplete: false
-          } as UserProfile);
-        }
+        setUserProfile((prev) => {
+          if (!prev || prev.uid !== user.uid) {
+            return {
+              uid: user.uid,
+              name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
+              email: user.email || "",
+              phone: "",
+              role: fallbackRole,
+              provider: isGoogle ? "google" : "password",
+              photoURL: user.photoURL || "",
+              city: "",
+              state: "",
+              bloodGroup: "",
+              createdAt: new Date().toISOString(),
+              lastLogin: new Date().toISOString(),
+              isOnline: true,
+              emergencyContacts: [],
+              settings: { notifications: true, locationSharing: true, autoSOS: true },
+              profileCompleted: false,
+              isProfileComplete: false
+            } as UserProfile;
+          }
+          return prev;
+        });
 
         setLoading(false);
 
@@ -284,7 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Google Login
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = useCallback(async () => {
     if (!auth || !googleProvider) {
       throw new Error("Firebase Auth is not configured. Please check your environment variables.");
     }
@@ -324,10 +329,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Google login error:", error);
       throw error;
     }
-  };
+  }, []);
 
   // Email/Password Login
-  const loginWithEmail = async (email: string, pass: string) => {
+  const loginWithEmail = useCallback(async (email: string, pass: string) => {
     if (!auth) {
       throw new Error("Firebase Auth is not configured. Please check your environment variables.");
     }
@@ -337,10 +342,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Email login error:", error);
       throw error;
     }
-  };
+  }, []);
 
   // Set User Role (Admin management action)
-  const setUserRole = async (targetUid: string, newRole: AppRole, newVerificationStatus?: VerificationStatus) => {
+  const setUserRole = useCallback(async (targetUid: string, newRole: AppRole, newVerificationStatus?: VerificationStatus) => {
     if (!db) {
       throw new Error("Firebase Firestore is not configured. Please check your environment variables.");
     }
@@ -368,10 +373,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Error setting user role:", error);
       throw error;
     }
-  };
+  }, [currentUser?.uid]);
 
   // Update User Verification Status (Admin management action)
-  const updateUserVerification = async (targetUid: string, status: VerificationStatus, assignedRole?: AppRole) => {
+  const updateUserVerification = useCallback(async (targetUid: string, status: VerificationStatus, assignedRole?: AppRole) => {
     if (!db) {
       throw new Error("Firebase Firestore is not configured. Please check your environment variables.");
     }
@@ -399,10 +404,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Error updating user verification:", error);
       throw error;
     }
-  };
+  }, [currentUser?.uid]);
 
   // Email Signup
-  const signupWithEmail = async (email: string, pass: string, name: string) => {
+  const signupWithEmail = useCallback(async (email: string, pass: string, name: string) => {
     if (!auth || !db) {
       throw new Error("Firebase is not configured. Please check your environment variables.");
     }
@@ -443,10 +448,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Signup error:", error);
       throw error;
     }
-  };
+  }, []);
 
   // Logout
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (!auth) return;
     if (currentUser && db) {
       try {
@@ -457,10 +462,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signOut(auth);
     setUserProfile(null);
     safeLocalStorage.removeItem("goldenguard_user_profile");
-  };
+  }, [currentUser]);
 
   // Update Profile Data
-  const updateProfileData = async (updates: Partial<UserProfile>, photoFile?: File) => {
+  const updateProfileData = useCallback(async (updates: Partial<UserProfile>, photoFile?: File) => {
     if (!currentUser || !db) return;
 
     let photoURL = updates.photoURL || userProfile?.photoURL || "";
@@ -503,13 +508,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       profileCompleted: isComplete, 
       isProfileComplete: isComplete 
     } : null);
-  };
+  }, [currentUser, userProfile]);
 
   const isAdmin = isAdminUser(currentUser); 
   const isGoogleAdmin = isAdmin;
 
   const rawRole = userProfile?.role || "citizen";
-  const currentRole = rawRole === "user" ? "citizen" : rawRole;
+  const currentRole = isAdmin ? "admin" : (rawRole === "user" ? "citizen" : rawRole);
   const isTrainer = currentRole === "trainer" || isAdmin;
   const isVolunteer = currentRole === "volunteer";
   const isHospital = currentRole === "hospital";
@@ -517,28 +522,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isUser = true;
   const isVerified = isAdmin || userProfile?.verificationStatus === "VERIFIED";
 
+  // Enforce role in the exposed profile object to prevent any UI mismatch
+  const exposedUserProfile = userProfile ? { ...userProfile, role: currentRole as AppRole } : null;
+
+  const contextValue = React.useMemo(() => ({
+    currentUser,
+    userProfile: exposedUserProfile,
+    loading,
+    isAdmin,
+    isTrainer,
+    isVolunteer,
+    isHospital,
+    isPolice,
+    isUser,
+    isVerified,
+    isGoogleAdmin,
+    loginWithGoogle,
+    loginWithEmail,
+    signupWithEmail,
+    logout,
+    updateProfileData,
+    setUserRole,
+    updateUserVerification
+  }), [
+    currentUser,
+    userProfile,
+    loading,
+    isAdmin,
+    isTrainer,
+    isVolunteer,
+    isHospital,
+    isPolice,
+    isUser,
+    isVerified,
+    isGoogleAdmin,
+    loginWithGoogle,
+    loginWithEmail,
+    signupWithEmail,
+    logout,
+    updateProfileData,
+    setUserRole,
+    updateUserVerification
+  ]);
+
   return (
     <AuthContext.Provider
-      value={{
-        currentUser,
-        userProfile,
-        loading,
-        isAdmin,
-        isTrainer,
-        isVolunteer,
-        isHospital,
-        isPolice,
-        isUser,
-        isVerified,
-        isGoogleAdmin,
-        loginWithGoogle,
-        loginWithEmail,
-        signupWithEmail,
-        logout,
-        updateProfileData,
-        setUserRole,
-        updateUserVerification
-      }}
+      value={contextValue}
     >
       {children}
     </AuthContext.Provider>

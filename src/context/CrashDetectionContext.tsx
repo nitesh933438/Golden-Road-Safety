@@ -5,7 +5,7 @@ import { useAuth } from "./AuthContext";
 import { getApiUrl } from "../lib/api";
 import { createEmergencyIncident } from "../lib/incidentService";
 import { getLocalMedicalID } from "../lib/medicalIdStore";
-import { TEST_EMERGENCY_NUMBER, generateSOSMessage } from "../lib/emergencyCall";
+import { EMERGENCY_DISPATCH_NUMBER, generateSOSMessage } from "../lib/emergencyCall";
 
 export interface EmergencyContactNotice {
   name: string;
@@ -274,7 +274,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: TEST_EMERGENCY_NUMBER,
+          phone: EMERGENCY_DISPATCH_NUMBER,
           latitude: userCoords?.lat || null,
           longitude: userCoords?.lng || null,
           timestamp: new Date().toISOString(),
@@ -294,7 +294,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         id: emergencyId,
         userId: userProfile?.uid || "anonymous",
         userName: userProfile?.name || "GoldenGuard User",
-        userPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+        userPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
         emergencyType: emergencyPayload.type,
         type: emergencyPayload.type,
         severity: "critical",
@@ -325,7 +325,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         createEmergencyIncident({
           reporterUid: userProfile?.uid || "anonymous",
           reporterName: userProfile?.name || "GoldenGuard Citizen",
-          reporterPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+          reporterPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
           latitude: userCoords?.lat || 0,
           longitude: userCoords?.lng || 0,
           locationText: locationName,

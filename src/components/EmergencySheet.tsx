@@ -11,7 +11,7 @@ import { createEmergencyIncident } from "../lib/incidentService";
 // Components for different views
 import { LiveEmergencyMap } from "./LiveEmergencyMap";
 import { EmergencyCallBanner } from "./EmergencyCallBanner";
-import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EMERGENCY_NUMBER } from "../lib/emergencyCall";
+import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, EMERGENCY_DISPATCH_NUMBER } from "../lib/emergencyCall";
 import { useAuth } from "../context/AuthContext";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -137,7 +137,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: TEST_EMERGENCY_NUMBER,
+          phone: EMERGENCY_DISPATCH_NUMBER,
           latitude: coords ? coords.lat : "Location unavailable",
           longitude: coords ? coords.lng : "Location unavailable",
           timestamp: new Date().toISOString(),
@@ -164,7 +164,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
       const incResult = await createEmergencyIncident({
         reporterUid: userProfile?.uid || "anonymous",
         reporterName: userProfile?.name || "Good Samaritan User",
-        reporterPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+        reporterPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
         latitude: coords ? coords.lat : 28.6139,
         longitude: coords ? coords.lng : 77.2090,
         locationText: location || "Emergency Location Captured",
@@ -188,7 +188,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
         accuracy: coords ? (coords as any).accuracy || null : null,
         locationSource: "GPS",
         address: location,
-        emergencyContact: TEST_EMERGENCY_NUMBER,
+        emergencyContact: EMERGENCY_DISPATCH_NUMBER,
         status: "active",
         smsStatus,
         emergencyType: type,
@@ -430,14 +430,14 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
                   <LiveEmergencyMap userCoords={coords} />
                 </div>
 
-                {/* AI First Aid & Contacts & Good Samaritan */}
+                {/* Smart First Aid & Contacts & Good Samaritan */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
                   
-                  {/* AI First Aid */}
+                  {/* Smart First Aid */}
                   <div className="bg-gradient-to-br from-blue-600 to-indigo-800 rounded-2xl p-5 text-white shadow-sm flex flex-col">
                     <div className="flex items-center gap-2 mb-3">
                       <HeartPulse className="w-5 h-5 text-blue-200" />
-                      <h3 className="font-bold">AI First Aid</h3>
+                      <h3 className="font-bold">Smart First Aid</h3>
                     </div>
                     <p className="text-sm text-blue-100 mb-4 flex-1">
                       Based on "{type}", please ensure scene safety first. If there is severe bleeding, apply direct pressure immediately.
@@ -555,9 +555,9 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
                 </div>
 
                 <div className="bg-surface-50 dark:bg-surface-900/50 p-4 rounded-xl border border-surface-200 dark:border-surface-700">
-                   <h4 className="text-xs uppercase font-bold tracking-wider text-surface-500 mb-2">AI Post-Analysis</h4>
+                   <h4 className="text-xs uppercase font-bold tracking-wider text-surface-500 mb-2">Automated Post-Analysis</h4>
                    <p className="text-sm text-surface-700 dark:text-surface-300">
-                     Response time was 42% faster than regional average. Immediate compression application suggested by AI First Aid prevented severe blood loss.
+                     Response time was 42% faster than regional average. Immediate compression application suggested by Smart First Aid prevented severe blood loss.
                    </p>
                 </div>
 

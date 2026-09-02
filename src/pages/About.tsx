@@ -20,7 +20,7 @@ export function About() {
   const TECH_STACK = [
     { name: "React 18 & TypeScript", desc: "Type-safe, high-performance UI components", category: "Frontend" },
     { name: "Tailwind CSS & Motion", desc: "Modern styling, dark mode & smooth transitions", category: "UI/UX" },
-    { name: "Gemini 1.5 Flash AI", desc: "Context-aware emergency triage & audio CPR metronome", category: "Artificial Intelligence" },
+    { name: "Automated Engine", desc: "Context-aware emergency triage & audio CPR metronome", category: "Advanced Algorithms" },
     { name: "Firebase Firestore & Auth", desc: "Real-time sync, secure security rules & auth state", category: "Backend" },
     { name: "Leaflet & OpenStreetMap", desc: "Interactive mapping, Nominatim geocoding & OSRM routing", category: "Location" },
     { name: "Service Worker PWA", desc: "Offline survival guides & cached emergency dispatch", category: "PWA & Offline" }
@@ -28,7 +28,7 @@ export function About() {
 
   const FEATURES = [
     { title: "Golden Hour SOS Dispatch", desc: "Single-tap emergency activation sending live GPS coordinates, blood type, and contacts." },
-    { title: "Gemini AI CPR Coach", desc: "Interactive emergency triage with real-time audio metronome (100-120 BPM)." },
+    { title: "Automated CPR Coach", desc: "Interactive emergency triage with real-time audio metronome (100-120 BPM)." },
     { title: "Smart Hazard Map", desc: "Crowdsourced blackspots, road crashes, flood hazards, and live volunteer radar." },
     { title: "Certified Bystander Network", desc: "Dispatches registered CPR volunteers within 1km radius under 3 minutes." },
     { title: "Trauma Bed Reservation", desc: "Locks Level I & II hospital beds automatically with ER prep alerts." },
@@ -63,7 +63,7 @@ export function About() {
             </h1>
           </div>
           <p className="text-lg text-surface-300 leading-relaxed">
-            GoldenGuard is an AI-powered road safety and emergency response ecosystem engineered to maximize survival rates during the critical 10-minute Golden Hour.
+            GoldenGuard is an automated road safety and emergency response ecosystem engineered to maximize survival rates during the critical 10-minute Golden Hour.
           </p>
         </div>
       </div>
@@ -77,7 +77,7 @@ export function About() {
           </div>
           <h2 className="text-2xl font-bold text-surface-900 dark:text-white">Our Mission</h2>
           <p className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed">
-            To eliminate preventable road fatalities by leveraging artificial intelligence, real-time spatial routing, and crowdsourced bystander first responders to deliver care within the first 3 minutes of an accident.
+            To eliminate preventable road fatalities by leveraging automated systems, real-time spatial routing, and crowdsourced bystander first responders to deliver care within the first 3 minutes of an accident.
           </p>
         </div>
 
@@ -87,7 +87,7 @@ export function About() {
           </div>
           <h2 className="text-2xl font-bold text-surface-900 dark:text-white">Our Vision</h2>
           <p className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed">
-            A world where no accident victim dies waiting for help. We aim to build a global zero-latency emergency grid connecting citizens, medical facilities, municipal police, and AI guidance seamlessly.
+            A world where no accident victim dies waiting for help. We aim to build a global zero-latency emergency grid connecting citizens, medical facilities, municipal police, and automated guidance seamlessly.
           </p>
         </div>
 

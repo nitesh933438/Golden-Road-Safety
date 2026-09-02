@@ -20,7 +20,7 @@ export function Team() {
     role: "Project Leader & Product Architect",
     bio: "Passionate product designer and system architect driving the GoldenGuard vision of zero-downtime Golden Hour emergency dispatch.",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300",
-    skills: ["Product Strategy", "System Architecture", "AI Integration", "UX Engineering"],
+    skills: ["Product Strategy", "System Architecture", "System Integration", "UX Engineering"],
     email: "alex.rivera@goldenguard.org"
   };
 
@@ -34,10 +34,10 @@ export function Team() {
     },
     {
       name: "Priya Sharma",
-      role: "AI & ML Engineer",
-      bio: "Engineers real-time Gemini 1.5 prompt pipelines, medical triage models, and audio metronome synchronization.",
+      role: "System Engineer",
+      bio: "Engineers real-time automated logic pipelines, medical triage models, and audio metronome synchronization.",
       avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300",
-      skills: ["Gemini AI SDK", "Natural Language Triage", "Web Audio API", "Python"]
+      skills: ["SDK Integration", "Natural Language Triage", "Web Audio API", "Python"]
     },
     {
       name: "Carlos Rossi",
@@ -77,7 +77,7 @@ export function Team() {
             Meet Team GoldenGuard
           </h1>
           <p className="text-lg text-surface-300 leading-relaxed">
-            A multidisciplinary team of product architects, AI engineers, full-stack developers, and ER medical advisors dedicated to saving lives.
+            A multidisciplinary team of product architects, system engineers, full-stack developers, and ER medical advisors dedicated to saving lives.
           </p>
         </div>
       </div>
@@ -216,7 +216,7 @@ export function Team() {
               <MapPin className="w-5 h-5" />
             </div>
             <h4 className="font-bold text-sm">Headquarters</h4>
-            <p className="text-xs text-emerald-300">Google AI Studio Build Center</p>
+            <p className="text-xs text-emerald-300">Google Developer Build Center</p>
           </div>
 
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Mic, SquareSquare, Volume2, ShieldAlert, WifiOff } from "lucide-react";
+import { Send, Stethoscope, User, Mic, SquareSquare, Volume2, ShieldAlert, WifiOff } from "lucide-react";
 import { OFFLINE_AI_GUIDES } from "../../lib/offlineStore";
 import { getApiUrl, fetchWithRetry, RateLimitError } from "../../lib/api";
 
@@ -8,8 +8,8 @@ export function FirstAidChat({ category }: { category: string | null }) {
     { 
       role: 'model', 
       content: category 
-        ? `I am the AI First Aid Assistant. You selected "${category}". Please describe the situation or ask for step-by-step guidance. If this is life-threatening, call emergency services immediately.` 
-        : `I am the AI First Aid Assistant. Please describe the emergency or symptoms clearly. If this is life-threatening, call emergency services immediately.` 
+        ? `I am the Smart First Aid Assistant. You selected "${category}". Please describe the situation or ask for step-by-step guidance. If this is life-threatening, call emergency services immediately.` 
+        : `I am the Smart First Aid Assistant. Please describe the emergency or symptoms clearly. If this is life-threatening, call emergency services immediately.` 
     }
   ]);
   const [input, setInput] = useState("");
@@ -78,7 +78,7 @@ export function FirstAidChat({ category }: { category: string | null }) {
       matchedGuide = OFFLINE_AI_GUIDES[0]; // CPR default
     }
 
-    return `🔴 [OFFLINE AI MANUAL MODE - ${matchedGuide.title}]
+    return `🔴 [OFFLINE MANUAL MODE - ${matchedGuide.title}]
 
 📋 Step-by-Step Emergency Response:
 ${matchedGuide.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")}
@@ -146,7 +146,7 @@ ${matchedGuide.precautions}
                 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' 
                 : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600'
             }`}>
-              {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-5 h-5" />}
+              {msg.role === 'user' ? <User className="w-4 h-4" /> : <Stethoscope className="w-5 h-5" />}
             </div>
             
             <div className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
@@ -170,7 +170,7 @@ ${matchedGuide.precautions}
         {isLoading && (
           <div className="flex gap-4 max-w-[85%]">
             <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center shrink-0">
-              <Bot className="w-5 h-5" />
+              <Stethoscope className="w-5 h-5" />
             </div>
             <div className="bg-white dark:bg-surface-800 p-4 rounded-2xl rounded-tl-none border border-surface-200 dark:border-surface-700 flex gap-1.5 items-center">
                <div className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '0ms' }} />

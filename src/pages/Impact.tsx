@@ -87,7 +87,7 @@ export function Impact() {
             </div>
             
             <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
-              <h4 className="font-bold text-emerald-900 dark:text-emerald-300 mb-1">2. Gemini AI Voice & CPR Metronome</h4>
+              <h4 className="font-bold text-emerald-900 dark:text-emerald-300 mb-1">2. Automated Voice & CPR Metronome</h4>
               <p className="text-xs text-emerald-700 dark:text-emerald-400">Provides continuous 100-120 BPM audio metronome rhythms and step-by-step interactive triage assistance.</p>
             </div>
 
@@ -159,8 +159,8 @@ export function Impact() {
 
           <div className="p-5 rounded-2xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700 space-y-3 relative">
             <span className="w-8 h-8 rounded-full bg-amber-500 text-white font-bold flex items-center justify-center text-sm shadow-md">2</span>
-            <h4 className="font-bold text-surface-900 dark:text-white text-sm">AI Guidance</h4>
-            <p className="text-xs text-surface-500 dark:text-surface-400">Gemini AI starts audio CPR rhythm & voice instructions immediately.</p>
+            <h4 className="font-bold text-surface-900 dark:text-white text-sm">Automated Guidance</h4>
+            <p className="text-xs text-surface-500 dark:text-surface-400">The system starts audio CPR rhythm & voice instructions immediately.</p>
           </div>
 
           <div className="p-5 rounded-2xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700 space-y-3 relative">

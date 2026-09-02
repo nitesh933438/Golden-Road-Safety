@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Modal } from "../ui/Modal";
-import { LogOut, User, ShieldAlert, Bike, Award, CheckCircle2, Lock } from "lucide-react";
+import { LogOut, User, ShieldAlert, Bike, Award, CheckCircle2, Lock, Wifi, WifiOff, Globe } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 interface ProfileModalProps {
@@ -65,6 +65,28 @@ export function ProfileModal({
           <Award className="w-5 h-5 text-emerald-500" />
           <span>First Aid Certificates & Badges</span>
         </Link>
+        
+        <Link to="/sync" onClick={onClose} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+          {isOnline ? (
+            <Wifi className="w-5 h-5 text-emerald-500" />
+          ) : (
+            <WifiOff className="w-5 h-5 text-red-500" />
+          )}
+          <div className="flex flex-col">
+            <span>Offline Sync Center</span>
+            {!isOnline && pendingCount > 0 && (
+              <span className="text-[10px] text-red-500 font-black">{pendingCount} pending items</span>
+            )}
+            {isOnline && pendingCount > 0 && (
+              <span className="text-[10px] text-amber-500 font-black">Syncing {pendingCount} items...</span>
+            )}
+          </div>
+        </Link>
+        <Link to="/community" onClick={onClose} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+          <Globe className="w-5 h-5 text-indigo-500" />
+          <span>Good Samaritan Network</span>
+        </Link>
+
         {isAdmin && (
           <Link to="/admin" onClick={onClose} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-black text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">
             <Lock className="w-5 h-5" />
@@ -75,6 +97,11 @@ export function ProfileModal({
 
       {/* Footer */}
       <div className="p-3 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900">
+        <div className="flex items-center justify-between px-2 pb-2">
+          <Link to="/about" onClick={onClose} className="text-xs text-surface-500 hover:text-amber-500 transition-colors">About</Link>
+          <span className="text-surface-300 dark:text-surface-700">•</span>
+          <Link to="/legal" onClick={onClose} className="text-xs text-surface-500 hover:text-amber-500 transition-colors">Privacy & Terms</Link>
+        </div>
         <button
           onClick={async () => { onClose(); await logout(); }}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors"

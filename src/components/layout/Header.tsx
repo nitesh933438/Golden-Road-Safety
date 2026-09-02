@@ -15,7 +15,7 @@ import { SmartInput } from "../ui/SmartInput";
 import { NotificationsModal } from "./NotificationsModal";
 import { ProfileModal } from "./ProfileModal";
 import { Logo } from "../ui/Logo";
-import { triggerEmergencyCall, TEST_EMERGENCY_NUMBER } from "../../lib/emergencyCall";
+import { triggerEmergencyCall, EMERGENCY_DISPATCH_NUMBER } from "../../lib/emergencyCall";
 import { PWAInstallButton } from "../pwa/PWAInstallButton";
 import { VoiceSOSToggle } from "../voice/VoiceSOSToggle";
 import { BatteryStatus } from "../BatteryStatus";
@@ -26,7 +26,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/saferide": "SafeRide Guardian",
   "/sos": "Golden Hour SOS Dispatch",
   "/sync": "Offline Sync Center",
-  "/first-aid": "AI First Aid Assistant",
+  "/first-aid": "Smart First Aid Assistant",
   "/map": "Smart Incident Map",
   "/notifications": "Notifications & Alerts",
   "/profile": "User Medical Profile",
@@ -63,15 +63,11 @@ export function Header({ onOpenSidebar, onOpenAuthModal, isSidebarOpen }: Header
 
   const activePageTitle = ROUTE_TITLES[location.pathname] || "GoldenGuard Platform";
 
-  // Close popovers on click outside
+  // Close popovers on click outside (Only needed if we had non-portal popovers. Modals handle themselves)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
-        setIsNotificationOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setIsProfileOpen(false);
-      }
+      // Modals use React Portals and handle their own backdrop clicks.
+      // Do not close them here on mousedown, otherwise clicks inside the portal will unmount it before the 'click' event fires.
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);

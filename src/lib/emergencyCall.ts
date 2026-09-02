@@ -1,7 +1,7 @@
 // Emergency Call, SMS & Contact Utilities
 
-export const TEST_EMERGENCY_NUMBER = "9334387983";
-export const TEST_EMERGENCY_LABEL = "Test Emergency Contact";
+export const EMERGENCY_DISPATCH_NUMBER = "9334387983";
+export const EMERGENCY_DISPATCH_LABEL = "Test Emergency Contact";
 
 /**
  * Detects whether the current device is a mobile browser / phone device
@@ -20,7 +20,7 @@ export function generateSOSMessage(options: {
   coords?: { lat: number; lng: number } | null;
   time?: string;
 }): string {
-  const contactName = options.userName || "GoldenGuard Test User";
+  const contactName = options.userName || "GoldenGuard User";
   const currentTime = options.time || new Date().toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -45,7 +45,7 @@ https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}
 Time:
 ${currentTime}
 
-This is a TEST emergency alert.`;
+`;
   }
 
   return `🚨 GOLDENGUARD SOS ALERT 🚨
@@ -61,13 +61,13 @@ Location unavailable
 Time:
 ${currentTime}
 
-This is a TEST emergency alert.`;
+`;
 }
 
 /**
  * Triggers native device SMS app prefilled with recipient and encoded message body
  */
-export function triggerEmergencySMS(phoneNumber: string = TEST_EMERGENCY_NUMBER, messageBody: string): void {
+export function triggerEmergencySMS(phoneNumber: string = EMERGENCY_DISPATCH_NUMBER, messageBody: string): void {
   if (typeof window === "undefined") return;
 
   const formattedNumber = phoneNumber.replace(/[^\d+]/g, "");
@@ -94,7 +94,7 @@ export function triggerEmergencySMS(phoneNumber: string = TEST_EMERGENCY_NUMBER,
 /**
  * Triggers the device's native phone dialer with the target phone number.
  */
-export function triggerEmergencyCall(phoneNumber: string = TEST_EMERGENCY_NUMBER): void {
+export function triggerEmergencyCall(phoneNumber: string = EMERGENCY_DISPATCH_NUMBER): void {
   if (typeof window === "undefined") return;
   
   const formattedNumber = phoneNumber.replace(/[^\d+]/g, "");
@@ -141,7 +141,7 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
 /**
  * Alias for copying emergency phone number
  */
-export async function copyEmergencyNumber(phoneNumber: string = TEST_EMERGENCY_NUMBER): Promise<boolean> {
+export async function copyEmergencyNumber(phoneNumber: string = EMERGENCY_DISPATCH_NUMBER): Promise<boolean> {
   return copyTextToClipboard(phoneNumber);
 }
 

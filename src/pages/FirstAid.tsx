@@ -56,7 +56,7 @@ export function FirstAid() {
             )}
             <div>
               <h1 className="text-xl font-bold">
-                {activeMode === "chat" ? (selectedCategory ? `AI Guide: ${selectedCategory}` : "AI First Aid Assistant") : "AI First Aid Dashboard"}
+                {activeMode === "chat" ? (selectedCategory ? `Smart Guide: ${selectedCategory}` : "Smart First Aid Assistant") : "First Aid Dashboard"}
               </h1>
               <p className="text-sm text-surface-500 flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />

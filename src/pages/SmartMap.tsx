@@ -136,6 +136,8 @@ export default function SmartMap() {
 
   // States
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [showLocationModal, setShowLocationModal] = useState<boolean>(false);
+  const [manualCityInput, setManualCityInput] = useState<string>("");
   const [zoomLevel, setZoomLevel] = useState<number>(DEFAULT_ZOOM);
   const [addressStatus, setAddressStatus] = useState<string>("Locating GPS...");
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -282,23 +284,25 @@ export default function SmartMap() {
     };
   }, [map, theme]);
 
-  // Request Location
+  // Request Real GPS Location via Browser Geolocation API
   const requestLocation = useCallback(() => {
+    setPermissionState("loading");
+    setAddressStatus("Detecting real GPS location...");
+    setGeoError(null);
+
     if (!navigator.geolocation) {
-      setGeoError("Geolocation is not supported by your browser");
       setPermissionState("unavailable");
-      setAddressStatus("Live location unavailable");
+      setAddressStatus("Geolocation not supported");
+      setGeoError("Geolocation is not supported by your browser.");
       return;
     }
     
-    setPermissionState("loading");
-    setAddressStatus("Detecting real GPS location...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setUserLocation({ lat: latitude, lng: longitude, accuracy });
         setZoomLevel(15);
-        setAddressStatus("GPS active (High Accuracy)");
+        setAddressStatus("Live GPS active (High Accuracy)");
         setGeoError(null);
         setPermissionState("granted");
         if (map) {
@@ -306,19 +310,24 @@ export default function SmartMap() {
         }
       },
       (err) => {
-        let status: typeof permissionState = "unavailable";
+        let state: typeof permissionState = "unavailable";
+        let message = "GPS unavailable.";
         if (err.code === err.PERMISSION_DENIED) {
-          status = "denied";
+          state = "denied";
+          message = "Location permission denied. Please enable location access in your browser settings.";
         } else if (err.code === err.TIMEOUT) {
-          status = "timeout";
+          state = "timeout";
+          message = "Location request timed out. Please check your GPS signal and try again.";
         } else if (err.code === err.POSITION_UNAVAILABLE) {
-          status = "unavailable";
+          state = "unavailable";
+          message = "GPS signal unavailable. Please ensure device location/GPS services are turned on.";
         }
-        setPermissionState(status);
-        setGeoError(err.message || "Location access denied");
+        setPermissionState(state);
+        setGeoError(message);
         setAddressStatus("Live location unavailable");
+        console.warn("Geolocation error:", err);
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
   }, [map]);
 
@@ -341,6 +350,7 @@ export default function SmartMap() {
         const { latitude, longitude, accuracy } = pos.coords;
         setUserLocation({ lat: latitude, lng: longitude, accuracy });
         setPermissionState("granted");
+        setGeoError(null);
       },
       (err) => {
         console.warn("GPS watch notice:", err);
@@ -1013,6 +1023,7 @@ export default function SmartMap() {
       {/* Floating Map Controls */}
       {userLocation && (
         <div className="absolute top-36 right-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
+          <button onClick={() => setShowLocationModal(true)} title="Set Location / Change City" className="w-10 h-10 bg-amber-500 hover:bg-amber-400 text-black font-black backdrop-blur-xl border border-amber-400 rounded-xl flex items-center justify-center shadow-xl transition-colors">📍</button>
           <button onClick={handleZoomIn} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
           <button onClick={handleZoomOut} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
           <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-0.5" />
@@ -1023,91 +1034,91 @@ export default function SmartMap() {
         </div>
       )}
 
-      {/* Leaflet Map / Fallback View */}
-      {!userLocation ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-surface-50 dark:bg-surface-950/40 z-[998] pt-32">
-          {permissionState === "loading" ? (
-            <div className="space-y-4 max-w-sm p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl flex flex-col items-center animate-in fade-in zoom-in-95">
-              <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
-              <div className="space-y-1.5">
-                <h3 className="font-black text-sm text-surface-900 dark:text-white">Detecting Real GPS Location</h3>
-                <p className="text-xs text-surface-500 leading-relaxed">
-                  Connecting to satellites. Please allow location access if prompted by your browser...
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-md p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6 animate-in fade-in zoom-in-95">
-              <div className="w-16 h-16 mx-auto bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500">
-                <LocateFixed className="w-8 h-8" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-black text-surface-900 dark:text-white">Live Location Unavailable</h2>
-                <p className="text-xs text-surface-500 leading-relaxed">
-                  GoldenGuard requires high-accuracy real GPS location data. 
-                  {permissionState === "denied" ? " Location permission is blocked." : " Satellite signal could not be established."}
-                </p>
-              </div>
-
-              {permissionState === "denied" ? (
-                <div className="text-left text-xs bg-surface-50 dark:bg-surface-800/50 p-4 rounded-2xl border border-surface-100 dark:border-surface-800 space-y-2 text-surface-600 dark:text-surface-300">
-                  <div className="font-bold text-surface-800 dark:text-white font-black">Instructions to enable location:</div>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li><strong>Chrome:</strong> Click the lock icon in the URL bar, set Location to <em>Allow</em>, then refresh.</li>
-                    <li><strong>Safari:</strong> Go to Settings &gt; Privacy &gt; Location Services, make sure Safari has access, and refresh.</li>
-                    <li><strong>Firefox:</strong> Click the permissions shield next to the URL, clear the blocked status, and refresh.</li>
-                  </ul>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <button
-                    onClick={requestLocation}
-                    className="w-full h-11 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-colors cursor-pointer"
-                  >
-                    <RefreshCw className="w-4 h-4" /> Retry Satellite GPS
-                  </button>
-                  <p className="text-[10px] text-surface-400">
-                    If this persists, please verify your device's global GPS settings are turned on.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+      {/* Live Location Indicator Banner */}
+      <div className="absolute bottom-20 left-4 z-[999] pointer-events-auto bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-emerald-500/30 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2.5">
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </span>
+        <div className="text-xs">
+          <div className="font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            LIVE GPS ACTIVE
+            {userLocation?.accuracy && (
+              <span className="text-[10px] font-normal text-surface-500">
+                (±{Math.round(userLocation.accuracy)}m)
+              </span>
+            )}
+          </div>
+          <div className="text-[10px] text-surface-500 truncate max-w-[200px] sm:max-w-xs">
+            {addressStatus}
+          </div>
         </div>
-      ) : (
-        <MapContainer
-          ref={setMap}
-          center={[userLocation.lat, userLocation.lng]}
-          zoom={zoomLevel}
-          scrollWheelZoom={true}
-          className="w-full h-full z-0 animate-in fade-in duration-500"
-          zoomControl={false}
-        >
-          <LayersControl position="bottomleft">
-            <LayersControl.BaseLayer checked={theme !== "dark"} name="Roadmap (OpenStreetMap)">
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                maxZoom={19}
-              />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Tactical Map">
-              <TileLayer
-                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                maxZoom={19}
-              />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Satellite Imagery">
-              <TileLayer
-                attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-eGP, and the GIS User Community'
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={19}
-              />
-            </LayersControl.BaseLayer>
-          </LayersControl>
+      </div>
 
-          <ScaleControl position="bottomleft" imperial={false} />
+      {/* Geolocation Error Alert Banner */}
+      {geoError && (
+        <div className="absolute top-36 left-4 right-4 sm:left-auto sm:right-4 max-w-md z-[1000] bg-red-500/10 dark:bg-red-950/90 backdrop-blur-xl border border-red-500/50 p-4 rounded-2xl shadow-xl flex flex-col gap-2 pointer-events-auto animate-in fade-in">
+          <div className="flex items-center justify-between">
+            <span className="font-black text-red-600 dark:text-red-400 text-xs flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" /> Location Error
+            </span>
+            <button onClick={() => setGeoError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">Dismiss</button>
+          </div>
+          <p className="text-xs text-surface-700 dark:text-surface-300 leading-relaxed">{geoError}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <button onClick={requestLocation} className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl transition-colors shadow-md">
+              Retry GPS
+            </button>
+            <button onClick={() => setShowLocationModal(true)} className="px-3 py-1.5 bg-surface-200 dark:bg-surface-800 text-surface-800 dark:text-white font-bold text-xs rounded-xl transition-colors">
+              Set City Manually
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Leaflet Map / Real Google-like View */}
+      <MapContainer
+        ref={setMap}
+        center={[userLocation?.lat || 28.6139, userLocation?.lng || 77.2090]}
+        zoom={zoomLevel}
+        minZoom={3}
+        maxZoom={20}
+        scrollWheelZoom={true}
+        className="w-full h-full z-0 animate-in fade-in duration-500"
+        zoomControl={false}
+      >
+        <LayersControl position="bottomleft">
+          <LayersControl.BaseLayer checked={theme !== "dark"} name="OpenStreetMap">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer checked={theme === "dark"} name="Dark Tactical Map">
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              maxZoom={20}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Light Minimal">
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              maxZoom={20}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite (ESRI)">
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={19}
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
+
+        <ScaleControl position="bottomleft" imperial={false} />
           
           {/* Click Handler */}
           <MapEventsHandler onClick={handleMapClickForReport} />
@@ -1175,7 +1186,6 @@ export default function SmartMap() {
             />
           )}
         </MapContainer>
-      )}
 
       {/* Selected Place Details Card (Bottom Sheet / Side Panel) */}
       {selectedPlace && (
@@ -1254,6 +1264,69 @@ export default function SmartMap() {
             <button onClick={() => setTravelMode("driving")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 ${travelMode === "driving" ? "bg-amber-500 text-black shadow" : "text-surface-500"}`}><Car className="w-3.5 h-3.5" /> Car</button>
             <button onClick={() => setTravelMode("bicycling")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 ${travelMode === "bicycling" ? "bg-amber-500 text-black shadow" : "text-surface-500"}`}><Sparkles className="w-3.5 h-3.5" /> Bike</button>
             <button onClick={() => setTravelMode("walking")} className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 ${travelMode === "walking" ? "bg-amber-500 text-black shadow" : "text-surface-500"}`}><Users className="w-3.5 h-3.5" /> Walk</button>
+          </div>
+        </div>
+      )}
+
+      {/* Location Selector Modal */}
+      {showLocationModal && (
+        <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 pointer-events-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 font-bold">📍</div>
+                <div>
+                  <h3 className="font-black text-base text-surface-900 dark:text-white">Set Your Location</h3>
+                  <p className="text-xs text-surface-500">Fix inaccurate map location or select city</p>
+                </div>
+              </div>
+              <button onClick={() => setShowLocationModal(false)} className="w-8 h-8 rounded-full bg-surface-100 dark:bg-surface-800 flex items-center justify-center text-surface-400 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  requestLocation();
+                  setShowLocationModal(false);
+                }}
+                className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
+              >
+                <LocateFixed className="w-4 h-4" /> Detect My Live GPS Location
+              </button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-surface-200 dark:border-surface-800"></div></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white dark:bg-surface-900 px-2 text-surface-400 font-bold text-surface-400">Or Select City</span></div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                {[
+                  { name: "New Delhi", lat: 28.6139, lng: 77.2090 },
+                  { name: "Patna", lat: 25.5941, lng: 85.1376 },
+                  { name: "Mumbai", lat: 19.0760, lng: 72.8777 },
+                  { name: "Bengaluru", lat: 12.9716, lng: 77.5946 },
+                  { name: "Kolkata", lat: 22.5726, lng: 88.3639 },
+                  { name: "Hyderabad", lat: 17.3850, lng: 78.4867 },
+                  { name: "Pune", lat: 18.5204, lng: 73.8567 },
+                  { name: "Chennai", lat: 13.0827, lng: 80.2707 },
+                  { name: "Lucknow", lat: 26.8467, lng: 80.9462 },
+                  { name: "Jaipur", lat: 26.9124, lng: 75.7873 }
+                ].map(city => (
+                  <button
+                    key={city.name}
+                    onClick={() => {
+                      setUserLocation({ lat: city.lat, lng: city.lng, accuracy: 10 });
+                      if (map) map.flyTo([city.lat, city.lng], 15, { duration: 1.2 });
+                      setShowLocationModal(false);
+                    }}
+                    className="p-3 bg-surface-50 hover:bg-surface-100 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-800 dark:text-white rounded-2xl text-xs font-bold text-left border border-surface-200 dark:border-surface-700 transition-all flex items-center justify-between cursor-pointer"
+                  >
+                    <span>{city.name}</span>
+                    <span className="text-[10px] text-amber-500 font-black">Select</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

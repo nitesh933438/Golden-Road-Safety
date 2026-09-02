@@ -5,11 +5,12 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
   ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { getApiUrl } from "../lib/api";
-import { TEST_EMERGENCY_NUMBER, generateSOSMessage } from "../lib/emergencyCall";
+import { EMERGENCY_DISPATCH_NUMBER, generateSOSMessage } from "../lib/emergencyCall";
 import { getLocalMedicalID } from "../lib/medicalIdStore";
 import { useAuth } from "./AuthContext";
 
@@ -390,25 +391,39 @@ export const VoiceSOSProvider: React.FC<{ children: ReactNode }> = ({ children }
     [handleTriggerDetected]
   );
 
+  const contextValue = useMemo(() => ({
+    isSupported,
+    isListening,
+    isTriggered,
+    triggerPhrase,
+    lastTranscript,
+    countdown,
+    micPermissionStatus,
+    toggleListening,
+    startListening,
+    stopListening,
+    testVoiceTrigger,
+    cancelTrigger,
+    confirmImmediateDispatch,
+    recognizedHotwords: DEFAULT_HOTWORDS,
+  }), [
+    isSupported,
+    isListening,
+    isTriggered,
+    triggerPhrase,
+    lastTranscript,
+    countdown,
+    micPermissionStatus,
+    toggleListening,
+    startListening,
+    stopListening,
+    testVoiceTrigger,
+    cancelTrigger,
+    confirmImmediateDispatch,
+  ]);
+
   return (
-    <VoiceSOSContext.Provider
-      value={{
-        isSupported,
-        isListening,
-        isTriggered,
-        triggerPhrase,
-        lastTranscript,
-        countdown,
-        micPermissionStatus,
-        toggleListening,
-        startListening,
-        stopListening,
-        testVoiceTrigger,
-        cancelTrigger,
-        confirmImmediateDispatch,
-        recognizedHotwords: DEFAULT_HOTWORDS,
-      }}
-    >
+    <VoiceSOSContext.Provider value={contextValue}>
       {children}
     </VoiceSOSContext.Provider>
   );

@@ -700,13 +700,13 @@ export function MedicalWallet() {
                     href={`tel:${contact.phone}`}
                     className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1 hover:bg-emerald-500/20"
                   >
-                    <Phone className="w-3.5 h-3.5" /> Test Call
+                    <Phone className="w-3.5 h-3.5" /> Emergency Call
                   </a>
                   <a
                     href={`sms:${contact.phone}`}
                     className="px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-1 hover:bg-blue-500/20"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" /> Test SMS
+                    <MessageSquare className="w-3.5 h-3.5" /> Emergency SMS
                   </a>
                 </div>
 

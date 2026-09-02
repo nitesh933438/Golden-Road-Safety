@@ -68,10 +68,9 @@ const CITIZEN_HOME_GROUP: NavGroup = {
   items: [
     { name: "Dashboard", to: "/", icon: LayoutDashboard },
     { name: "Emergency Help", to: "/sos", icon: ShieldAlert, alert: true },
-    { name: "Report a Road Problem", to: "/report", icon: AlertTriangle },
+    { name: "Report Hazard", to: "/report", icon: AlertTriangle },
     { name: "Find Help", to: "/map", icon: MapIcon },
-    { name: "Safety & First Aid", to: "/first-aid", icon: Stethoscope },
-    { name: "My Activity", to: "/profile", icon: Users },
+    { name: "First Aid Guides", to: "/first-aid", icon: Stethoscope },
   ]
 };
 
@@ -79,7 +78,6 @@ const CITIZEN_ACCOUNT_GROUP: NavGroup = {
   title: "ACCOUNT",
   items: [
     { name: "My Profile", to: "/profile", icon: User },
-    { name: "Emergency Contacts", to: "/profile?tab=contacts", icon: ShieldAlert },
     { name: "Settings & Offline", to: "/sync", icon: Wifi },
   ]
 };
@@ -205,7 +203,7 @@ export function Layout() {
           <div className="bg-gradient-to-r from-red-600 to-amber-600 text-white px-4 py-2.5 text-xs font-black flex items-center justify-between shadow-lg z-30 animate-in slide-in-from-top-2">
             <div className="flex items-center gap-2">
               <WifiOff className="w-4 h-4 shrink-0 animate-pulse" />
-              <span>🔴 Offline Mode Active — Internet unavailable. SOS, AI First Aid Guides & Contacts remain 100% operational.</span>
+              <span>🔴 Offline Mode Active — Internet unavailable. SOS, Manual First Aid Guides & Contacts remain 100% operational.</span>
             </div>
             <Link to="/sync" className="px-3 py-1 rounded-lg bg-black/30 hover:bg-black/50 text-white text-[11px] font-black uppercase transition-colors shrink-0">
               Sync Center ({pendingCount})

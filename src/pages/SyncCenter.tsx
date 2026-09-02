@@ -88,7 +88,7 @@ export function SyncCenter() {
           </div>
           <div>
             <div className="text-2xl font-black text-surface-900 dark:text-white">{OFFLINE_AI_GUIDES.length}</div>
-            <div className="text-xs text-surface-500 font-bold">Offline AI Medical Guides Ready</div>
+            <div className="text-xs text-surface-500 font-bold">Offline Medical Guides Ready</div>
           </div>
         </div>
       </div>
@@ -188,7 +188,7 @@ export function SyncCenter() {
           <div className="p-4 rounded-2xl bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 space-y-2">
             <div className="flex items-center gap-2 font-black text-xs text-surface-900 dark:text-white">
               <BookOpen className="w-4 h-4 text-emerald-500" />
-              <span>2. AI CPR & First Aid Manual</span>
+              <span>2. CPR & First Aid Manual</span>
             </div>
             <p className="text-[11px] text-surface-500">Step-by-step CPR, severe bleeding, burn, and choking procedures saved in offline IndexedDB cache.</p>
           </div>

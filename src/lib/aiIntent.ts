@@ -20,7 +20,7 @@ export function detectAIIntent(query: string): AIIntentSuggestion | null {
   if (q.includes("bleed") || q.includes("blood") || q.includes("cut") || q.includes("wound") || q.includes("injury")) {
     return {
       intent: "firstaid",
-      title: "AI Detected: Severe Bleeding / Trauma",
+      title: "System Detected: Severe Bleeding / Trauma",
       actionText: "Open Bleeding First Aid Guide",
       targetUrl: "/first-aid?condition=bleeding",
       badgeColor: "bg-red-600 text-white",
@@ -32,7 +32,7 @@ export function detectAIIntent(query: string): AIIntentSuggestion | null {
   if (q.includes("cpr") || q.includes("breathe") || q.includes("chok") || q.includes("unconscious") || q.includes("faint") || q.includes("heart")) {
     return {
       intent: "firstaid",
-      title: "AI Detected: Cardiac / Respiratory Crisis",
+      title: "System Detected: Cardiac / Respiratory Crisis",
       actionText: "Launch 30:2 CPR Metronome & Protocol",
       targetUrl: "/first-aid?condition=cpr",
       badgeColor: "bg-red-600 text-white",
@@ -44,7 +44,7 @@ export function detectAIIntent(query: string): AIIntentSuggestion | null {
   if (q.includes("fire") || q.includes("burn") || q.includes("smoke") || q.includes("flame")) {
     return {
       intent: "emergency",
-      title: "AI Detected: Fire / Thermal Burn Emergency",
+      title: "System Detected: Fire / Thermal Burn Emergency",
       actionText: "Trigger Fire Dispatch & Burn Guide",
       targetUrl: "/sos?type=fire",
       badgeColor: "bg-amber-600 text-white",
@@ -56,7 +56,7 @@ export function detectAIIntent(query: string): AIIntentSuggestion | null {
   if (q.includes("crash") || q.includes("accident") || q.includes("hit") || q.includes("bike") || q.includes("car") || q.includes("collision")) {
     return {
       intent: "saferide",
-      title: "AI Detected: Vehicle Crash / Incident",
+      title: "System Detected: Vehicle Crash / Incident",
       actionText: "Trigger 1-Tap Golden Hour SOS",
       targetUrl: "/sos?active=true",
       badgeColor: "bg-red-600 text-white animate-pulse",
@@ -68,7 +68,7 @@ export function detectAIIntent(query: string): AIIntentSuggestion | null {
   if (q.includes("hospital") || q.includes("icu") || q.includes("ambulance") || q.includes("doctor") || q.includes("clinic") || q.includes("trauma")) {
     return {
       intent: "hospital",
-      title: "AI Detected: Medical Facility Lookup",
+      title: "System Detected: Medical Facility Lookup",
       actionText: "Find Nearest Verified Trauma Centers",
       targetUrl: "/map?filter=hospitals",
       badgeColor: "bg-blue-600 text-white",
@@ -80,7 +80,7 @@ export function detectAIIntent(query: string): AIIntentSuggestion | null {
   if (q.includes("hazard") || q.includes("pothole") || q.includes("oil") || q.includes("block") || q.includes("landslide") || q.includes("flood")) {
     return {
       intent: "hazard",
-      title: "AI Detected: Roadway Safety Hazard",
+      title: "System Detected: Roadway Safety Hazard",
       actionText: "Report Road Hazard with Geo-Tag",
       targetUrl: "/report-hazard",
       badgeColor: "bg-amber-500 text-black",
@@ -92,7 +92,7 @@ export function detectAIIntent(query: string): AIIntentSuggestion | null {
   if (q.includes("police") || q.includes("thief") || q.includes("crime") || q.includes("help") || q.includes("attack") || q.includes("harass")) {
     return {
       intent: "police",
-      title: "AI Detected: Emergency Security Alert",
+      title: "System Detected: Emergency Security Alert",
       actionText: "Connect to Police Control Room (112)",
       targetUrl: "/map?filter=police",
       badgeColor: "bg-purple-600 text-white",

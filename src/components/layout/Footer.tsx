@@ -409,7 +409,7 @@ export function Footer() {
             
             <div className="text-center md:text-left space-y-1">
               <p className="font-extrabold text-surface-700 dark:text-surface-300">
-                © 2026 GoldenGuard — AI Road Safety & SOS
+                © 2026 GoldenGuard — Automated Road Safety & SOS
               </p>
               <p className="text-[10px] text-surface-500">
                 Built for safer roads and faster emergency response.

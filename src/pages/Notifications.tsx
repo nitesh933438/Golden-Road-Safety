@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { 
   Bell, ShieldAlert, AlertTriangle, CheckCircle2, 
   Search, Trash2, CheckCheck, Info, ArrowRight, UserCheck, 
-  Stethoscope, Building2, Car, Bot, Megaphone, BookOpen, 
+  Stethoscope, Building2, Car, Megaphone, BookOpen, 
   Users, Send, Shield, Zap, BellRing, Sparkles, X, ChevronRight
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -19,7 +19,6 @@ export function Notifications() {
     markAllAsRead, 
     deleteNotification, 
     clearAllNotifications, 
-    sendTestNotification 
   } = useNotifications();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,7 +62,7 @@ export function Notifications() {
       case "police":
         return <Car className="w-5 h-5 text-indigo-500" />;
       case "ai":
-        return <Bot className="w-5 h-5 text-amber-500" />;
+        return <Stethoscope className="w-5 h-5 text-amber-500" />;
       case "hazard":
         return <AlertTriangle className="w-5 h-5 text-amber-500" />;
       case "training":
@@ -88,7 +87,7 @@ export function Notifications() {
       case "police":
         return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">POLICE</span>;
       case "ai":
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">AI ADVISORY</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">SYSTEM ADVISORY</span>;
       case "hazard":
         return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">HAZARD</span>;
       case "training":
@@ -176,23 +175,14 @@ export function Notifications() {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {pushPermission !== "granted" ? (
+          {pushPermission !== "granted" && (
             <button
               onClick={requestPushPermission}
               className="w-full sm:w-auto py-2.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs shadow-md active:scale-95 transition-all"
             >
               Enable Push Notifications
             </button>
-          ) : (
-            <button
-              onClick={() => sendTestNotification("emergency")}
-              className="w-full sm:w-auto py-2.5 px-4 rounded-2xl bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-900 dark:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
-            >
-              <Send className="w-3.5 h-3.5 text-amber-500" />
-              <span>Test Push Alert</span>
-            </button>
           )}
-
         </div>
       </div>
 
@@ -210,7 +200,7 @@ export function Notifications() {
               "Green Corridor Active Police Dispatch",
               "CPR Certified Volunteer En Route",
               "Road Hazard Pothole Blackspot Warning",
-              "AI First Aid Triage Advisory"
+              "Automated First Aid Triage Advisory"
             ]}
             showVoiceInput={true}
             enableAIIntent={true}
@@ -224,7 +214,7 @@ export function Notifications() {
             { id: "emergency_sos", label: "🚨 SOS & Emergency" },
             { id: "services", label: "🏥 Hospital & Police" },
             { id: "responders", label: "🤝 Volunteers" },
-            { id: "ai", label: "🤖 AI First Aid" },
+            { id: "ai", label: "🛡️ Smart First Aid" },
             { id: "hazard", label: "⚠️ Hazards" },
             { id: "training_admin", label: "📢 Admin & Badges" },
           ].map((cat) => (

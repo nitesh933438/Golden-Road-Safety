@@ -6,7 +6,7 @@ import { useOfflineSync } from "../context/OfflineSyncContext";
 import { getLastLocation } from "../lib/offlineStore";
 import { getLocalMedicalID, MedicalIDData } from "../lib/medicalIdStore";
 import { EmergencyCallBanner } from "../components/EmergencyCallBanner";
-import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, TEST_EMERGENCY_NUMBER } from "../lib/emergencyCall";
+import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, EMERGENCY_DISPATCH_NUMBER } from "../lib/emergencyCall";
 import { useAuth } from "../context/AuthContext";
 import { addDoc, collection, serverTimestamp, doc, setDoc, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -25,7 +25,7 @@ export function SOS() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [medicalID, setMedicalID] = useState<MedicalIDData>(() => getLocalMedicalID());
-  const { sensorActive, toggleSensorActive, triggerSimulatedCrash, activeEmergency, resetEmergencyState } = useCrashDetection();
+  const { sensorActive, toggleSensorActive, activeEmergency, resetEmergencyState } = useCrashDetection();
   const { isOnline, queueItem } = useOfflineSync();
   const [isProcessingSOS, setIsProcessingSOS] = useState(false);
   const [sosError, setSosError] = useState<string | null>(null);
@@ -249,7 +249,7 @@ export function SOS() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            phone: TEST_EMERGENCY_NUMBER,
+            phone: EMERGENCY_DISPATCH_NUMBER,
             latitude: freshCoords?.lat || null,
             longitude: freshCoords?.lng || null,
             timestamp: new Date().toISOString(),
@@ -291,7 +291,7 @@ export function SOS() {
         sosId: uniqueSosId,
         userId: userProfile?.uid || "anonymous",
         userName: userProfile?.name || "GoldenGuard User",
-        userPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+        userPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
         emergencyType: "General Emergency SOS",
         createdAt: serverTimestamp(),
         location: finalLocationText,
@@ -339,7 +339,7 @@ export function SOS() {
           await createEmergencyIncident({
             reporterUid: userProfile?.uid || "anonymous",
             reporterName: userProfile?.name || "GoldenGuard Citizen",
-            reporterPhone: userProfile?.phone || TEST_EMERGENCY_NUMBER,
+            reporterPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
             latitude: freshCoords?.lat || 0,
             longitude: freshCoords?.lng || 0,
             locationText: finalLocationText,
@@ -495,14 +495,6 @@ export function SOS() {
           <p className="text-xs text-surface-600 dark:text-surface-400 font-medium">
             Uses G-force accelerometer spikes, orientation flips, and velocity telemetry. If an accident occurs and you are unresponsive for 15s, Auto SOS triggers contacts & volunteers instantly.
           </p>
-          <button
-            type="button"
-            onClick={() => triggerSimulatedCrash()}
-            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-1.5 shrink-0 shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            <AlertTriangle className="w-4 h-4 text-black" />
-            <span>Test Accident Detection</span>
-          </button>
         </div>
       </div>
 
@@ -707,7 +699,7 @@ export function SOS() {
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
               <span className="text-xs font-black uppercase tracking-wider text-red-400">
-                AI READOUT: AUTOMATED EMERGENCY MEDICAL BRIEF
+                SYSTEM READOUT: AUTOMATED EMERGENCY MEDICAL BRIEF
               </span>
             </div>
             <Link 
@@ -800,7 +792,7 @@ export function SOS() {
           </div>
 
           <a 
-            href={`sms:${TEST_EMERGENCY_NUMBER}?body=${encodeURIComponent(activeSosRecord?.message || "Emergency Help Requested!")}`}
+            href={`sms:${EMERGENCY_DISPATCH_NUMBER}?body=${encodeURIComponent(activeSosRecord?.message || "Emergency Help Requested!")}`}
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
           >
             <Phone className="w-4 h-4" /> Send Backup SMS via Device
@@ -814,15 +806,15 @@ export function SOS() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mt-8 relative z-10">
         <a 
-          href={`tel:${TEST_EMERGENCY_NUMBER}`}
+          href={`tel:${EMERGENCY_DISPATCH_NUMBER}`}
           onClick={(e) => {
-            triggerEmergencyCall(TEST_EMERGENCY_NUMBER);
+            triggerEmergencyCall(EMERGENCY_DISPATCH_NUMBER);
           }}
           className="flex flex-col items-center gap-2 p-4 min-[360px]:p-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white rounded-2xl transition-all shadow-xl ring-2 ring-amber-400/40 hover:-translate-y-1 sm:col-span-1"
         >
           <PhoneCall className="w-8 h-8 animate-bounce text-amber-300" />
           <div className="font-black text-lg min-[360px]:text-xl break-all">9334387983</div>
-          <div className="text-[10px] min-[360px]:text-xs font-extrabold uppercase tracking-wider text-amber-200">Test Emergency Contact</div>
+          <div className="text-[10px] min-[360px]:text-xs font-extrabold uppercase tracking-wider text-amber-200">Emergency Dispatch</div>
         </a>
 
         <a 
