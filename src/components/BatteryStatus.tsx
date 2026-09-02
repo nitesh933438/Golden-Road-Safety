@@ -14,6 +14,7 @@ import {
   Power
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { BatteryModal } from "./layout/BatteryModal";
 
 // BatteryManager Web API Types
 interface BatteryManager extends EventTarget {
@@ -351,7 +352,7 @@ export function BatteryStatus({
   // VARIANT 3: BADGE / COMPACT (Default Header Indicator)
   // ==========================================
   return (
-    <div className="relative inline-flex items-center">
+    <div className="relative inline-flex items-center shrink-0">
       <button
         type="button"
         onClick={() => showDetailsOnClick && setShowPopover(!showPopover)}
@@ -362,12 +363,12 @@ export function BatteryStatus({
             : `Device Battery: ${level}% ${charging ? "(Charging)" : ""}`
         }
         className={cn(
-          "inline-flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1 rounded-xl text-xs font-bold transition-all border shrink-0 cursor-pointer select-none",
+          "inline-flex items-center gap-0.5 min-[360px]:gap-1 p-1 min-[360px]:p-1.5 rounded-lg text-[10px] min-[360px]:text-xs font-bold transition-all shrink-0 cursor-pointer select-none",
           isCritical
-            ? "bg-red-600 text-white border-red-500 shadow-sm shadow-red-600/40 animate-pulse"
+            ? "bg-red-600 text-white animate-pulse"
             : isLow
-            ? "bg-amber-500/15 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/80 shadow-xs"
-            : "bg-surface-100 dark:bg-surface-800/80 text-surface-700 dark:text-surface-300 border-surface-200/80 dark:border-surface-700/80 hover:bg-surface-200 dark:hover:bg-surface-700",
+            ? "text-amber-600 dark:text-amber-400 font-extrabold"
+            : "text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-800",
           className
         )}
       >
@@ -375,126 +376,31 @@ export function BatteryStatus({
         <span className="shrink-0">{renderBatteryIcon("w-3.5 h-3.5")}</span>
 
         {/* Battery Percentage */}
-        <span className="font-black tabular-nums tracking-tight">{level}%</span>
+        <span className="font-extrabold tabular-nums tracking-tight text-[10px] min-[360px]:text-xs">{level}%</span>
 
         {/* Warning Icon if level drops below 20% */}
         {isLow && (
           <span className="flex items-center shrink-0">
             <AlertTriangle
               className={cn(
-                "w-3.5 h-3.5 text-amber-500 dark:text-amber-400 animate-bounce",
+                "w-3 h-3 text-amber-500 dark:text-amber-400 animate-bounce",
                 isCritical && "text-yellow-200"
               )}
             />
           </span>
         )}
-
-        {/* Charging Spark Icon */}
-        {charging && !isLow && (
-          <Zap className="w-3 h-3 text-emerald-500 animate-pulse shrink-0" />
-        )}
       </button>
 
       {/* Popover Card for Header / Compact mode */}
-      {showPopover && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowPopover(false)}
-          />
-          <div
-            className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-2xl p-4 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-200 text-surface-900 dark:text-white"
-          >
-            <div className="flex items-center justify-between pb-2 mb-3 border-b border-surface-200 dark:border-surface-800">
-              <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    "p-1.5 rounded-lg",
-                    isLow ? "bg-red-500 text-white" : "bg-primary-500 text-white"
-                  )}
-                >
-                  {renderBatteryIcon("w-4 h-4")}
-                </div>
-                <div>
-                  <h4 className="text-xs font-black tracking-tight">Device Power Status</h4>
-                  <p className="text-[10px] text-surface-500 dark:text-surface-400">
-                    Emergency Telemetry Monitor
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPopover(false)}
-                className="p-1 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex items-baseline justify-between mb-2">
-              <span className="text-2xl font-black">{level}%</span>
-              <span
-                className={cn(
-                  "text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1",
-                  charging
-                    ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
-                    : isLow
-                    ? "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-black"
-                    : "bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400"
-                )}
-              >
-                {charging ? (
-                  <>
-                    <Zap className="w-3 h-3 text-emerald-500" /> Charging
-                  </>
-                ) : isLow ? (
-                  <>
-                    <AlertTriangle className="w-3 h-3 text-red-600" /> Low Battery
-                  </>
-                ) : (
-                  "Discharging"
-                )}
-              </span>
-            </div>
-
-            {/* Visual Level Bar */}
-            <div className="w-full bg-surface-200 dark:bg-surface-800 h-2 rounded-full overflow-hidden mb-3">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-300",
-                  isCritical ? "bg-red-600" : isLow ? "bg-amber-500" : "bg-emerald-500"
-                )}
-                style={{ width: `${Math.max(5, Math.min(100, level))}%` }}
-              />
-            </div>
-
-            {/* Warning Message if < 20% */}
-            {isLow ? (
-              <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/80 text-xs text-red-700 dark:text-red-300 space-y-1">
-                <div className="flex items-center gap-1.5 font-black text-red-800 dark:text-red-200">
-                  <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                  <span>Critical Battery Warning (&lt; 20%)</span>
-                </div>
-                <p className="text-[11px] leading-relaxed text-red-700 dark:text-red-300">
-                  Your device may run out of battery during dispatch or GPS navigation. Please plug in a charger to prevent emergency failure.
-                </p>
-              </div>
-            ) : (
-              <p className="text-[11px] text-surface-500 dark:text-surface-400 leading-relaxed">
-                Battery is sufficient for continuous SOS beacon broadcasting and GPS positioning.
-              </p>
-            )}
-
-            {/* Quick Tips */}
-            <div className="mt-3 pt-2.5 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between text-[10px] text-surface-500 dark:text-surface-400">
-              <span className="flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3 text-primary-500" /> Offline data cached
-              </span>
-              <span>GoldenGuard Monitor</span>
-            </div>
-          </div>
-        </>
-      )}
+      <BatteryModal
+        isOpen={showPopover}
+        onClose={() => setShowPopover(false)}
+        level={level}
+        charging={charging}
+        isLow={isLow}
+        isCritical={isCritical}
+        renderBatteryIcon={renderBatteryIcon}
+      />
     </div>
   );
 }

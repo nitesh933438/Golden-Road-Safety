@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { 
   Search as SearchIcon, Hospital, Shield, User, MapPin, 
   AlertTriangle, Loader2, ChevronLeft, ChevronRight, Eye, 
-  Phone, Mail, ShieldAlert, BadgeInfo, EyeOff
+  Phone, Mail, ShieldAlert, BadgeInfo, EyeOff, BookOpen,
+  FileText, ExternalLink, Compass, Heart
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
@@ -11,7 +12,7 @@ import { collection, query, where, getDocs, limit, doc, getDoc } from "firebase/
 
 interface SearchResult {
   id: string;
-  category: "hospital" | "police" | "volunteer" | "user" | "incident";
+  category: "hospital" | "police" | "volunteer" | "user" | "incident" | "page" | "guide";
   title: string;
   subtitle: string;
   locationDetails?: string;
@@ -23,8 +24,103 @@ interface SearchResult {
   severity?: string;
   unconscious?: boolean;
   exactLocation?: string;
+  linkUrl?: string;
+  tags?: string[];
   raw?: any;
 }
+
+const STATIC_APP_CATALOG: SearchResult[] = [
+  {
+    id: "app-sos-dispatch",
+    category: "page",
+    title: "1-Tap Golden Hour Emergency SOS",
+    subtitle: "Trigger immediate 1-Tap or Voice SOS dispatch to nearby hospitals, police, and verified Good Samaritans.",
+    locationDetails: "Instant GPS Emergency Dispatch Hub",
+    linkUrl: "/sos",
+    tags: ["sos", "emergency", "dispatch", "1-tap", "voice", "help", "crash", "ambulance", "golden hour", "trauma"]
+  },
+  {
+    id: "app-first-aid-cpr",
+    category: "guide",
+    title: "Cardiopulmonary Resuscitation (CPR) 30:2 Protocol",
+    subtitle: "Step-by-step 30 chest compressions to 2 rescue breaths guide for cardiac arrest emergencies.",
+    locationDetails: "Interactive First Aid & CPR Guide",
+    linkUrl: "/first-aid",
+    tags: ["cpr", "first aid", "cardiac", "heart attack", "resuscitation", "breathing", "chest compression", "aed"]
+  },
+  {
+    id: "app-bleeding-control",
+    category: "guide",
+    title: "Severe Bleeding & Pressure Bandage Protocol",
+    subtitle: "Emergency arterial pressure control, tourniquet application, and wound elevation techniques.",
+    locationDetails: "Trauma Management Protocol",
+    linkUrl: "/first-aid",
+    tags: ["bleeding", "hemorrhage", "wound", "tourniquet", "pressure", "first aid", "trauma", "cut"]
+  },
+  {
+    id: "app-report-hazard",
+    category: "page",
+    title: "Report Road Hazards & Traffic Accidents",
+    subtitle: "Submit geotagged reports for road obstacles, oil spills, crash scenes, broken streetlights, or potholes.",
+    locationDetails: "Community Incident & Road Hazard Reporter",
+    linkUrl: "/report",
+    tags: ["report", "road", "hazard", "pothole", "oil spill", "crash", "accident", "incident", "traffic", "obstacle"]
+  },
+  {
+    id: "app-smart-map",
+    category: "page",
+    title: "Smart Safety Map & Nearby Help Finder",
+    subtitle: "Explore live GPS locations of trauma centers, police booths, ambulance hubs, and active responders.",
+    locationDetails: "Live Interactive GIS Safety Map",
+    linkUrl: "/map",
+    tags: ["map", "hospital", "police", "responder", "gps", "location", "find", "trauma center", "booth"]
+  },
+  {
+    id: "app-medical-id",
+    category: "page",
+    title: "Emergency Medical Wallet & QR ID Card",
+    subtitle: "Configure blood group, emergency contacts, allergies, organ donor status, and medical QR code.",
+    locationDetails: "Personal Medical Wallet Profile",
+    linkUrl: "/profile",
+    tags: ["medical", "id", "profile", "contacts", "blood", "allergies", "donor", "qr", "wallet", "emergency contact"]
+  },
+  {
+    id: "app-good-samaritan-training",
+    category: "page",
+    title: "Good Samaritan Legal Rights & Lifesaver Training",
+    subtitle: "Section 134A legal protection details, certified responder modules, and CPR refresher courses.",
+    locationDetails: "Lifesaver Training & Legal Protection Hub",
+    linkUrl: "/training",
+    tags: ["good samaritan", "legal", "law", "training", "certificate", "course", "cpr training", "volunteer"]
+  },
+  {
+    id: "app-impact-analytics",
+    category: "page",
+    title: "Golden Hour Rescue Impact Analytics",
+    subtitle: "View community rescue metrics, average dispatch response times, and volunteer leaderboard.",
+    locationDetails: "System Impact & Analytics Hub",
+    linkUrl: "/impact",
+    tags: ["impact", "analytics", "stats", "metrics", "rescues", "leaderboard", "response time"]
+  },
+  {
+    id: "app-offline-sync",
+    category: "page",
+    title: "Offline Emergency Sync & P2P Mesh Settings",
+    subtitle: "Configure offline emergency guides, cached maps, and peer-to-peer mesh alert relay settings.",
+    locationDetails: "Offline & Connectivity Control",
+    linkUrl: "/sync",
+    tags: ["offline", "sync", "mesh", "cache", "connectivity", "bluetooth", "p2p"]
+  },
+  {
+    id: "app-heimlich-choking",
+    category: "guide",
+    title: "Choking & Heimlich Maneuver Action Plan",
+    subtitle: "Abdominal thrust instructions for choking adults and back blows for infants.",
+    locationDetails: "Emergency Airway Guide",
+    linkUrl: "/first-aid",
+    tags: ["choking", "heimlich", "airway", "infant", "suffocation", "throat", "first aid"]
+  }
+];
 
 export function Search() {
   const { currentUser, userProfile } = useAuth();
@@ -34,7 +130,7 @@ export function Search() {
   // UI state
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
-  const [selectedCategory, setSelectedCategory] = useState<"all" | "hospital" | "police" | "volunteer" | "user" | "incident">("all");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | "hospital" | "police" | "volunteer" | "user" | "incident" | "page" | "guide">("all");
   
   // Loading, success, error, pagination states
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +160,7 @@ export function Search() {
     }
   }, [debouncedQuery, setSearchParams]);
 
-  // Perform secure, real Firestore queries
+  // Perform secure, real Firestore queries + static app knowledge search
   useEffect(() => {
     let active = true;
     
@@ -86,6 +182,23 @@ export function Search() {
 
         // Query limits per search block to ensure "Do NOT read entire Firestore collections into the browser."
         const queryLimitVal = 40; 
+
+        // ==========================================
+        // 0. STATIC APP PAGES, GUIDES & REPORTS SEARCH
+        // ==========================================
+        if (selectedCategory === "all" || selectedCategory === "page" || selectedCategory === "guide") {
+          STATIC_APP_CATALOG.forEach(item => {
+            if (selectedCategory !== "all" && item.category !== selectedCategory) return;
+            const matches = 
+              item.title.toLowerCase().includes(lowerQuery) ||
+              item.subtitle.toLowerCase().includes(lowerQuery) ||
+              (item.tags && item.tags.some(tag => tag.toLowerCase().includes(lowerQuery)));
+
+            if (matches && active) {
+              tempResults.push(item);
+            }
+          });
+        }
 
         // ==========================================
         // 1. HOSPITAL SEARCH
@@ -373,13 +486,15 @@ export function Search() {
         </div>
 
         {/* Category Filter Chips */}
-        <div className="flex flex-wrap gap-2.5 pt-1">
+        <div className="flex flex-wrap gap-2 pt-1">
           {[
             { id: "all", label: "All Records", icon: SearchIcon },
+            { id: "page", label: "App Pages", icon: Compass },
+            { id: "guide", label: "First Aid & Guides", icon: BookOpen },
             { id: "hospital", label: "Hospitals", icon: Hospital },
             { id: "police", label: "Police Stations", icon: Shield },
-            { id: "volunteer", label: "On-Duty Volunteers", icon: User },
-            { id: "incident", label: "Active Incidents", icon: ShieldAlert },
+            { id: "volunteer", label: "Volunteers", icon: User },
+            { id: "incident", label: "Incidents & Reports", icon: ShieldAlert },
             { id: "user", label: "Users Directory", icon: User },
           ].map((cat) => (
             <button
@@ -388,10 +503,10 @@ export function Search() {
                 setSelectedCategory(cat.id as any);
                 setCurrentPage(1);
               }}
-              className={`px-4 py-2 rounded-full border text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-full border text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
                 selectedCategory === cat.id
                   ? "bg-amber-500 text-black border-amber-500 shadow-md scale-105"
-                  : "bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-300 hover:bg-surface-100"
+                  : "bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700"
               }`}
             >
               <cat.icon className="w-3.5 h-3.5" />
@@ -439,7 +554,7 @@ export function Search() {
             <SearchIcon className="w-10 h-10 text-amber-500 mx-auto opacity-40" />
             <h3 className="font-bold text-surface-700 dark:text-surface-300 text-sm">Enter search term above</h3>
             <p className="text-xs text-surface-500 max-w-sm mx-auto">
-              Provide a query (minimum 2 characters) to scan the verified rescue nodes, hospitals, and active incident reports.
+              Provide a query (minimum 2 characters) to scan verified rescue nodes, emergency guides, road hazard reports, and hospitals.
             </p>
           </div>
         )}
@@ -468,12 +583,16 @@ export function Search() {
                           result.category === "police" ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" :
                           result.category === "volunteer" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" :
                           result.category === "incident" ? "bg-rose-500/10 text-rose-500 border border-rose-500/20 animate-pulse" :
-                          "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                          result.category === "page" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20" :
+                          result.category === "guide" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" :
+                          "bg-surface-500/10 text-surface-600 border border-surface-500/20"
                         }`}>
                           {result.category === "hospital" && <Hospital className="w-3 h-3" />}
                           {result.category === "police" && <Shield className="w-3 h-3" />}
                           {result.category === "volunteer" && <User className="w-3 h-3" />}
                           {result.category === "incident" && <ShieldAlert className="w-3 h-3" />}
+                          {result.category === "page" && <Compass className="w-3 h-3" />}
+                          {result.category === "guide" && <BookOpen className="w-3 h-3" />}
                           {result.category === "user" && <User className="w-3 h-3" />}
                           <span>{result.category}</span>
                         </span>
@@ -488,7 +607,7 @@ export function Search() {
                       {/* Info block */}
                       <div className="space-y-1">
                         <h3 className="text-base font-black text-surface-900 dark:text-white line-clamp-1">{result.title}</h3>
-                        <p className="text-xs text-surface-500 line-clamp-1">{result.subtitle}</p>
+                        <p className="text-xs text-surface-500 line-clamp-2">{result.subtitle}</p>
                       </div>
 
                       {result.locationDetails && (
@@ -498,35 +617,50 @@ export function Search() {
                         </div>
                       )}
 
-                      {/* Contact Info (Authorized Check) */}
-                      <div className="pt-2 border-t border-surface-100 dark:border-surface-700/50 space-y-1.5">
-                        {isAuth ? (
-                          <div className="space-y-1 text-xs">
-                            {result.phone && (
-                              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                                <Phone className="w-3.5 h-3.5" />
-                                <span>{result.phone}</span>
-                              </div>
-                            )}
-                            {result.email && (
-                              <div className="flex items-center gap-2 text-surface-500">
-                                <Mail className="w-3.5 h-3.5" />
-                                <span className="font-medium">{result.email}</span>
-                              </div>
-                            )}
-                            {result.exactLocation && (
-                              <div className="text-[10px] text-surface-400 font-mono">
-                                GPS Coordinates: {result.exactLocation}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="p-2.5 rounded-xl bg-surface-50 dark:bg-surface-900/60 flex items-center gap-2 text-[10px] text-surface-400 border border-surface-100 dark:border-surface-800">
-                            <EyeOff className="w-3.5 h-3.5 text-surface-400" />
-                            <span>Contact detail / GPS access restricted. Authorized personnel only.</span>
-                          </div>
-                        )}
-                      </div>
+                      {/* Direct Navigation Button for App Pages & First Aid Guides */}
+                      {result.linkUrl && (
+                        <div className="pt-2 border-t border-surface-100 dark:border-surface-700/50 flex items-center justify-between">
+                          <Link
+                            to={result.linkUrl}
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-extrabold rounded-xl text-xs transition-colors shadow-xs"
+                          >
+                            <span>Open Feature / Guide</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      )}
+
+                      {/* Contact Info (Authorized Check) for users/hospitals/police/incidents */}
+                      {!result.linkUrl && (
+                        <div className="pt-2 border-t border-surface-100 dark:border-surface-700/50 space-y-1.5">
+                          {isAuth ? (
+                            <div className="space-y-1 text-xs">
+                              {result.phone && (
+                                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                                  <Phone className="w-3.5 h-3.5" />
+                                  <span>{result.phone}</span>
+                                </div>
+                              )}
+                              {result.email && (
+                                <div className="flex items-center gap-2 text-surface-500">
+                                  <Mail className="w-3.5 h-3.5" />
+                                  <span className="font-medium">{result.email}</span>
+                                </div>
+                              )}
+                              {result.exactLocation && (
+                                <div className="text-[10px] text-surface-400 font-mono">
+                                  GPS Coordinates: {result.exactLocation}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="p-2.5 rounded-xl bg-surface-50 dark:bg-surface-900/60 flex items-center gap-2 text-[10px] text-surface-400 border border-surface-100 dark:border-surface-800">
+                              <EyeOff className="w-3.5 h-3.5 text-surface-400" />
+                              <span>Contact detail / GPS access restricted. Authorized personnel only.</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

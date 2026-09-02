@@ -188,7 +188,7 @@ export function EmergencyCallBanner({
             Recipient: {TEST_EMERGENCY_LABEL}
           </div>
           
-          <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight flex items-center gap-3">
+          <div className="text-2xl min-[360px]:text-3xl sm:text-4xl font-black text-white font-mono tracking-tight flex items-center gap-3 break-all">
             <span>{TEST_EMERGENCY_NUMBER}</span>
           </div>
 

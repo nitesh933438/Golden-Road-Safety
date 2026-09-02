@@ -42,7 +42,7 @@ export function PWAInstallModal() {
       onClick={closeInstallGuide}
     >
       <div 
-        className="w-full sm:max-w-md bg-surface-900 border border-surface-700/80 rounded-t-3xl sm:rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-8 duration-300"
+        className="w-full sm:max-w-md bg-surface-900 border border-surface-700/80 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 text-white shadow-2xl relative overflow-hidden max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-8 duration-300 break-words"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Glow accent */}

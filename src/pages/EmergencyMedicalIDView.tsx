@@ -279,8 +279,8 @@ export function EmergencyMedicalIDView() {
 
       {/* QR Code Modal */}
       {showQR && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-surface-900 border border-surface-800 p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 text-center shadow-2xl relative">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-surface-900 border border-surface-800 p-5 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto custom-scrollbar space-y-6 text-center shadow-2xl relative break-words">
             <div className="space-y-1">
               <h3 className="text-xl font-black text-white">Emergency Medical QR Badge</h3>
               <p className="text-xs text-surface-400">Scan this code with any phone camera to instantly view Medical ID & emergency contacts without logging in.</p>

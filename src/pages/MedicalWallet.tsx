@@ -729,7 +729,7 @@ export function MedicalWallet() {
       {/* QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-4 min-[360px]:p-5 sm:p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-6 text-center text-surface-900 dark:text-white shadow-2xl relative">
+          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-4 min-[360px]:p-5 sm:p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto custom-scrollbar space-y-6 text-center text-surface-900 dark:text-white shadow-2xl relative break-words">
             <div className="space-y-1">
               <h3 className="text-xl font-black text-surface-900 dark:text-white">Emergency QR Badge</h3>
               <p className="text-xs text-surface-500 dark:text-surface-400">Scan code with any standard smartphone camera to view medical parameters instantly.</p>

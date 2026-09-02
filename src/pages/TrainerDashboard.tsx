@@ -395,7 +395,7 @@ export function TrainerDashboard() {
       {/* Schedule Session Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <form onSubmit={handleCreateSession} className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-in zoom-in-95">
+          <form onSubmit={handleCreateSession} className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 shadow-2xl animate-in zoom-in-95 break-words">
             <div className="flex justify-between items-center">
               <h3 className="font-black text-base text-surface-900 dark:text-white">Schedule Training Session</h3>
               <button type="button" onClick={() => setShowCreateModal(false)} className="text-surface-400 hover:text-white">

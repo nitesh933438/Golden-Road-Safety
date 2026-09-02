@@ -4,6 +4,7 @@ interface LogoProps {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
   showWordmark?: boolean;
+  wordmarkClassName?: string;
   variant?: "auto" | "light" | "dark";
 }
 
@@ -11,6 +12,7 @@ export function Logo({
   className = "",
   size = "md",
   showWordmark = true,
+  wordmarkClassName = "",
   variant = "auto",
 }: LogoProps) {
   const sizeMap = {
@@ -115,7 +117,7 @@ export function Logo({
 
       {/* Wordmark */}
       {showWordmark && (
-        <div className="flex flex-col justify-center shrink-0">
+        <div className={`flex flex-col justify-center shrink-0 ${wordmarkClassName}`}>
           <span className={`font-black tracking-tight ${currentSize.text} leading-none ${textColorClass} flex items-center gap-1`}>
             Golden<span className="text-amber-500 dark:text-amber-400">Guard</span>
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="System Active" />

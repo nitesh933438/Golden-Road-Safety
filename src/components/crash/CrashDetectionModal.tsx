@@ -24,7 +24,7 @@ export function CrashDetectionModal() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-surface-900 border border-amber-500/40 rounded-2xl sm:rounded-3xl p-5 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl shadow-surface-950/80 animate-in zoom-in-95 duration-200 relative overflow-hidden">
+      <div className="bg-surface-900 border border-amber-500/40 rounded-2xl sm:rounded-3xl p-5 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl shadow-surface-950/80 animate-in zoom-in-95 duration-200 relative max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto custom-scrollbar break-words">
         
         {/* Subtle Ambient Glow */}
         <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 via-transparent to-red-950/20 pointer-events-none" />

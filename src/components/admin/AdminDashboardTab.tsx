@@ -38,8 +38,8 @@ export function AdminDashboardTab() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Real-time Users query listener
-    const usersUnsub = onSnapshot(collection(db, "users"), (snapshot) => {
+    // 1. Real-time Users query listener (bounded to 150 items)
+    const usersUnsub = onSnapshot(query(collection(db, "users"), limit(150)), (snapshot) => {
       let citizens = 0;
       let verifiedVols = 0;
       let pendingApps = 0;
@@ -109,8 +109,8 @@ export function AdminDashboardTab() {
       setIsLoading(false);
     }, (err) => console.warn("Admin Dashboard users sync:", err));
 
-    // 2. Real-time sosRequests query listener
-    const sosUnsub = onSnapshot(collection(db, "sosRequests"), (snapshot) => {
+    // 2. Real-time sosRequests query listener (bounded)
+    const sosUnsub = onSnapshot(query(collection(db, "sosRequests"), limit(100)), (snapshot) => {
       let active = 0;
       let resolved = 0;
 
@@ -131,8 +131,8 @@ export function AdminDashboardTab() {
       }));
     }, (err) => console.warn("Admin Dashboard SOS sync:", err));
 
-    // 3. Real-time Hazards query listener
-    const hazardsUnsub = onSnapshot(collection(db, "hazards"), (snapshot) => {
+    // 3. Real-time Hazards query listener (bounded)
+    const hazardsUnsub = onSnapshot(query(collection(db, "hazards"), limit(100)), (snapshot) => {
       let openReports = 0;
 
       snapshot.docs.forEach((docSnap) => {

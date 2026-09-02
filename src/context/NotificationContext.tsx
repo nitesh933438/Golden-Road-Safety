@@ -17,7 +17,8 @@ export type NotificationType =
   | "hazard" 
   | "community" 
   | "training" 
-  | "admin";
+  | "admin"
+  | "system";
 
 export interface NotificationItem {
   id: string;

@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user.providerData.some((p) => p.providerId === "google.com") || user.providerId === "google.com";
   };
 
-  const isGoogleAdminUser = (user: FirebaseUser | null): boolean => {
+  const isAdminUser = (user: FirebaseUser | null): boolean => {
     if (!user || !user.email) return false;
     return user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && isGoogleProvider(user);
   };
@@ -146,9 +146,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (user) {
         const isGoogle = isGoogleProvider(user);
-        const isAdminEmail = user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-        const isGoogleAdmin = isGoogle && isAdminEmail;
-        const fallbackRole: AppRole = isGoogleAdmin ? "admin" : "citizen";
+        const isAdmin = isAdminUser(user);
+        const fallbackRole: AppRole = isAdmin ? "admin" : "citizen";
 
         // If we don't have a profile yet or it's a different user, set an instant fallback profile
         if (!userProfile || userProfile.uid !== user.uid) {
@@ -182,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const snap = await getDoc(userRef);
 
           if (!snap.exists()) {
-            const initialRole: AppRole = isGoogleAdmin ? "admin" : "citizen";
+            const initialRole: AppRole = isAdminUser(user) ? "admin" : "citizen";
             const newProfileData = {
               uid: user.uid,
               name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
@@ -216,8 +215,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             const existingData = snap.data();
             const rawRole = existingData.role || "citizen";
-            // SECURITY: If not Google Admin, force role to citizen if it was incorrectly admin
-            const existingRole: AppRole = isGoogleAdmin ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
+            // SECURITY: If not Admin, force role to citizen if it was incorrectly admin
+            const existingRole: AppRole = isAdminUser(user) ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
 
             const updateData = {
               role: existingRole,
@@ -253,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (snapshot.exists()) {
             const data = snapshot.data();
             const rawRole = data.role || "citizen";
-            const existingRole: AppRole = isGoogleAdmin ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
+            const existingRole: AppRole = isAdminUser(user) ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
             const isComplete = data.isProfileComplete !== false && data.profileCompleted !== false;
 
             setUserProfile((prev) => ({
@@ -470,7 +469,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       photoURL = await uploadToCloudinary(photoFile, "profiles");
     }
 
-    const isCurrentUserAdmin = isGoogleAdminUser(currentUser);
+    const isCurrentUserAdmin = isAdminUser(currentUser);
 
     const computedRole: AppRole = isCurrentUserAdmin
       ? (updates.role || userProfile?.role || "admin")
@@ -506,8 +505,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } : null);
   };
 
-  const isGoogleAdmin = isGoogleAdminUser(currentUser);
-  const isAdmin = isGoogleAdmin; // STRICTLY Google OAuth with ADMIN_EMAIL
+  const isAdmin = isAdminUser(currentUser); 
+  const isGoogleAdmin = isAdmin;
 
   const rawRole = userProfile?.role || "citizen";
   const currentRole = rawRole === "user" ? "citizen" : rawRole;

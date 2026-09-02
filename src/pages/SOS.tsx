@@ -583,7 +583,9 @@ export function SOS() {
       )}
 
       {sosActive ? (
-        <div className="w-48 h-48 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 flex items-center justify-center animate-ping absolute opacity-50"></div>
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
+          <div className="w-48 h-48 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 flex items-center justify-center animate-ping opacity-50"></div>
+        </div>
       ) : null}
 
       <button 

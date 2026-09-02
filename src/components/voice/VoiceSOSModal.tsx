@@ -31,10 +31,10 @@ export function VoiceSOSModal() {
   return (
     <div
       id="voice-sos-modal"
-      className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="w-full max-w-md bg-surface-900 border-2 border-red-500/80 rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-md max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto custom-scrollbar bg-surface-900 border-2 border-red-500/80 rounded-3xl p-5 sm:p-6 text-white shadow-2xl relative flex flex-col items-center text-center animate-in zoom-in-95 duration-200 break-words">
         {/* Glowing background aura */}
         <div className="absolute -top-24 -left-24 w-60 h-60 bg-red-600/30 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-60 h-60 bg-amber-600/25 rounded-full blur-3xl pointer-events-none" />

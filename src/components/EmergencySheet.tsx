@@ -619,8 +619,8 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
 
       {/* Good Samaritan Legal Rights Modal */}
       {showRightsModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl p-5 sm:p-8 max-w-lg w-full max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto custom-scrollbar space-y-6 shadow-2xl animate-in zoom-in-95 duration-200 break-words">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">

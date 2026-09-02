@@ -19,6 +19,10 @@ import { collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc, deleteD
 import { db } from "../lib/firebase";
 import { useTheme } from "../components/theme/ThemeProvider";
 import { useOutletContext } from "react-router-dom";
+import { fetchWithRetry, RateLimitError } from "../lib/api";
+
+const smartMapOverpassCache = new Map<string, any[]>();
+const smartMapOSRMRouteCache = new Map<string, any>();
 
 // --- Types ---
 interface MapPlace {
@@ -169,14 +173,10 @@ export default function SmartMap() {
     const tag = overpassMap[catId];
     if (!tag) return;
 
-    setIsSearching(true);
-    try {
-      const query = `[out:json];(node${tag}(around:5000,${centerLat},${centerLng});way${tag}(around:5000,${centerLat},${centerLng}););out center 10;`;
-      const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const newPlaces: MapPlace[] = data.elements.map((el: any) => {
+    const cacheKey = `${catId}-${centerLat.toFixed(2)},${centerLng.toFixed(2)}`;
+    if (smartMapOverpassCache.has(cacheKey)) {
+      const cachedElements = smartMapOverpassCache.get(cacheKey)!;
+      const newPlaces: MapPlace[] = cachedElements.map((el: any) => {
         const pLat = el.lat || el.center?.lat;
         const pLon = el.lon || el.center?.lon;
         return {
@@ -196,8 +196,42 @@ export default function SmartMap() {
           return [...filtered, ...newPlaces];
         });
       }
-    } catch (err) {
-      console.error("Overpass search failed:", err);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const query = `[out:json];(node${tag}(around:5000,${centerLat},${centerLng});way${tag}(around:5000,${centerLat},${centerLng}););out center 10;`;
+      const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+      const res = await fetchWithRetry(url, { maxRetries: 1 });
+      const data = await res.json();
+
+      if (data && data.elements) {
+        smartMapOverpassCache.set(cacheKey, data.elements);
+
+        const newPlaces: MapPlace[] = data.elements.map((el: any) => {
+          const pLat = el.lat || el.center?.lat;
+          const pLon = el.lon || el.center?.lon;
+          return {
+            id: `osm-${el.id}`,
+            name: el.tags?.name || `Unnamed ${catId}`,
+            type: catId as any,
+            lat: pLat,
+            lng: pLon,
+            vicinity: el.tags?.['addr:street'] || el.tags?.['addr:full'] || 'Unknown Address',
+            isOpen: true
+          };
+        }).filter((p: any) => p.lat && p.lng);
+
+        if (newPlaces.length > 0) {
+          setPlaces(prev => {
+            const filtered = prev.filter(p => !p.id.toString().startsWith("osm-") || p.type !== catId);
+            return [...filtered, ...newPlaces];
+          });
+        }
+      }
+    } catch (err: any) {
+      console.warn("Overpass category search notice:", err?.message || err);
     } finally {
       setIsSearching(false);
     }
@@ -318,30 +352,39 @@ export default function SmartMap() {
     };
   }, [requestLocation]);
 
-  // Reverse Geocode user location using OpenStreetMap Nominatim
+  // Reverse Geocode user location using OpenStreetMap Nominatim (Cached & Rate-limit Safe)
+  const reverseGeocodeCache = useRef<Map<string, string>>(new Map());
+
   useEffect(() => {
     if (!userLocation) return;
     let isMounted = true;
+    const key = `${userLocation.lat.toFixed(4)},${userLocation.lng.toFixed(4)}`;
+
+    if (reverseGeocodeCache.current.has(key)) {
+      setAddressStatus(reverseGeocodeCache.current.get(key)!);
+      return;
+    }
+
     const fetchAddress = async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=jsonv2`, {
-          headers: {
-            'User-Agent': 'GoldenGuard-RoadSafetyApp'
+        const res = await fetchWithRetry(
+          `https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=jsonv2`,
+          {
+            headers: { 'User-Agent': 'GoldenGuard-RoadSafetyApp' },
+            maxRetries: 1,
+            cacheTtlMs: 600000 // 10 minute cache
           }
-        });
+        );
         if (!isMounted) return;
         if (res.ok) {
           const data = await res.json();
-          if (data && data.display_name) {
-            setAddressStatus(data.display_name);
-          } else {
-            setAddressStatus(`${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`);
-          }
+          const displayStr = data?.display_name || `${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`;
+          reverseGeocodeCache.current.set(key, displayStr);
+          setAddressStatus(displayStr);
         } else {
           setAddressStatus(`${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`);
         }
-      } catch (e) {
-        console.warn("Reverse geocode fetch notice:", e);
+      } catch (e: any) {
         if (isMounted) {
           setAddressStatus(`${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}`);
         }
@@ -528,9 +571,13 @@ export default function SmartMap() {
     setSearchError(null);
     setHasSearched(true);
     try {
-      const res = await fetch(
+      const res = await fetchWithRetry(
         `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(searchQuery)}&limit=10`,
-        { signal: controller.signal }
+        {
+          signal: controller.signal,
+          maxRetries: 1,
+          cacheTtlMs: 300000 // 5 minutes cache
+        }
       );
       if (!res.ok) throw new Error("API error");
       const osmData = await res.json();
@@ -617,15 +664,30 @@ export default function SmartMap() {
     }
   };
 
-  // Routing via OSRM
+  // Routing via OSRM (Cached & Rate-limit Safe)
   const fetchOSRMRoute = async (
     startLat: number, startLng: number, 
     endLat: number, endLng: number, 
     destName: string, mode: "driving" | "bicycling" | "walking"
   ) => {
     const osrmMode = mode === "bicycling" ? "bike" : mode === "walking" ? "foot" : "driving";
+    const routeKey = `${osrmMode}-${startLat.toFixed(3)},${startLng.toFixed(3)}->${endLat.toFixed(3)},${endLng.toFixed(3)}`;
+
+    if (smartMapOSRMRouteCache.has(routeKey)) {
+      const cached = smartMapOSRMRouteCache.get(routeKey);
+      setActiveRoute(cached);
+      if (map && cached.coords) {
+        const bounds = L.latLngBounds(cached.coords);
+        map.fitBounds(bounds, { padding: [60, 60] });
+      }
+      return;
+    }
+
     try {
-      const res = await fetch(`https://router.project-osrm.org/route/v1/${osrmMode}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`);
+      const res = await fetchWithRetry(
+        `https://router.project-osrm.org/route/v1/${osrmMode}/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`,
+        { maxRetries: 1, cacheTtlMs: 600000 }
+      );
       const data = await res.json();
       if (data.routes && data.routes.length > 0) {
         const route = data.routes[0];
@@ -634,22 +696,25 @@ export default function SmartMap() {
         const distKm = parseFloat((route.distance / 1000).toFixed(1));
         const durMins = Math.round(route.duration / 60);
 
-        setActiveRoute({
+        const routeObj = {
           coords: leafletCoords,
           distanceKm: distKm,
           durationMins: durMins,
           destinationName: destName,
           endLat,
           endLng,
-        });
+        };
+
+        smartMapOSRMRouteCache.set(routeKey, routeObj);
+        setActiveRoute(routeObj);
         
         if (map) {
           const bounds = L.latLngBounds(leafletCoords);
           map.fitBounds(bounds, { padding: [60, 60] });
         }
       }
-    } catch (err) {
-      console.error("Routing Error:", err);
+    } catch (err: any) {
+      console.warn("Routing notice:", err?.message || err);
     }
   };
 
@@ -870,7 +935,7 @@ export default function SmartMap() {
       </div>
 
       {/* Filter Chips Bar */}
-      <div className="absolute top-20 left-4 right-4 md:right-auto z-[999] flex items-center gap-1.5 overflow-x-auto pb-2 pointer-events-auto no-scrollbar">
+      <div className="absolute top-32 md:top-20 left-3 right-3 md:left-4 md:right-auto z-[999] flex items-center gap-1.5 overflow-x-auto pb-2 pointer-events-auto no-scrollbar">
         {[
           { id: "all", label: "All Services", icon: Shield },
           { id: "hospital", label: "Hospitals", icon: Stethoscope },
@@ -901,7 +966,7 @@ export default function SmartMap() {
 
       {/* Hazard Dialog Overlay */}
       {showHazardDialog && (
-        <div className="absolute top-36 left-4 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-amber-500/50 shadow-2xl w-80 pointer-events-auto animate-in fade-in">
+        <div className="absolute top-36 left-3 right-3 sm:left-4 sm:right-auto z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-amber-500/50 shadow-2xl w-auto sm:w-80 max-w-[calc(100vw-24px)] pointer-events-auto animate-in fade-in">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-black text-amber-500 text-sm flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" /> Report Emergency Hazard
@@ -1114,7 +1179,7 @@ export default function SmartMap() {
 
       {/* Selected Place Details Card (Bottom Sheet / Side Panel) */}
       {selectedPlace && (
-        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom duration-300">
+        <div className="absolute bottom-4 sm:bottom-6 left-3 right-3 md:left-auto md:right-6 md:w-96 max-w-[calc(100vw-24px)] max-h-[calc(100vh-5rem)] md:max-h-[80vh] overflow-y-auto custom-scrollbar z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom duration-300">
           <div className="flex justify-between items-start mb-3">
             <div>
               <div className="flex items-center gap-2">
@@ -1127,19 +1192,19 @@ export default function SmartMap() {
                   </span>
                 )}
               </div>
-              <h3 className="font-black text-base mt-1 text-surface-900 dark:text-white">{selectedPlace.name}</h3>
+              <h3 className="font-black text-base mt-1 text-surface-900 dark:text-white break-words">{selectedPlace.name}</h3>
             </div>
-            <button onClick={() => setSelectedPlace(null)} className="p-1.5 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-400 hover:text-white">
+            <button onClick={() => setSelectedPlace(null)} className="p-1.5 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-400 hover:text-white shrink-0">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <p className="text-xs text-surface-500 dark:text-surface-400 mb-4">{selectedPlace.vicinity}</p>
+          <p className="text-xs text-surface-500 dark:text-surface-400 mb-4 break-words">{selectedPlace.vicinity}</p>
 
           {userLocation && (
             <div className="mb-4 text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-2 rounded-xl">
-              <Navigation className="w-3.5 h-3.5" /> 
-              Distance: {calculateDistance(userLocation.lat, userLocation.lng, selectedPlace.lat, selectedPlace.lng)} km away
+              <Navigation className="w-3.5 h-3.5 shrink-0" /> 
+              <span>Distance: {calculateDistance(userLocation.lat, userLocation.lng, selectedPlace.lat, selectedPlace.lng)} km away</span>
             </div>
           )}
 
@@ -1149,14 +1214,14 @@ export default function SmartMap() {
                 if (!userLocation) return;
                 fetchOSRMRoute(userLocation.lat, userLocation.lng, selectedPlace.lat, selectedPlace.lng, selectedPlace.name, travelMode);
               }}
-              className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors min-h-[44px]"
             >
               <Navigation className="w-4 h-4" /> Get Route
             </button>
             {selectedPlace.phone && (
               <a 
                 href={`tel:${selectedPlace.phone}`} 
-                className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-2xl flex items-center justify-center shadow-lg transition-colors"
+                className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-2xl flex items-center justify-center shadow-lg transition-colors min-h-[44px]"
                 title="Call Emergency"
               >
                 <PhoneCall className="w-4 h-4" />
@@ -1168,12 +1233,12 @@ export default function SmartMap() {
 
       {/* Active Route Info Panel */}
       {activeRoute && !selectedPlace && (
-        <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-88 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-5 rounded-3xl border border-amber-500/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom duration-300">
+        <div className="absolute bottom-4 sm:bottom-6 left-3 right-3 md:left-auto md:right-6 md:w-88 max-w-[calc(100vw-24px)] max-h-[calc(100vh-5rem)] md:max-h-[80vh] overflow-y-auto custom-scrollbar z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-amber-500/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom duration-300">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-amber-500 font-black text-sm">
-              <Navigation className="w-4 h-4 animate-pulse" /> Emergency Route to {activeRoute.destinationName}
+            <div className="flex items-center gap-2 text-amber-500 font-black text-sm break-words pr-2">
+              <Navigation className="w-4 h-4 animate-pulse shrink-0" /> Route to {activeRoute.destinationName}
             </div>
-            <button onClick={() => setActiveRoute(null)} className="text-surface-400 hover:text-white"><X className="w-4 h-4" /></button>
+            <button onClick={() => setActiveRoute(null)} className="text-surface-400 hover:text-white shrink-0"><X className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-surface-50 dark:bg-surface-800 p-3 rounded-2xl border border-surface-200 dark:border-surface-700">

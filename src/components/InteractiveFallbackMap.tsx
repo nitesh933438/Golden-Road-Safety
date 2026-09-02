@@ -9,6 +9,10 @@ import {
   Search, Loader2, Navigation, PhoneCall, AlertTriangle, X, Building2, AlertCircle, RefreshCw, LocateFixed, Maximize
 } from "lucide-react";
 import { useTheme } from "./theme/ThemeProvider";
+import { getApiUrl, fetchWithRetry, RateLimitError } from "../lib/api";
+
+// In-memory cache for Overpass places to prevent duplicate requests & 429 rate limit errors
+const overpassPlacesCache = new Map<string, Place[]>();
 
 // Default India Center Coordinates
 const INDIA_CENTER: [number, number] = [20.5937, 78.9629];
@@ -270,8 +274,23 @@ export function InteractiveFallbackMap({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Fetch Real Places via Overpass API
+  // Fetch Real Places via Overpass API (with cache to prevent repeated 429 rate limit errors)
   const fetchRealPlaces = async (lat: number, lng: number) => {
+    if (!lat || !lng) return;
+    const cacheKey = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    
+    // Check in-memory cache first
+    if (overpassPlacesCache.has(cacheKey)) {
+      const cachedPlaces = overpassPlacesCache.get(cacheKey)!;
+      setPlaces(prev => {
+        const customPlaces = prev.filter(p => p.type !== "hospital" && p.type !== "police");
+        const uniquePlaces = new Map();
+        [...customPlaces, ...cachedPlaces].forEach(p => uniquePlaces.set(p.id, p));
+        return Array.from(uniquePlaces.values());
+      });
+      return;
+    }
+
     try {
       const radius = 5000;
       const overpassQuery = `
@@ -284,10 +303,12 @@ export function InteractiveFallbackMap({
         );
         out center;
       `;
-      const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
+      const overpassRes = await fetchWithRetry("https://overpass-api.de/api/interpreter", {
         method: "POST",
-        body: overpassQuery
+        body: overpassQuery,
+        maxRetries: 1,
       });
+
       if (!overpassRes.ok) throw new Error("Overpass API failed");
       const overpassData = await overpassRes.json();
       
@@ -313,6 +334,7 @@ export function InteractiveFallbackMap({
       });
 
       if (realPlaces.length > 0) {
+        overpassPlacesCache.set(cacheKey, realPlaces);
         setPlaces(prev => {
           const customPlaces = prev.filter(p => p.type !== "hospital" && p.type !== "police");
           const uniquePlaces = new Map();
@@ -320,8 +342,8 @@ export function InteractiveFallbackMap({
           return Array.from(uniquePlaces.values());
         });
       }
-    } catch (err) {
-      console.warn("Failed to fetch real places from Overpass API", err);
+    } catch (err: any) {
+      console.warn("Overpass API notice (safely handled):", err?.message || err);
     }
   };
 
@@ -420,12 +442,12 @@ export function InteractiveFallbackMap({
     } else {
       requestUserLocation();
     }
-  }, [userLocation]);
+  }, [userLocation?.lat, userLocation?.lng]);
 
   const [searchError, setSearchError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Handle Nominatim Location Search (Debounced)
+  // Handle Nominatim Location Search (Debounced & Rate-limit Safe)
   const searchControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -437,7 +459,7 @@ export function InteractiveFallbackMap({
 
     const delayDebounceFn = setTimeout(() => {
       handleSearch();
-    }, 400);
+    }, 450);
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
@@ -456,16 +478,25 @@ export function InteractiveFallbackMap({
     setSearchError(null);
     setHasSearched(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=10`, {
-        signal: controller.signal
-      });
+      const res = await fetchWithRetry(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=10`,
+        {
+          signal: controller.signal,
+          maxRetries: 1,
+          cacheTtlMs: 300000 // Cache for 5 mins
+        }
+      );
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
       setSearchResults(data);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        console.error("Failed to search OpenStreetMap:", err);
-        setSearchError("Search service temporarily unavailable.");
+        if (err instanceof RateLimitError || err?.status === 429) {
+          setSearchError("Search rate limit reached. Please wait a moment before searching again.");
+        } else {
+          console.warn("Location search notice:", err?.message || err);
+          setSearchError("Search service temporarily unavailable.");
+        }
       }
     } finally {
       if (searchControllerRef.current === controller) {

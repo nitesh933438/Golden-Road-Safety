@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Mic, SquareSquare, Volume2, ShieldAlert, WifiOff } from "lucide-react";
 import { OFFLINE_AI_GUIDES } from "../../lib/offlineStore";
-import { getApiUrl } from "../../lib/api";
+import { getApiUrl, fetchWithRetry, RateLimitError } from "../../lib/api";
 
 export function FirstAidChat({ category }: { category: string | null }) {
   const [messages, setMessages] = useState<{ role: 'user' | 'model'; content: string }[]>([
@@ -108,13 +108,14 @@ ${matchedGuide.precautions}
     }
 
     try {
-      const response = await fetch(getApiUrl('/api/chat'), {
+      const response = await fetchWithRetry(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: [...messages, { role: 'user', content: userMsg }],
           emergencyType: category 
-        })
+        }),
+        maxRetries: 1
       });
       
       const data = await response.json();
@@ -125,8 +126,8 @@ ${matchedGuide.precautions}
         const offlineReply = findOfflineGuideResponse(userMsg, category);
         setMessages(prev => [...prev, { role: 'model', content: offlineReply }]);
       }
-    } catch (error) {
-      console.warn("First aid API offline fallback:", error);
+    } catch (error: any) {
+      console.warn("First aid API fallback triggered:", error?.message || error);
       const offlineReply = findOfflineGuideResponse(userMsg, category);
       setMessages(prev => [...prev, { role: 'model', content: offlineReply }]);
     } finally {
