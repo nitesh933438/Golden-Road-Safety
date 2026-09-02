@@ -40,7 +40,7 @@ export function MenuDrawer({ isOpen, onClose, navGroups }: MenuDrawerProps) {
     <>
       <div className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <aside
-        className="fixed top-0 left-0 z-[1001] w-full max-w-[420px] h-[100dvh] flex flex-col bg-white dark:bg-surface-950 text-surface-900 dark:text-white shadow-2xl border-r border-surface-200 dark:border-surface-800 transition-transform duration-300 ease-in-out pt-[env(safe-area-inset-top)]"
+        className="fixed top-0 left-0 z-[1001] w-full max-w-[300px] h-[100dvh] flex flex-col bg-white dark:bg-surface-950 text-surface-900 dark:text-white shadow-2xl border-r border-surface-200 dark:border-surface-800 transition-transform duration-300 ease-in-out pt-[env(safe-area-inset-top)]"
       >
         {/* Header */}
         <div className="flex-none h-14 flex items-center justify-between px-4 border-b border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900/50">
@@ -149,7 +149,7 @@ export function MenuDrawer({ isOpen, onClose, navGroups }: MenuDrawerProps) {
               </button>
             ) : (
               <button
-                onClick={() => { onClose(); }}
+                onClick={() => { onClose(); window.dispatchEvent(new CustomEvent("open-auth-modal")); }}
                 className="px-3 py-1.5 rounded-md bg-amber-500 text-black font-black text-[10px]"
               >
                 Sign In
