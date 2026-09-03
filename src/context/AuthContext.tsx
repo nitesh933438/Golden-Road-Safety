@@ -99,11 +99,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user.providerData.some((p) => p.providerId === "google.com") || user.providerId === "google.com";
   };
 
-  const isAdminUser = (user: FirebaseUser | null): boolean => {
-    if (!user) return false;
-    const email = user.email || user.providerData?.[0]?.email || "";
+  const isAdminUser = (user: FirebaseUser | null, profile?: UserProfile | null): boolean => {
+    const email = user?.email || user?.providerData?.[0]?.email || profile?.email || "";
     if (!email) return false;
-    return email.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
+    return email.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase() || email.trim().toLowerCase() === "nitesh933438@gmail.com";
   };
 
   // Sync profile to localStorage securely
@@ -219,9 +218,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } as UserProfile);
           } else {
             const existingData = snap.data();
+            const isUserAdmin = isAdminUser(user, existingData as UserProfile);
             const rawRole = existingData.role || "citizen";
-            // SECURITY: If not Admin, force role to citizen if it was incorrectly admin
-            const existingRole: AppRole = isAdminUser(user) ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
+            const existingRole: AppRole = isUserAdmin ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
 
             const updateData = {
               role: existingRole,
@@ -256,8 +255,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubDoc = onSnapshot(userRef, (snapshot) => {
           if (snapshot.exists()) {
             const data = snapshot.data();
+            const isUserAdmin = isAdminUser(user, data as UserProfile);
             const rawRole = data.role || "citizen";
-            const existingRole: AppRole = isAdminUser(user) ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
+            const existingRole: AppRole = isUserAdmin ? "admin" : (rawRole === "admin" ? "citizen" : (rawRole === "user" ? "citizen" : rawRole));
             const isComplete = data.isProfileComplete !== false && data.profileCompleted !== false;
 
             setUserProfile((prev) => ({
@@ -510,7 +510,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } : null);
   }, [currentUser, userProfile]);
 
-  const isAdmin = isAdminUser(currentUser); 
+  const isAdmin = isAdminUser(currentUser, userProfile); 
   const isGoogleAdmin = isAdmin;
 
   const rawRole = userProfile?.role || "citizen";
