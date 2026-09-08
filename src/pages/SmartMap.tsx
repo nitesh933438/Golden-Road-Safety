@@ -945,7 +945,7 @@ export default function SmartMap() {
       </div>
 
       {/* Filter Chips Bar */}
-      <div className="absolute top-32 md:top-20 left-3 right-3 md:left-4 md:right-auto z-[999] flex items-center gap-1.5 overflow-x-auto pb-2 pointer-events-auto no-scrollbar">
+      <div className="absolute top-20 left-4 right-4 md:right-auto z-[999] flex items-center gap-1.5 overflow-x-auto pb-2 pointer-events-auto no-scrollbar">
         {[
           { id: "all", label: "All Services", icon: Shield },
           { id: "hospital", label: "Hospitals", icon: Stethoscope },
@@ -961,10 +961,10 @@ export default function SmartMap() {
             <button
               key={cat.id}
               onClick={() => handleCategorySelect(cat.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg backdrop-blur-md transition-all whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-md transition-all whitespace-nowrap ${
                 isActive
                   ? "bg-amber-500 text-black shadow-amber-500/30 ring-2 ring-amber-400"
-                  : "bg-white/90 dark:bg-surface-900/90 text-surface-700 dark:text-surface-300 border border-surface-200 dark:border-surface-700 hover:border-amber-500"
+                  : "bg-white/95 dark:bg-surface-900/95 text-surface-700 dark:text-surface-300 border border-surface-200 dark:border-surface-700 hover:border-amber-500"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -976,7 +976,7 @@ export default function SmartMap() {
 
       {/* Hazard Dialog Overlay */}
       {showHazardDialog && (
-        <div className="absolute top-36 left-3 right-3 sm:left-4 sm:right-auto z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-amber-500/50 shadow-2xl w-auto sm:w-80 max-w-[calc(100vw-24px)] pointer-events-auto animate-in fade-in">
+        <div className="absolute top-32 left-4 z-[1000] bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-amber-500/50 shadow-2xl w-80 max-w-[calc(100vw-32px)] pointer-events-auto animate-in fade-in">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-black text-amber-500 text-sm flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" /> Report Emergency Hazard
@@ -1022,23 +1022,23 @@ export default function SmartMap() {
 
       {/* Floating Map Controls */}
       {userLocation && (
-        <div className="absolute top-36 right-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
-          <button onClick={() => setShowLocationModal(true)} title="Set Location / Change City" className="w-10 h-10 bg-amber-500 hover:bg-amber-400 text-black font-black backdrop-blur-xl border border-amber-400 rounded-xl flex items-center justify-center shadow-xl transition-colors">📍</button>
-          <button onClick={handleZoomIn} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
-          <button onClick={handleZoomOut} className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+        <div className="absolute top-32 right-4 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
+          <button onClick={() => setShowLocationModal(true)} title="Set Location / Change City" className="w-9 h-9 bg-amber-500 hover:bg-amber-400 text-black font-black backdrop-blur-xl border border-amber-400 rounded-xl flex items-center justify-center shadow-lg transition-colors text-xs">📍</button>
+          <button onClick={handleZoomIn} className="w-9 h-9 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg hover:border-amber-500 transition-colors"><ZoomIn className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+          <button onClick={handleZoomOut} className="w-9 h-9 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg hover:border-amber-500 transition-colors"><ZoomOut className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
           <div className="w-full h-[1px] bg-surface-200 dark:bg-surface-700 my-0.5" />
-          <button onClick={requestLocation} title="My Location" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-blue-500 transition-colors"><LocateFixed className="w-4 h-4 text-blue-500" /></button>
-          <button onClick={handleRecenter} title="Recenter" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-emerald-500 transition-colors"><Target className="w-4 h-4 text-emerald-500" /></button>
-          <button onClick={() => setShowTrafficLayer(!showTrafficLayer)} title="Traffic Layer" className={`w-10 h-10 backdrop-blur-xl border rounded-xl flex items-center justify-center shadow-xl transition-colors ${showTrafficLayer ? "bg-red-500 text-white border-red-400" : "bg-white/95 dark:bg-surface-900/95 border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300"}`}><Radio className="w-4 h-4" /></button>
-          <button onClick={toggleFullscreen} title="Fullscreen" className="w-10 h-10 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-xl hover:border-amber-500 transition-colors"><Maximize className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
+          <button onClick={requestLocation} title="My Location" className="w-9 h-9 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg hover:border-blue-500 transition-colors"><LocateFixed className="w-4 h-4 text-blue-500" /></button>
+          <button onClick={handleRecenter} title="Recenter" className="w-9 h-9 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg hover:border-emerald-500 transition-colors"><Target className="w-4 h-4 text-emerald-500" /></button>
+          <button onClick={() => setShowTrafficLayer(!showTrafficLayer)} title="Traffic Layer" className={`w-9 h-9 backdrop-blur-xl border rounded-xl flex items-center justify-center shadow-lg transition-colors ${showTrafficLayer ? "bg-red-500 text-white border-red-400" : "bg-white/95 dark:bg-surface-900/95 border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300"}`}><Radio className="w-4 h-4" /></button>
+          <button onClick={toggleFullscreen} title="Fullscreen" className="w-9 h-9 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-xl flex items-center justify-center shadow-lg hover:border-amber-500 transition-colors"><Maximize className="w-4 h-4 text-surface-700 dark:text-surface-300" /></button>
         </div>
       )}
 
       {/* Live Location Indicator Banner */}
-      <div className="absolute bottom-20 left-4 z-[999] pointer-events-auto bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-emerald-500/30 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2.5">
-        <span className="relative flex h-3 w-3">
+      <div className="absolute bottom-4 left-4 z-[999] pointer-events-auto bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-emerald-500/30 px-3 py-2 rounded-2xl shadow-xl flex items-center gap-2">
+        <span className="relative flex h-2.5 w-2.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
         </span>
         <div className="text-xs">
           <div className="font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -1049,7 +1049,7 @@ export default function SmartMap() {
               </span>
             )}
           </div>
-          <div className="text-[10px] text-surface-500 truncate max-w-[200px] sm:max-w-xs">
+          <div className="text-[10px] text-surface-500 truncate max-w-[180px] sm:max-w-xs">
             {addressStatus}
           </div>
         </div>
