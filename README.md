@@ -1,158 +1,498 @@
-# GoldenGuard — Real-Time Road Safety & Emergency Response Grid
+# 🛡️ GoldenGuard
 
-> A comprehensive, full-stack road safety, emergency response, and intelligent first-aid coordination platform designed to eliminate emergency response delays and save lives on highways and urban roads.
+### AI-Assisted Road Safety & Emergency Response Platform
 
----
+GoldenGuard is an AI-assisted road safety and emergency response platform designed to help people respond faster and more confidently during road accidents and medical emergencies.
 
-## 📌 Project Overview
-
-**GoldenGuard** is a mission-critical web application built to bridge the gap between road accident victims, emergency medical services (EMS), municipal police, and nearby Good Samaritan responders. Leveraging real-time geolocation, automated crash detection, server-side Gemini AI medical guidance, and instant SOS broadcasting, GoldenGuard provides an end-to-end incident management and emergency response grid.
+It combines **automatic crash detection, emergency SOS, GPS location, Gemini-powered First Aid assistance, CPR training, Good Samaritan awareness, Firebase-powered incident management, and Twilio SMS support** in one responsive web application.
 
 ---
 
-## 🚨 Problem Statement
+## 🚨 Why GoldenGuard?
 
-Road traffic accidents are among the leading causes of preventable fatalities worldwide. Critical barriers to survival include:
-- **Delayed Notification**: Precious minutes lost before emergency dispatchers are alerted.
-- **Location Uncertainty**: Inability of victims or panicked callers to provide precise GPS coordinates or nearest landmark details.
-- **Lack of Immediate First Aid**: Bystanders willing to help but lacking immediate, certified first-aid or CPR instructions.
-- **Fragmented Communication**: Disconnection between police dispatchers, trauma hospitals, and on-ground volunteer responders.
+After a road accident, the first few minutes can be critical.
 
-GoldenGuard solves these challenges with an integrated, zero-latency emergency grid.
+People may hesitate because they:
 
----
+- Don't know what to do
+- Don't know basic First Aid or CPR
+- Are unsure whether they should help
+- Cannot quickly communicate their location
+- Panic during an emergency
 
-## ✨ Key Features
-
-### 1. Gemini AI First Aid & Trauma Assistant
-- **Real-Time Guidance**: Server-side proxy integrating `@google/genai` to provide step-by-step emergency trauma instructions during cardiac arrest, severe bleeding, choking, and collisions.
-- **API Key & Fallback Safety**: Securelyproxied via Express backend (`/api/gemini`) using `process.env.GEMINI_API_KEY`. Includes robust first-aid fallbacks in case of network or API limits.
-
-### 2. Automatic Crash Detection & 15-Second SOS Countdown
-- **Sensor Monitoring**: Utilizes device accelerometer and GPS velocity monitoring to detect high-g impacts or sudden deceleration crashes.
-- **15-Second Abort Window**: Triggers an audible siren and visual countdown modal upon suspected crash detection, allowing conscious users to cancel false alarms before automatic emergency broadcasting.
-
-### 3. Multi-Modal Emergency SOS (1-Tap & Voice SOS)
-- **1-Tap SOS**: Instantly broadcasts emergency distress signals with precise GPS coordinates, Medical ID (blood group, allergies, ICE contacts), and active incident status to nearby responders and dispatchers.
-- **Voice SOS / Audio Trigger**: Hands-free voice command support for rapid distress activation.
-
-### 4. Smart Interactive Map & Resource Dispatch
-- **Live GPS Tracking**: Real-time position tracking and speed telemetry.
-- **Emergency Infrastructure**: Live map overlays locating nearby hospitals, police stations, AED-certified volunteers, and reported road hazards (potholes, oil spills, debris).
-- **Traffic Layers**: Real-time safety hazard and traffic density indicators.
-
-### 5. First Aid, CPR Training & Badges
-- Interactive multimedia modules covering CPR, bleeding control, choking rescue, and trauma triage.
-- Earnable digital certifications and badges for trained civilian responders.
-
-### 6. Good Samaritan & Community Network
-- Verified community responder network allowing nearby citizens to assist with hazard reporting, first-aid support, and community safety scoreboards.
-
-### 7. Firebase Authentication & Cloud Firestore
-- Secure Google OAuth and email/password authentication via Firebase Auth.
-- Real-time cloud persistence for user profiles, emergency medical IDs, incident logs, and dispatch queues.
-
-### 8. Progressive Web App (PWA) Support
-- Fully installable PWA with offline caching, service workers, and responsive mobile-first design.
+GoldenGuard brings emergency communication, education, location sharing, and AI-assisted guidance together in one platform.
 
 ---
 
-## 🛠️ Tech Stack
+# ✨ Key Features
 
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide React icons, Recharts.
-- **Backend**: Node.js, Express.js (custom full-stack server integration).
-- **AI Integration**: Google GenAI SDK (`@google/genai`) for server-side medical triage and guidance.
-- **Database & Auth**: Firebase Firestore & Firebase Authentication.
-- **Build & Deployment**: Esbuild bundling, Docker-ready for Cloud Run deployment.
+## 🚑 Emergency SOS
+
+- ⚡ 1-Tap SOS
+- 🎙️ Voice SOS
+- 📍 GPS location
+- 🚨 Emergency incident creation
+- 🆘 Emergency contact information
+- 🏥 Medical ID information
+- 📩 Emergency SMS integration
 
 ---
 
-## 🏗️ Architecture & Workflow
+## 💥 Automatic Crash Detection
 
-```
-[Client (React SPA)] 
-       │
-       ├── (HTTPS / REST) ──> [Express Server (server.ts)]
-       │                             │
-       │                             ├──> [Google GenAI API (/api/gemini)]
-       │                             │
-       │                             └──> [Firebase Firestore / Auth]
-       │
-       └── (Browser Geolocation & Sensors) ──> [Crash Detection Engine]
+GoldenGuard can use supported device motion sensors to detect a possible high-impact crash.
+
+### Crash Flow
+
+```text
+Possible Crash
+      ↓
+15-Second Safety Countdown
+      ↓
+   Are You Safe?
+      ↓
+ ┌────┴────┐
+ ↓         ↓
+Cancel   Confirm
+ ↓         ↓
+Safe      SOS
 ```
 
-1. **Client Request**: User triggers SOS, hazard report, or asks Gemini AI for medical guidance.
-2. **Server-Side Proxy**: Express securely handles API keys (`GEMINI_API_KEY`) and database transactions.
-3. **Dispatch & Sync**: Firestore real-time snapshots instantly update admin dashboards, police dispatch, and nearby volunteer feeds.
+When a possible crash is detected, the user gets a **15-second countdown** to cancel the alert if they are safe.
+
+If there is no response, the automatic SOS workflow can be triggered.
+
+> Crash detection depends on browser support, device sensors, permissions, and device conditions.
 
 ---
 
-## 📦 Installation & Environment Variables
+# 🤖 Gemini AI First Aid Assistant
 
-### Prerequisites
-- Node.js (v18+)
+GoldenGuard includes a **Google Gemini-powered First Aid assistant** for informational emergency guidance.
+
+### AI Flow
+
+```text
+User
+  ↓
+GoldenGuard
+  ↓
+Backend API
+  ↓
+Google Gemini
+  ↓
+First Aid Guidance
+```
+
+The Gemini integration uses the server-side environment variable:
+
+```text
+GEMINI_API_KEY
+```
+
+If Gemini is unavailable, GoldenGuard can provide predefined emergency fallback guidance.
+
+> AI guidance is informational and does not replace doctors, paramedics, ambulance services, or professional emergency instructions.
+
+---
+
+# 🩹 First Aid & CPR Training
+
+GoldenGuard also focuses on preparing people before an emergency happens.
+
+Training features include:
+
+- 🫀 CPR learning
+- 🩹 First Aid education
+- 🚨 Emergency response guidance
+- 📚 Training modules
+- 🏆 Learning achievements
+- 🛡️ Good Samaritan awareness
+
+### Goal
+
+> **Train before the emergency happens.**
+
+---
+
+# 🛡️ Good Samaritan Support
+
+GoldenGuard includes educational information about the **Good Samaritan framework in India**.
+
+The goal is to reduce hesitation and help people understand responsible ways to assist accident victims.
+
+```text
+Accident
+   ↓
+Bystander Hesitation
+   ↓
+Good Samaritan Awareness
+   ↓
+More Confidence
+   ↓
+Initial Assistance
+```
+
+---
+
+# 📍 GPS & Emergency Mapping
+
+GoldenGuard uses browser geolocation when permission is available.
+
+Emergency information can include:
+
+- Latitude
+- Longitude
+- Location status
+- Emergency timestamp
+- Incident details
+
+The application also provides map-based safety functionality using **Leaflet and React Leaflet**.
+
+> Location accuracy depends on the device, browser permissions, GPS availability, and network conditions.
+
+---
+
+# 📩 Emergency SMS
+
+GoldenGuard includes **Twilio-based emergency SMS support**.
+
+```text
+Emergency Trigger
+       ↓
+GoldenGuard Backend
+       ↓
+Twilio
+       ↓
+Emergency SMS
+```
+
+Twilio credentials are configured through server-side environment variables.
+
+> Never commit Twilio authentication credentials to GitHub.
+
+---
+
+# 🔥 Firebase Integration
+
+GoldenGuard uses Firebase for cloud-backed application functionality.
+
+### Firebase Services
+
+- 🔐 Firebase Authentication
+- 🔵 Google Sign-In
+- 🔑 Email/Password Authentication
+- ☁️ Cloud Firestore
+- 👤 User profiles
+- 🚨 Emergency records
+- 📋 Incident data
+
+---
+
+# 📱 Progressive Web App
+
+GoldenGuard is designed as a responsive web application with PWA support.
+
+### Designed For
+
+- 📱 Mobile
+- 📲 Tablet
+- 💻 Laptop
+- 🖥️ Desktop
+
+Includes:
+
+- Installable web app support
+- Service worker
+- Responsive interface
+- Mobile-friendly emergency workflows
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                         ┌───────────────┐
+                         │     User      │
+                         └───────┬───────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+         Emergency SOS     Crash Detection     Training
+              │                  │             & First Aid
+              └──────────────────┼──────────────────┘
+                                 │
+                                 ▼
+                       ┌──────────────────┐
+                       │   GoldenGuard    │
+                       │     Backend      │
+                       └────────┬─────────┘
+                                │
+                 ┌──────────────┼──────────────┐
+                 │              │              │
+                 ▼              ▼              ▼
+             Firebase       Gemini AI        Twilio
+                 │              │              │
+                 ▼              ▼              ▼
+             Cloud Data     First Aid AI     SMS Alert
+```
+
+---
+
+# 🧰 Technology Stack
+
+### Frontend
+
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- React Router
+- Leaflet
+- React Leaflet
+- Lucide React
+- Recharts
+- Motion
+
+### Backend
+
+- Node.js
+- Express
+- TypeScript
+- esbuild
+
+### AI
+
+- Google Gemini
+- `@google/genai`
+
+### Cloud
+
+- Firebase Authentication
+- Firebase Firestore
+
+### Communication
+
+- Twilio
+
+### Web APIs
+
+- Browser Geolocation API
+- Device Motion API
+- Web Audio API
+- Service Workers
+
+---
+
+# 📂 Project Structure
+
+```text
+Golden-Road-Safety/
+│
+├── api/
+│   └── chat.ts
+│
+├── src/
+│   ├── components/
+│   │   ├── community/
+│   │   ├── training/
+│   │   └── ...
+│   │
+│   ├── context/
+│   │   └── CrashDetectionContext.tsx
+│   │
+│   ├── lib/
+│   │   ├── firebase.ts
+│   │   ├── smsService.ts
+│   │   ├── incidentService.ts
+│   │   └── ...
+│   │
+│   └── pages/
+│       ├── Training.tsx
+│       ├── Legal.tsx
+│       ├── Profile.tsx
+│       └── ...
+│
+├── server.ts
+├── package.json
+├── vite.config.ts
+└── README.md
+```
+
+---
+
+# ⚙️ Getting Started
+
+## Prerequisites
+
+- Node.js 18+
 - npm
 
-### 1. Clone & Install Dependencies
+## Clone
+
 ```bash
-git clone <repository-url>
-cd goldenguard
+git clone https://github.com/nitesh933438/Golden-Road-Safety.git
+cd Golden-Road-Safety
+```
+
+## Install Dependencies
+
+```bash
 npm install
 ```
 
-### 2. Configure Environment Variables
-Create a `.env` file in the root directory based on `.env.example`:
+---
+
+# 🔑 Environment Variables
+
+Create a `.env` file and configure the required services.
+
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your_gemini_api_key
+
 VITE_FIREBASE_API_KEY=your_firebase_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
 VITE_FIREBASE_PROJECT_ID=your_firebase_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_firebase_app_id
+
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_FROM_NUMBER=your_twilio_from_number
 ```
 
-### 3. Run Development Server
+> Never commit real credentials, API keys, passwords, or authentication tokens to GitHub.
+
+---
+
+# ▶️ Run Locally
+
+### Development
+
 ```bash
 npm run dev
 ```
-The app will be accessible at `http://localhost:3000`.
 
----
+### Production Build
 
-## 🚀 Deployment
-
-To build and test the production bundle locally:
 ```bash
 npm run build
+```
+
+### Production Server
+
+```bash
 npm start
 ```
 
-For Cloud Run or containerized deployment:
-- Uses `esbuild` to bundle `server.ts` into `dist/server.cjs`.
-- Binds strictly to port `3000` and host `0.0.0.0`.
+### Lint
+
+```bash
+npm run lint
+```
 
 ---
 
-## 🔒 Security Notes
-- **API Key Protection**: All third-party API keys (Gemini API) are kept strictly server-side (`server.ts`) and never exposed to browser bundles.
-- **Role-Based Access Control (RBAC)**: Enforces strict authorization guards for Admin, Police, Hospital, Trainer, and Citizen roles.
+# 🔐 Security
+
+GoldenGuard uses external services and device capabilities that require proper security configuration.
+
+Important practices:
+
+- Keep Gemini API keys server-side.
+- Keep Twilio credentials server-side.
+- Never commit secrets to GitHub.
+- Configure Firebase Authentication correctly.
+- Configure Firestore security rules.
+- Validate emergency requests.
+- Request location and sensor permissions only when required.
+- Do not rely only on frontend role checks for privileged operations.
 
 ---
 
-## 🏆 Hackathon Challenge Alignment
-- **Impact & Urgency**: Directly addresses emergency response latency in road accidents.
-- **AI Integration**: Harnesses Google GenAI for instant, life-saving triage instructions.
-- **Full-Stack Execution**: Production-ready architecture with persistent cloud database, real-time sensors, and offline PWA capability.
+# 🎯 Road Safety Challenge Alignment
+
+GoldenGuard focuses on three important areas:
+
+### 1. Faster Emergency Communication
+
+Quick SOS, voice activation, crash detection, and location sharing are designed to reduce delays in emergency notification.
+
+### 2. Training & Skill Gap
+
+CPR and First Aid learning resources help users develop emergency-response knowledge before an accident occurs.
+
+### 3. Psychological Hesitation
+
+Good Samaritan awareness helps users become more confident about providing appropriate assistance in good faith.
 
 ---
 
-## 🌱 Future Scope
-- Integration with national emergency hotline protocols (e.g., 112/911 CAD systems).
-- IoT helmet and vehicle OBD-II Bluetooth crash sensor pairing.
-- Automated drone AED dispatch integration.
+# 🧪 Project Status
+
+GoldenGuard is an actively developed road-safety and emergency-response prototype.
+
+Feature availability can depend on:
+
+- Firebase configuration
+- Gemini API availability
+- Twilio configuration
+- Browser permissions
+- GPS availability
+- Device motion sensor support
+- Network connectivity
+
+Individual features may therefore behave differently depending on the device and deployment environment.
 
 ---
 
-## 📄 License
-This project is built for hackathon demonstration and public safety advancement. Distributed under the MIT License.
+# 🚀 Future Scope
+
+Potential future improvements include:
+
+- 🏥 Hospital and ambulance system integration
+- 🚓 Police and emergency-service integration
+- 📡 Improved crash-detection algorithms
+- 🌐 Multilingual emergency assistance
+- 📴 Stronger offline-first functionality
+- ⌚ Wearable and vehicle sensor integration
+- 📊 Emergency response analytics
+- 🤝 Verified responder networks
+- 🗣️ Advanced voice-based emergency interaction
+
+---
+
+# ⚠️ Medical & Emergency Disclaimer
+
+GoldenGuard is a technology prototype intended for emergency-response support, education, and public-safety innovation.
+
+It does **not** replace:
+
+- Doctors
+- Paramedics
+- Ambulance services
+- Police
+- Professional emergency dispatch
+- Professional medical diagnosis
+
+AI-generated information may be incomplete or incorrect.
+
+For a life-threatening emergency, contact the appropriate emergency service immediately.
+
+---
+
+# ❤️ Mission
+
+> **Make every road user more prepared to respond when an accident happens.**
+
+GoldenGuard aims to make people more **informed, confident, and prepared** to provide appropriate initial assistance while connecting emergency technology, education, and community support.
+
+---
+
+## 🇮🇳 Built for Road Safety Innovation
+
+### GoldenGuard
+
+**Faster Response • Better Preparedness • Safer Roads**
