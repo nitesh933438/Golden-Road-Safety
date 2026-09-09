@@ -103,39 +103,39 @@ export function Impact() {
       {/* Key Impact Statistics */}
       <div className="bg-surface-900 text-white rounded-3xl p-8 sm:p-12 shadow-2xl space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-amber-400">Measurable Outcomes</span>
-          <h2 className="text-3xl font-extrabold">Statistics & Life-Saving Metrics</h2>
-          <p className="text-sm text-surface-300">Empirical data demonstrating how GoldenGuard transforms emergency healthcare response times.</p>
+          <span className="text-xs font-bold uppercase tracking-widest text-amber-400">Clinical Research & Golden Hour Benchmarks</span>
+          <h2 className="text-3xl font-extrabold">Trauma Care Research & Impact Goals</h2>
+          <p className="text-sm text-surface-300">National road safety standards and clinical targets for community bystander intervention during the Golden Hour.</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           
           <div className="p-6 rounded-2xl bg-surface-800/80 border border-surface-700 text-center space-y-2 hover:border-amber-500/50 transition-colors">
             <Clock className="w-8 h-8 text-amber-400 mx-auto" />
-            <div className="text-3xl sm:text-4xl font-black text-amber-400">2.4 min</div>
-            <div className="text-xs font-semibold text-surface-300">Average Bystander Arrival</div>
-            <p className="text-[11px] text-surface-400">Down from 14 mins standard response time</p>
+            <div className="text-3xl sm:text-4xl font-black text-amber-400">&lt; 3 min</div>
+            <div className="text-xs font-semibold text-surface-300">Target Bystander Arrival</div>
+            <p className="text-[11px] text-surface-400">Goal vs 14 min average emergency arrival</p>
           </div>
 
           <div className="p-6 rounded-2xl bg-surface-800/80 border border-surface-700 text-center space-y-2 hover:border-emerald-500/50 transition-colors">
             <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto" />
-            <div className="text-3xl sm:text-4xl font-black text-emerald-400">+64%</div>
-            <div className="text-xs font-semibold text-surface-300">Increase in Survival Rate</div>
-            <p className="text-[11px] text-surface-400">During out-of-hospital cardiac events</p>
+            <div className="text-3xl sm:text-4xl font-black text-emerald-400">+60%</div>
+            <div className="text-xs font-semibold text-surface-300">Potential Survival Boost</div>
+            <p className="text-[11px] text-surface-400">Clinical rate with immediate bystander CPR</p>
           </div>
 
           <div className="p-6 rounded-2xl bg-surface-800/80 border border-surface-700 text-center space-y-2 hover:border-blue-500/50 transition-colors">
             <Users className="w-8 h-8 text-blue-400 mx-auto" />
-            <div className="text-3xl sm:text-4xl font-black text-blue-400">12,400+</div>
-            <div className="text-xs font-semibold text-surface-300">Certified Volunteers</div>
-            <p className="text-[11px] text-surface-400">Ready for instant local dispatch</p>
+            <div className="text-3xl sm:text-4xl font-black text-blue-400">100%</div>
+            <div className="text-xs font-semibold text-surface-300">Good Samaritan Law</div>
+            <p className="text-[11px] text-surface-400">Sec 134A legal indemnity protection</p>
           </div>
 
           <div className="p-6 rounded-2xl bg-surface-800/80 border border-surface-700 text-center space-y-2 hover:border-purple-500/50 transition-colors">
             <Award className="w-8 h-8 text-purple-400 mx-auto" />
-            <div className="text-3xl sm:text-4xl font-black text-purple-400">98.2%</div>
-            <div className="text-xs font-semibold text-surface-300">Hospital Sync Accuracy</div>
-            <p className="text-[11px] text-surface-400">Trauma unit bed lock precision</p>
+            <div className="text-3xl sm:text-4xl font-black text-purple-400">60 min</div>
+            <div className="text-xs font-semibold text-surface-300">Golden Hour Window</div>
+            <p className="text-[11px] text-surface-400">Critical trauma intervention window</p>
           </div>
 
         </div>

@@ -42,45 +42,85 @@ export function SafeRide() {
   const [currentSpeed, setCurrentSpeed] = useState<number>(0);
   const [maxSpeed, setMaxSpeed] = useState<number>(0);
   const [distanceKm, setDistanceKm] = useState<number>(0);
-  const [batteryLevel, setBatteryLevel] = useState<number | null>(88);
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [isCharging, setIsCharging] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [currentAddress, setCurrentAddress] = useState<string>("Km 14 Expressway, Sector 62 Corridor");
+  const [currentAddress, setCurrentAddress] = useState<string>("Locating GPS...");
 
-  // Ride History State
+  // Ride History State - clean initialization from real storage
   const [rideHistory, setRideHistory] = useState<RideHistoryItem[]>(() => {
     const saved = safeLocalStorage.getItem("goldenguard_ride_history");
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { 
+        const parsed = JSON.parse(saved); 
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
     }
-    return [
-      {
-        id: "RIDE-902",
-        date: "2026-07-31 18:45",
-        destination: "Cyber City Hub, Sector 29",
-        distanceKm: 14.2,
-        durationSec: 1320, // 22 mins
-        avgSpeedKmh: 38.7,
-        maxSpeedKmh: 62.4,
-        emergencyTriggered: false,
-        status: "completed"
-      },
-      {
-        id: "RIDE-901",
-        date: "2026-07-30 09:12",
-        destination: "Airport Expressway Terminal 3",
-        distanceKm: 28.5,
-        durationSec: 2540, // 42 mins
-        avgSpeedKmh: 40.3,
-        maxSpeedKmh: 74.1,
-        emergencyTriggered: true,
-        status: "emergency"
-      }
-    ];
+    return [];
   });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const speedSimRef = useRef<NodeJS.Timeout | null>(null);
+  const prevCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Real GPS Position & Speed Tracker
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setCurrentAddress("GPS not supported by browser");
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, speed } = pos.coords;
+        setCurrentAddress(`GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        
+        // If device provides real speed (in m/s), convert to km/h
+        if (typeof speed === "number" && speed >= 0) {
+          const speedKmh = Math.round(speed * 3.6);
+          if (isRideActive && !isPaused) {
+            setCurrentSpeed(speedKmh);
+            setMaxSpeed((prev) => Math.max(prev, speedKmh));
+          }
+        }
+
+        // Distance calculation when active
+        if (isRideActive && !isPaused && prevCoordsRef.current) {
+          const lat1 = prevCoordsRef.current.lat;
+          const lon1 = prevCoordsRef.current.lng;
+          const lat2 = latitude;
+          const lon2 = longitude;
+          
+          // Haversine formula
+          const R = 6371; // km
+          const dLat = (lat2 - lat1) * (Math.PI / 180);
+          const dLon = (lon2 - lon1) * (Math.PI / 180);
+          const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const deltaKm = R * c;
+          
+          if (deltaKm > 0.005 && deltaKm < 2) { // filter noise
+            setDistanceKm((prev) => parseFloat((prev + deltaKm).toFixed(2)));
+          }
+        }
+        prevCoordsRef.current = { lat: latitude, lng: longitude };
+      },
+      (err) => {
+        if (err.code === 1) {
+          setCurrentAddress("Location permission denied");
+        } else {
+          setCurrentAddress("Acquiring GPS fix...");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isRideActive, isPaused]);
 
   // Monitor Battery Status API
   useEffect(() => {
@@ -115,34 +155,19 @@ export function SafeRide() {
     safeLocalStorage.setItem("goldenguard_ride_history", JSON.stringify(rideHistory));
   }, [rideHistory]);
 
-  // Active Ride Timer and Telemetry Simulator
+  // Active Ride Timer
   useEffect(() => {
     if (isRideActive && !isPaused) {
-      // Duration Clock
       timerRef.current = setInterval(() => {
         setDurationSec((prev) => prev + 1);
       }, 1000);
-
-      // Speed & Distance Dynamic Simulator
-      speedSimRef.current = setInterval(() => {
-        // Random speed fluctuations simulating realistic city/highway ride (25 km/h to 55 km/h)
-        const newSpeed = Math.floor(28 + Math.random() * 26);
-        setCurrentSpeed(newSpeed);
-
-        setMaxSpeed((prevMax) => Math.max(prevMax, newSpeed));
-
-        // Distance increment ~ speed / 3600
-        setDistanceKm((prevDist) => parseFloat((prevDist + newSpeed / 3600).toFixed(2)));
-      }, 2000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (speedSimRef.current) clearInterval(speedSimRef.current);
       if (!isRideActive) setCurrentSpeed(0);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (speedSimRef.current) clearInterval(speedSimRef.current);
     };
   }, [isRideActive, isPaused]);
 

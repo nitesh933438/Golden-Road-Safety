@@ -293,7 +293,7 @@ export function Dashboard() {
 
           <div className="p-3 sm:p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200/80 dark:border-surface-700/50 space-y-0.5">
             <div className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
-              {realMetrics?.hospitalsCount || 12}
+              {realMetrics?.hospitalsCount ?? 0}
             </div>
             <div className="text-[11px] sm:text-xs text-surface-600 dark:text-surface-300 font-semibold">
               Hospitals Connected
@@ -302,7 +302,7 @@ export function Dashboard() {
 
           <div className="p-3 sm:p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200/80 dark:border-surface-700/50 space-y-0.5">
             <div className="text-lg sm:text-2xl font-black text-blue-600 dark:text-blue-400">
-              {realMetrics?.volunteersCount || 28}
+              {realMetrics?.volunteersCount ?? 0}
             </div>
             <div className="text-[11px] sm:text-xs text-surface-600 dark:text-surface-300 font-semibold">
               Verified Helpers
@@ -311,7 +311,7 @@ export function Dashboard() {
 
           <div className="p-3 sm:p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200/80 dark:border-surface-700/50 space-y-0.5">
             <div className="text-lg sm:text-2xl font-black text-purple-600 dark:text-purple-400">
-              {realMetrics?.avgResponseTimeMinutes || "< 3 mins"}
+              {realMetrics?.avgResponseTimeMinutes || "N/A"}
             </div>
             <div className="text-[11px] sm:text-xs text-surface-600 dark:text-surface-300 font-semibold">
               Avg Response Time

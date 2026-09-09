@@ -312,11 +312,11 @@ export function ReportHazard() {
               placeholder="Search or type address / landmark..."
               historyKey="hazard_location_history"
               suggestions={[
-                "Market Street & 4th Ave, Sector 7",
-                "Metro Station Gate No 3, Highway Ring Road",
-                "Grand Trunk Road near Blind Curve Km 42",
-                "Industrial Area Junction, Sector 12",
-                "City Hospital Flyover Ramp"
+                "Highway Flyover Ramp",
+                "Metro Station Entrance",
+                "Outer Ring Road Junction",
+                "Expressway Toll Plaza",
+                "Main Traffic Intersection"
               ]}
               showVoiceInput={true}
               enableAIIntent={true}
