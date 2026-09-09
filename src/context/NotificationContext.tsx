@@ -42,7 +42,6 @@ interface NotificationContextType {
   deleteNotification: (id: string) => void;
   clearAllNotifications: () => void;
   addNotification: (item: Omit<NotificationItem, "id" | "time" | "group" | "isRead">) => Promise<void>;
-  sendTestNotification: (type: NotificationType) => void;
 }
 
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
@@ -244,74 +243,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications([]);
   };
 
-  // Send Preset Test Notification
-  const sendTestNotification = (type: NotificationType) => {
-    const presets: Record<NotificationType, { title: string; message: string; link: string }> = {
-      emergency: {
-        title: "🚨 High-Speed Collision Anomaly",
-        message: "SafeRide Guardian registered velocity drop from 52 km/h to 0 in 0.3s. Auto SOS countdown active.",
-        link: "/saferide"
-      },
-      sos: {
-        title: "🆘 Golden Hour Emergency Dispatch #882",
-        message: "National 112 Control Center assigned Mobile Intensive Care Ambulance #12.",
-        link: "/sos"
-      },
-      volunteer: {
-        title: "🤝 Nearby Volunteer Response Accepted",
-        message: "First Responder Dr. Kavita Sharma accepted triage dispatch (ETA: 1.8 mins).",
-        link: "/community"
-      },
-      hospital: {
-        title: "🏥 Trauma Center Bay Reserved",
-        message: "Fortis Escorts Hospital ICU Trauma Room #1 prepped for emergency casualty.",
-        link: "/map"
-      },
-      police: {
-        title: "🚔 Traffic Cordon Patrol Assigned",
-        message: "Highway Police Squad 9 dispatched for traffic clearance corridor.",
-        link: "/map"
-      },
-      ai: {
-        title: "🛡️ Smart Assistant First Aid Advisory",
-        message: "Victim is non-responsive. Open airway using chin-lift method and prepare CPR cycles.",
-        link: "/first-aid"
-      },
-      hazard: {
-        title: "⚠️ Verified Blackspot Hazard: Oil Spill",
-        message: "High-risk slippery pavement verified on Expressway Flyover Km 18.",
-        link: "/report"
-      },
-      community: {
-        title: "🌐 Community Volunteer Fleet Online",
-        message: "12 new certified volunteers registered in your 2 km radius today.",
-        link: "/community"
-      },
-      training: {
-        title: "🎓 First Responder Recertification Due",
-        message: "Your Level 2 Bleeding Control certificate refresher is scheduled for this weekend.",
-        link: "/training"
-      },
-      system: {
-        title: "⚙️ System Update",
-        message: "The system has been updated.",
-        link: "/admin"
-      },
-      admin: {
-        title: "📢 BROADCAST: Admin System Update",
-        message: "GoldenGuard v2.4 SafeRide Guardian Anomaly Engine now deployed.",
-        link: "/admin"
-      }
-    };
 
-    const preset = presets[type] || presets.admin;
-    addNotification({
-      title: preset.title,
-      message: preset.message,
-      type,
-      link: preset.link
-    });
-  };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -326,8 +258,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         markAllAsRead,
         deleteNotification,
         clearAllNotifications,
-        addNotification,
-        sendTestNotification
+        addNotification
       }}
     >
       {children}

@@ -19,7 +19,7 @@ export function getFriendlyAuthErrorMessage(error: any): string {
     
     case "auth/unauthorized-domain":
     case "auth/unauthorized-client":
-      return `Domain '${currentHost}' is not authorized in Firebase Console. To enable Google Login for live deployments, add '${currentHost}' under Firebase Console > Authentication > Settings > Authorized Domains. Alternatively, use Email/Password or Quick Samaritan Sign-In below.`;
+      return `Domain '${currentHost}' is not authorized in Firebase Console. To enable Google Login for live deployments, add '${currentHost}' under Firebase Console > Authentication > Settings > Authorized Domains. Alternatively, use Email/Password sign-in.`;
     
     case "auth/network-request-failed":
       return "A network error occurred. Please check your connection and try again.";
