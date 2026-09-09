@@ -169,12 +169,29 @@ export function FirstAid() {
            </Link>
            <button 
              onClick={() => {
-               const text = "EMERGENCY: I need assistance. My current location is: 37.7749, -122.4194 (GoldenGuard Emergency Dispatch)";
-               if (navigator.share) {
-                 navigator.share({ title: "GoldenGuard Location Share", text }).catch(() => {});
+               if (navigator.geolocation) {
+                 navigator.geolocation.getCurrentPosition(
+                   (pos) => {
+                     const lat = pos.coords.latitude.toFixed(5);
+                     const lng = pos.coords.longitude.toFixed(5);
+                     const text = `EMERGENCY: I need urgent medical assistance. My live GPS coordinates are: ${lat}, ${lng} (https://www.google.com/maps?q=${lat},${lng}) - Shared via GoldenGuard Emergency Response`;
+                     if (navigator.share) {
+                       navigator.share({ title: "GoldenGuard Emergency Location", text }).catch(() => {});
+                     } else {
+                       navigator.clipboard.writeText(text);
+                       alert(`Emergency GPS location (${lat}, ${lng}) copied to clipboard! Share with first responders.`);
+                     }
+                   },
+                   (err) => {
+                     const errorMsg = err.code === 1 
+                       ? "GPS Location permission denied. Please enable location permissions in browser settings to share exact coordinates." 
+                       : "Unable to retrieve GPS coordinates. Please ensure device location / GPS is turned on.";
+                     alert(errorMsg);
+                   },
+                   { enableHighAccuracy: true, timeout: 8000 }
+                 );
                } else {
-                 navigator.clipboard.writeText(text);
-                 alert("Emergency location copied to clipboard! Share with first responders.");
+                 alert("Geolocation is not supported by your browser.");
                }
              }}
              className="w-full py-3 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 text-surface-900 dark:text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"

@@ -26,7 +26,6 @@ export function VoiceSOSCard({ className, variant = "default" }: VoiceSOSCardPro
     isListening,
     toggleListening,
     lastTranscript,
-    testVoiceTrigger,
     recognizedHotwords,
     micPermissionStatus,
   } = useVoiceSOS();

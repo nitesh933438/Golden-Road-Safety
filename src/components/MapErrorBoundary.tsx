@@ -29,7 +29,7 @@ export class MapErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       return (
         <InteractiveFallbackMap 
-          userLocation={this.props.userCoords || { lat: 20.5937, lng: 78.9629 }} 
+          userLocation={this.props.userCoords || null} 
           onMarkerSelect={this.props.onMarkerSelect}
         />
       );

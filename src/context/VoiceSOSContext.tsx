@@ -25,7 +25,6 @@ export interface VoiceSOSContextType {
   toggleListening: () => void;
   startListening: () => Promise<void>;
   stopListening: () => void;
-  testVoiceTrigger: (customPhrase?: string) => void;
   cancelTrigger: () => void;
   confirmImmediateDispatch: () => void;
   recognizedHotwords: string[];
@@ -382,15 +381,6 @@ export const VoiceSOSProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [isListening, startListening, stopListening]);
 
-  // Simulated Voice Trigger for testing
-  const testVoiceTrigger = useCallback(
-    (customPhrase = "help me") => {
-      setLastTranscript(`[Simulation] ${customPhrase}`);
-      handleTriggerDetected(customPhrase);
-    },
-    [handleTriggerDetected]
-  );
-
   const contextValue = useMemo(() => ({
     isSupported,
     isListening,
@@ -402,7 +392,6 @@ export const VoiceSOSProvider: React.FC<{ children: ReactNode }> = ({ children }
     toggleListening,
     startListening,
     stopListening,
-    testVoiceTrigger,
     cancelTrigger,
     confirmImmediateDispatch,
     recognizedHotwords: DEFAULT_HOTWORDS,
@@ -417,7 +406,6 @@ export const VoiceSOSProvider: React.FC<{ children: ReactNode }> = ({ children }
     toggleListening,
     startListening,
     stopListening,
-    testVoiceTrigger,
     cancelTrigger,
     confirmImmediateDispatch,
   ]);

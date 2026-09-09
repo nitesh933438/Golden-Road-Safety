@@ -45,7 +45,6 @@ interface CrashDetectionContextType {
   confirmSOSNow: () => void;
   resetEmergencyState: () => void;
   requestSensorPermissions: () => Promise<boolean>;
-  triggerSimulatedCrash: () => void;
 }
 
 const CrashDetectionContext = createContext<CrashDetectionContextType | undefined>(undefined);
@@ -460,22 +459,6 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
   const toggleSensorActive = useCallback(() => setSensorActive((prev) => !prev), []);
 
-  // Trigger simulated crash for testing / manual demonstration
-  const triggerSimulatedCrash = useCallback(() => {
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-    hasTriggeredSOSRef.current = false;
-    isDispatchingRef.current = false;
-    setActiveEmergency(null);
-    lastBeepedSecRef.current = null;
-    setCountdown(15);
-    setUnconsciousMode(false);
-    setIsCrashDetected(true);
-    playUrgentBeep(1200, 0.3);
-  }, []);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -501,7 +484,6 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         confirmSOSNow,
         resetEmergencyState,
         requestSensorPermissions,
-        triggerSimulatedCrash,
       }}
     >
       {children}

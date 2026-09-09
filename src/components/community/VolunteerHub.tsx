@@ -1,18 +1,17 @@
-import React, { useState } from "react";
+import React from "react";
 import { useAuth } from "../../context/AuthContext";
 import { VolunteerRegistration } from "./VolunteerRegistration";
 import { VolunteerDashboard } from "./VolunteerDashboard";
 
 export function VolunteerHub() {
-  const { userProfile, updateProfileData } = useAuth();
-  // We still use local state for pending to simulate the flow for demo purposes if not approved yet
-  const [localStatus, setLocalStatus] = useState<"unregistered" | "pending">("unregistered");
+  const { userProfile } = useAuth();
 
   // If user is actually volunteer in Firestore, they are approved.
   const isApproved = userProfile?.role === "volunteer" || userProfile?.role === "admin";
+  const isPending = userProfile?.appliedRole === "volunteer" || userProfile?.verificationStatus === "PENDING";
 
   if (!isApproved) {
-    if (localStatus === "pending") {
+    if (isPending) {
       return (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center max-w-md mx-auto">
           <div className="w-24 h-24 bg-amber-100 dark:bg-amber-900/30 text-amber-500 rounded-full flex items-center justify-center mb-6">
@@ -23,13 +22,13 @@ export function VolunteerHub() {
           </div>
           <h2 className="text-2xl font-bold mb-4">Application Pending</h2>
           <p className="text-surface-600 dark:text-surface-400 mb-8">
-            Your volunteer application is currently under review by the admin team. You will be notified once approved.
+            Your volunteer application is currently under review by the admin team. You will be notified once approved in the network.
           </p>
         </div>
       );
     }
 
-    return <VolunteerRegistration onSubmit={() => setLocalStatus("pending")} />;
+    return <VolunteerRegistration onSubmit={() => {}} />;
   }
 
   return <VolunteerDashboard />;

@@ -5,7 +5,7 @@ import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 
 export function VolunteerRegistration({ onSubmit }: { onSubmit: () => void }) {
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, updateProfileData } = useAuth();
   const [formData, setFormData] = useState({
     fullName: userProfile?.name || "",
     phone: userProfile?.phone || "",
@@ -21,6 +21,18 @@ export function VolunteerRegistration({ onSubmit }: { onSubmit: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (currentUser?.uid) {
+        await updateProfileData({
+          appliedRole: "volunteer",
+          verificationStatus: "PENDING",
+          phone: formData.phone,
+          city: formData.city,
+          state: formData.state,
+          bloodGroup: formData.bloodGroup,
+          skills: `First Aid: ${formData.firstAidTrained}, CPR: ${formData.cprCertified}`,
+        });
+      }
+
       await addDoc(collection(db, "volunteers"), {
         uid: currentUser?.uid || "guest-vol",
         fullName: formData.fullName,

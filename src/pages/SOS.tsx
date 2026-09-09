@@ -25,7 +25,7 @@ export function SOS() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [medicalID, setMedicalID] = useState<MedicalIDData>(() => getLocalMedicalID());
-  const { sensorActive, toggleSensorActive, activeEmergency, resetEmergencyState, triggerSimulatedCrash } = useCrashDetection();
+  const { sensorActive, toggleSensorActive, activeEmergency, resetEmergencyState } = useCrashDetection();
   const { isOnline, queueItem } = useOfflineSync();
   const [isProcessingSOS, setIsProcessingSOS] = useState(false);
   const [sosError, setSosError] = useState<string | null>(null);
@@ -508,15 +508,6 @@ export function SOS() {
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
-            <button
-              onClick={triggerSimulatedCrash}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-[11px] min-[360px]:text-xs font-bold transition-colors shrink-0 flex-1 md:flex-initial justify-center"
-              title="Test 15-second Crash Detection countdown modal"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Simulate Crash (15s Test)</span>
-            </button>
-
             <button
               onClick={toggleSensorActive}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-[11px] min-[360px]:text-xs font-bold text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors shrink-0 flex-1 md:flex-initial justify-center"

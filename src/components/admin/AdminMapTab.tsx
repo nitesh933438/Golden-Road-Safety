@@ -1,7 +1,31 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { LiveEmergencyMap } from "../LiveEmergencyMap";
+import { MapPinOff } from "lucide-react";
 
 export function AdminMapTab() {
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserCoords({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+          setLocationDenied(false);
+        },
+        () => {
+          setLocationDenied(true);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      setLocationDenied(true);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="flex justify-between items-center">
@@ -16,8 +40,13 @@ export function AdminMapTab() {
         </div>
       </div>
       <div className="flex-1 rounded-2xl overflow-hidden border border-surface-200 dark:border-surface-700 shadow-sm relative bg-surface-100 dark:bg-surface-800 min-h-[400px]">
-        {/* We can reuse the LiveEmergencyMap for demonstration */}
-        <LiveEmergencyMap userCoords={{ lat: 37.7749, lng: -122.4194 }} />
+        <LiveEmergencyMap userCoords={userCoords} />
+        {locationDenied && !userCoords && (
+          <div className="absolute bottom-4 left-4 z-[500] bg-surface-900/90 text-white text-xs px-3 py-2 rounded-xl backdrop-blur-md flex items-center gap-2 border border-surface-700">
+            <MapPinOff className="w-4 h-4 text-amber-400" />
+            <span>GPS location unavailable for admin command marker.</span>
+          </div>
+        )}
       </div>
     </div>
   );
