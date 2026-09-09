@@ -11,7 +11,8 @@ import { createEmergencyIncident } from "../lib/incidentService";
 // Components for different views
 import { LiveEmergencyMap } from "./LiveEmergencyMap";
 import { EmergencyCallBanner } from "./EmergencyCallBanner";
-import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, EMERGENCY_DISPATCH_NUMBER } from "../lib/emergencyCall";
+import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, EMERGENCY_DISPATCH_NUMBER, getEffectiveEmergencyContacts } from "../lib/emergencyCall";
+import { getLocalMedicalID } from "../lib/medicalIdStore";
 import { useAuth } from "../context/AuthContext";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -70,18 +71,26 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
             const { latitude, longitude } = pos.coords;
             setCoords({ lat: latitude, lng: longitude });
             setLocationError(null);
-            setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)} (Approximate Location)`);
+            setLocation(`${latitude.toFixed(5)}, ${longitude.toFixed(5)} (GPS Verified)`);
           },
           (err) => {
-            console.error("GPS Error:", err);
-            setLocationError("Location permission is unavailable.");
-            setLocation("Location permission is unavailable.");
+            console.warn("GPS Error in EmergencySheet:", err);
+            let errMsg = "GPS location unavailable. Please enter address manually.";
+            if (err.code === 1) {
+              errMsg = "Location permission denied. Please allow GPS access or enter location manually.";
+            } else if (err.code === 2) {
+              errMsg = "GPS position unavailable. Please enter location manually.";
+            } else if (err.code === 3) {
+              errMsg = "GPS location timed out. Please enter location manually.";
+            }
+            setLocationError(errMsg);
+            setLocation("");
           },
-          { enableHighAccuracy: true, timeout: 8000 }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       } else {
-        setLocationError("Location permission is unavailable.");
-        setLocation("Location permission is unavailable.");
+        setLocationError("Geolocation is not supported by your browser. Please enter location manually.");
+        setLocation("");
       }
     }
   }, [isOpen, step]);
@@ -129,32 +138,41 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
       coords,
     });
 
+    const medicalID = getLocalMedicalID();
+    const effectiveContacts = getEffectiveEmergencyContacts(userProfile, medicalID?.emergencyContacts);
+    const targetPhones = effectiveContacts.map(c => c.phone).filter(Boolean);
+
     let smsStatus = "PENDING";
     let backendResult: any = null;
 
-    try {
-      const response = await fetch(getApiUrl("/api/emergency/sos"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: EMERGENCY_DISPATCH_NUMBER,
-          latitude: coords ? coords.lat : "Location unavailable",
-          longitude: coords ? coords.lng : "Location unavailable",
-          timestamp: new Date().toISOString(),
-          message: sosMsg,
-        }),
-      });
-      const text = await response.text();
-      if (text) {
-        try {
-          backendResult = JSON.parse(text);
-        } catch (e) {
-          console.error("Failed to parse SOS response:", text);
+    if (targetPhones.length > 0) {
+      try {
+        const response = await fetch(getApiUrl("/api/emergency/sos"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phones: targetPhones,
+            phone: targetPhones[0],
+            latitude: coords ? coords.lat : "Location unavailable",
+            longitude: coords ? coords.lng : "Location unavailable",
+            timestamp: new Date().toISOString(),
+            message: sosMsg,
+          }),
+        });
+        const text = await response.text();
+        if (text) {
+          try {
+            backendResult = JSON.parse(text);
+          } catch (e) {
+            console.error("Failed to parse SOS response:", text);
+          }
         }
+        smsStatus = response.ok && backendResult?.success ? "SENT" : "FAILED";
+      } catch (err) {
+        console.error("Backend SOS request failed:", err);
+        smsStatus = "FAILED";
       }
-      smsStatus = response.ok && backendResult?.success ? "SENT" : "FAILED";
-    } catch (err) {
-      console.error("Backend SOS request failed:", err);
+    } else {
       smsStatus = "FAILED";
     }
 
@@ -165,9 +183,9 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
         reporterUid: userProfile?.uid || "anonymous",
         reporterName: userProfile?.name || "Good Samaritan User",
         reporterPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
-        latitude: coords ? coords.lat : 28.6139,
-        longitude: coords ? coords.lng : 77.2090,
-        locationText: location || "Emergency Location Captured",
+        latitude: coords ? coords.lat : 0,
+        longitude: coords ? coords.lng : 0,
+        locationText: location || (coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : "Location Not Available"),
         priority: (severity?.toLowerCase() as any) || "critical",
         type: type || "Road Accident",
         notes: notes || ""

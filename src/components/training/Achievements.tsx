@@ -1,13 +1,70 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Award, Shield, Heart, Zap, BookOpen } from "lucide-react";
 
 export function Achievements() {
+  const [completedModules, setCompletedModules] = useState<string[]>([]);
+  const [goodSamaritanRead, setGoodSamaritanRead] = useState(false);
+  const [completedScenarios, setCompletedScenarios] = useState(0);
+
+  useEffect(() => {
+    try {
+      const mods = JSON.parse(localStorage.getItem("goldenguard_completed_modules") || "[]");
+      setCompletedModules(mods);
+      const gs = localStorage.getItem("goldenguard_good_samaritan_read") === "true";
+      setGoodSamaritanRead(gs);
+      const sc = parseInt(localStorage.getItem("goldenguard_completed_scenarios") || "0", 10);
+      setCompletedScenarios(sc);
+    } catch (e) {
+      // fallback
+    }
+  }, []);
+
   const BADGES = [
-    { id: 1, title: "First Steps", description: "Completed your first Academy module.", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-500/10", earned: true },
-    { id: 2, title: "CPR Certified", description: "Passed the CPR Basics training.", icon: Heart, color: "text-red-500", bg: "bg-red-500/10", earned: true },
-    { id: 3, title: "Good Samaritan", description: "Read the Good Samaritan Law guide.", icon: Shield, color: "text-emerald-500", bg: "bg-emerald-500/10", earned: true },
-    { id: 4, title: "Safety Volunteer", description: "Completed 3 Confidence Mode scenarios.", icon: Zap, color: "text-amber-500", bg: "bg-amber-500/10", earned: true },
-    { id: 5, title: "Master Responder", description: "Complete all Academy modules.", icon: Award, color: "text-purple-500", bg: "bg-purple-500/10", earned: false },
+    { 
+      id: 1, 
+      title: "First Steps", 
+      description: "Completed your first Academy module.", 
+      icon: BookOpen, 
+      color: "text-blue-500", 
+      bg: "bg-blue-500/10", 
+      earned: completedModules.length > 0 
+    },
+    { 
+      id: 2, 
+      title: "CPR Certified", 
+      description: "Passed the CPR Basics training.", 
+      icon: Heart, 
+      color: "text-red-500", 
+      bg: "bg-red-500/10", 
+      earned: completedModules.includes("cpr-basics") 
+    },
+    { 
+      id: 3, 
+      title: "Good Samaritan", 
+      description: "Read the Good Samaritan Law guide.", 
+      icon: Shield, 
+      color: "text-emerald-500", 
+      bg: "bg-emerald-500/10", 
+      earned: goodSamaritanRead 
+    },
+    { 
+      id: 4, 
+      title: "Safety Volunteer", 
+      description: "Completed 3 Confidence Mode scenarios.", 
+      icon: Zap, 
+      color: "text-amber-500", 
+      bg: "bg-amber-500/10", 
+      earned: completedScenarios >= 3 
+    },
+    { 
+      id: 5, 
+      title: "Master Responder", 
+      description: "Complete all Academy modules.", 
+      icon: Award, 
+      color: "text-purple-500", 
+      bg: "bg-purple-500/10", 
+      earned: completedModules.length >= 4 
+    },
   ];
 
   return (

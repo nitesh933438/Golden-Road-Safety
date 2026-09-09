@@ -6,7 +6,7 @@ import { useOfflineSync } from "../context/OfflineSyncContext";
 import { getLastLocation } from "../lib/offlineStore";
 import { getLocalMedicalID, MedicalIDData } from "../lib/medicalIdStore";
 import { EmergencyCallBanner } from "../components/EmergencyCallBanner";
-import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, EMERGENCY_DISPATCH_NUMBER } from "../lib/emergencyCall";
+import { triggerEmergencyCall, triggerEmergencySMS, generateSOSMessage, EMERGENCY_DISPATCH_NUMBER, getEffectiveEmergencyContacts } from "../lib/emergencyCall";
 import { useAuth } from "../context/AuthContext";
 import { addDoc, collection, serverTimestamp, doc, setDoc, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -25,7 +25,7 @@ export function SOS() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [medicalID, setMedicalID] = useState<MedicalIDData>(() => getLocalMedicalID());
-  const { sensorActive, toggleSensorActive, activeEmergency, resetEmergencyState } = useCrashDetection();
+  const { sensorActive, toggleSensorActive, activeEmergency, resetEmergencyState, triggerSimulatedCrash } = useCrashDetection();
   const { isOnline, queueItem } = useOfflineSync();
   const [isProcessingSOS, setIsProcessingSOS] = useState(false);
   const [sosError, setSosError] = useState<string | null>(null);
@@ -182,24 +182,36 @@ export function SOS() {
           (pos) => {
             if (pos && pos.coords && Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude)) {
               setLocationPermissionDenied(false);
+              setLocationError(null);
               resolve({
                 lat: pos.coords.latitude,
                 lng: pos.coords.longitude,
                 accuracy: pos.coords.accuracy || null
               });
             } else {
+              setLocationError("GPS position unavailable. Please verify device location services.");
               resolve(null);
             }
           },
           (err) => {
-            console.error("GPS Position Error:", err);
-            setLocationPermissionDenied(true);
+            console.warn("GPS Position Error:", err);
+            let errMsg = "GPS location unavailable.";
+            if (err.code === 1) {
+              setLocationPermissionDenied(true);
+              errMsg = "Location permission denied. Please allow location access or enter your location manually below.";
+            } else if (err.code === 2) {
+              errMsg = "GPS position unavailable. Please check your device location services or enter address manually.";
+            } else if (err.code === 3) {
+              errMsg = "Location request timed out. Please enter your location manually below.";
+            }
+            setLocationError(errMsg);
             resolve(null);
           },
-          { enableHighAccuracy: true, timeout: 8000 }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       } else {
         setLocationPermissionDenied(true);
+        setLocationError("Geolocation is not supported by your browser. Please enter location manually below.");
         resolve(null);
       }
     });
@@ -237,41 +249,51 @@ export function SOS() {
         coords: freshCoords ? { lat: freshCoords.lat, lng: freshCoords.lng } : undefined,
       });
 
+      const effectiveContacts = getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts);
+      const targetPhones = effectiveContacts.map(c => c.phone).filter(Boolean);
+
       let smsStatus = "PENDING";
       let apiSmsFailed = false;
 
-      // Backend SMS broadcast call
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const response = await fetch(getApiUrl("/api/emergency/sos"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: EMERGENCY_DISPATCH_NUMBER,
-            latitude: freshCoords?.lat || null,
-            longitude: freshCoords?.lng || null,
-            timestamp: new Date().toISOString(),
-            message: `${sosMsg} Location: ${finalLocationText}`,
-          }),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        const text = await response.text();
-        let data: any = null;
-        if (text) {
-          try { data = JSON.parse(text); } catch (e) {}
-        }
+      // Backend SMS broadcast call ONLY to real emergency contacts
+      if (targetPhones.length > 0) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+          
+          const response = await fetch(getApiUrl("/api/emergency/sos"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phones: targetPhones,
+              phone: targetPhones[0],
+              latitude: freshCoords?.lat || null,
+              longitude: freshCoords?.lng || null,
+              timestamp: new Date().toISOString(),
+              message: `${sosMsg} Location: ${finalLocationText}`,
+            }),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          const text = await response.text();
+          let data: any = null;
+          if (text) {
+            try { data = JSON.parse(text); } catch (e) {}
+          }
 
-        if (!response.ok || !data?.success) {
+          if (!response.ok || !data?.success) {
+            smsStatus = "FAILED";
+            apiSmsFailed = true;
+          } else {
+            smsStatus = "SENT";
+          }
+        } catch (err: any) {
           smsStatus = "FAILED";
           apiSmsFailed = true;
-        } else {
-          smsStatus = "SENT";
         }
-      } catch (err: any) {
+      } else {
+        // No emergency contacts registered by the user
         smsStatus = "FAILED";
         apiSmsFailed = true;
       }
@@ -282,7 +304,7 @@ export function SOS() {
         fullName: medicalID.fullName || userProfile?.name || "Citizen",
         allergies: medicalID.allergies || "None",
         medicalConditions: medicalID.medicalConditions || "None",
-        emergencyContacts: medicalID.emergencyContacts || []
+        emergencyContacts: effectiveContacts.length > 0 ? effectiveContacts : (medicalID.emergencyContacts || [])
       };
 
       // Real sosRequests payload strictly adhering to schema:
@@ -359,16 +381,20 @@ export function SOS() {
           setSosActive(true);
         } catch (dbErr: any) {
           console.error("Failed to write sosRequest to database:", dbErr);
-          setSosError("Database connection failed. SOS request could not be saved. Please click Retry.");
+          setSosError("SOS could not be sent. Please retry");
           setSosActive(false);
+          setActiveSosId(null);
+          setActiveSosRecord(null);
           setIsProcessingSOS(false);
           return;
         }
       }
     } catch (e: any) {
       console.error("SOS Activation failure:", e);
-      setSosError("Failed to issue emergency request. Please call emergency services immediately.");
+      setSosError("SOS could not be sent. Please retry");
       setSosActive(false);
+      setActiveSosId(null);
+      setActiveSosRecord(null);
     } finally {
       setIsProcessingSOS(false);
     }
@@ -481,14 +507,25 @@ export function SOS() {
             </div>
           </div>
 
-          <button
-            onClick={toggleSensorActive}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-[11px] min-[360px]:text-xs font-bold text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors shrink-0 w-full md:w-auto justify-center"
-          >
-            <Radio className={`w-4 h-4 ${sensorActive ? "text-emerald-500 animate-pulse" : "text-surface-400"}`} />
-            <span>Sensors: {sensorActive ? "ACTIVE" : "PAUSED"}</span>
-            {sensorActive ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <button
+              onClick={triggerSimulatedCrash}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-[11px] min-[360px]:text-xs font-bold transition-colors shrink-0 flex-1 md:flex-initial justify-center"
+              title="Test 15-second Crash Detection countdown modal"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Simulate Crash (15s Test)</span>
+            </button>
+
+            <button
+              onClick={toggleSensorActive}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-800 text-[11px] min-[360px]:text-xs font-bold text-surface-700 dark:text-surface-200 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors shrink-0 flex-1 md:flex-initial justify-center"
+            >
+              <Radio className={`w-4 h-4 ${sensorActive ? "text-emerald-500 animate-pulse" : "text-surface-400"}`} />
+              <span>Sensors: {sensorActive ? "ACTIVE" : "PAUSED"}</span>
+              {sensorActive ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -740,18 +777,18 @@ export function SOS() {
                 <Phone className="w-3.5 h-3.5" /> PRIMARY CONTACT
               </span>
               <div className="text-xs font-bold text-white">
-                {medicalID.emergencyContacts[0]?.name || "Not Set"}
+                {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts)[0]?.name || "Not Set"}
               </div>
               <div className="text-[11px] font-mono text-emerald-400">
-                {medicalID.emergencyContacts[0]?.phone || "N/A"}
+                {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts)[0]?.phone || "N/A"}
               </div>
             </div>
           </div>
 
-          {medicalID.emergencyContacts.length > 1 && (
+          {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts).length > 1 && (
             <div className="pt-2 border-t border-surface-800/80 flex flex-wrap gap-2 text-xs text-surface-400">
-              <span className="font-bold text-surface-300">All Registered Contacts ({medicalID.emergencyContacts.length}):</span>
-              {medicalID.emergencyContacts.map((c, i) => (
+              <span className="font-bold text-surface-300">All Registered Contacts ({getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts).length}):</span>
+              {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts).map((c, i) => (
                 <a 
                   key={i} 
                   href={`tel:${c.phone}`} 
@@ -779,24 +816,30 @@ export function SOS() {
                 <Activity className="w-6 h-6 text-blue-500" />
                 <span className="text-sm font-bold text-surface-900 dark:text-white">Emergency Status</span>
                 <span className="text-xs text-blue-600 dark:text-blue-400 font-black uppercase tracking-wider">
-                  {activeSosRecord?.status || "CREATED"}
+                  {activeSosRecord?.status || "Waiting for emergency response"}
                 </span>
              </div>
              <div className="bg-white/80 dark:bg-surface-900/80 backdrop-blur-md rounded-2xl p-4 border border-amber-200 dark:border-amber-900/30 flex flex-col items-center justify-center gap-2 shadow-sm">
                 <CheckCircle2 className="w-6 h-6 text-amber-500" />
                 <span className="text-sm font-bold text-surface-900 dark:text-white">Alert Dispatch</span>
                 <span className="text-xs text-surface-500">
-                  {activeSosRecord?.smsStatus === "SENT" ? "SMS Dispatched" : activeSosRecord?.smsStatus === "FAILED" ? "SMS Not Configured" : "Dispatches Alerting"}
+                  {activeSosRecord?.smsStatus === "SENT" ? "SMS Dispatched" : activeSosRecord?.smsStatus === "FAILED" ? "SMS Not Configured" : "Waiting for emergency response"}
                 </span>
              </div>
           </div>
 
-          <a 
-            href={`sms:${EMERGENCY_DISPATCH_NUMBER}?body=${encodeURIComponent(activeSosRecord?.message || "Emergency Help Requested!")}`}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
-          >
-            <Phone className="w-4 h-4" /> Send Backup SMS via Device
-          </a>
+          {(() => {
+            const effective = getEffectiveEmergencyContacts(userProfile, medicalID?.emergencyContacts);
+            const targetNumber = effective[0]?.phone || EMERGENCY_DISPATCH_NUMBER;
+            return (
+              <a 
+                href={`sms:${targetNumber}?body=${encodeURIComponent(activeSosRecord?.message || "Emergency Help Requested!")}`}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
+              >
+                <Phone className="w-4 h-4" /> Send Backup SMS via Device
+              </a>
+            );
+          })()}
 
           <div className="text-xs text-surface-500 dark:text-surface-400 font-medium">
             🔒 Real-time GPS location is secure. Access is restricted exclusively to you, your emergency contacts, and assigned first-responders.
@@ -813,8 +856,8 @@ export function SOS() {
           className="flex flex-col items-center gap-2 p-4 min-[360px]:p-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 hover:from-red-500 hover:to-amber-500 text-white rounded-2xl transition-all shadow-xl ring-2 ring-amber-400/40 hover:-translate-y-1 sm:col-span-1"
         >
           <PhoneCall className="w-8 h-8 animate-bounce text-amber-300" />
-          <div className="font-black text-lg min-[360px]:text-xl break-all">9334387983</div>
-          <div className="text-[10px] min-[360px]:text-xs font-extrabold uppercase tracking-wider text-amber-200">Emergency Dispatch</div>
+          <div className="font-black text-lg min-[360px]:text-xl break-all">112</div>
+          <div className="text-[10px] min-[360px]:text-xs font-extrabold uppercase tracking-wider text-amber-200">National Emergency (112)</div>
         </a>
 
         <a 

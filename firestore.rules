@@ -35,6 +35,14 @@ service cloud.firestore {
       );
     }
 
+    function isOwnerDoc() {
+      return resource != null && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.uid == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid
+      );
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
@@ -49,34 +57,33 @@ service cloud.firestore {
         )
       );
       allow create: if isOwner(userId);
-      // Enforce that users can only update their own profile and cannot self-verify or change role
       allow update: if (isOwner(userId) && (
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'verificationStatus', 'approvalStatus', 'approved'])
       )) || isAdmin();
       allow delete: if isAdmin();
     }
 
-    // Incidents collection
+    // Incidents collection (Emergency/SOS data restricted to owner, responders, and admins)
     match /incidents/{incidentId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (isOwnerDoc() || isResponder() || isAdmin());
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isSignedIn() && (isOwnerDoc() || isResponder() || isAdmin());
       allow delete: if isAdmin();
     }
 
-    // Emergencies collection
+    // Emergencies collection (Restricted to owner, responders, and admins)
     match /emergencies/{emergencyId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (isOwnerDoc() || isResponder() || isAdmin());
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isSignedIn() && (isOwnerDoc() || isResponder() || isAdmin());
       allow delete: if isAdmin();
     }
 
-    // sosRequests collection
+    // sosRequests collection (Restricted to owner, responders, and admins)
     match /sosRequests/{sosId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (isOwnerDoc() || isResponder() || isAdmin());
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isSignedIn() && (isOwnerDoc() || isResponder() || isAdmin());
       allow delete: if isAdmin();
     }
 
@@ -89,26 +96,27 @@ service cloud.firestore {
 
     // Legacy Notifications collection
     match /notifications/{notificationId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (isOwnerDoc() || isResponder() || isAdmin());
       allow create, update, delete: if isAdmin() || isResponder();
     }
 
-    // Hazards collection
+    // Hazards collection (Public read for safety maps, authenticated create)
     match /hazards/{hazardId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (
+        isOwnerDoc() || isAdmin() ||
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['latitude', 'longitude', 'type', 'severity', 'description', 'createdBy', 'userId'])
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || isOwnerDoc();
     }
 
     // Community Posts collection
     match /communityPosts/{postId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn(); // Allow liking or adding comments
-      allow delete: if isAdmin();
+      allow update: if isSignedIn(); 
+      allow delete: if isAdmin() || isOwnerDoc();
     }
 
     // Volunteers collection
@@ -132,14 +140,14 @@ service cloud.firestore {
 
     // Training collection
     match /training/{trainingId} {
-      allow read: if isSignedIn();
-      allow create, update: if isOwner(trainingId) || isAdmin();
+      allow read: if isSignedIn() && (isOwnerDoc() || isAdmin() || isResponder());
+      allow create, update: if isOwner(trainingId) || isAdmin() || (isSignedIn() && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid));
       allow delete: if isAdmin();
     }
 
     // Ride History collection
     match /rideHistory/{rideId} {
-      allow read: if isSignedIn() && (resource == null || resource.data.uid == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (resource == null || resource.data.uid == request.auth.uid || isAdmin() || isResponder());
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
@@ -152,7 +160,7 @@ service cloud.firestore {
       allow delete: if isOwner(docId) || isAdmin();
     }
 
-    // Audit Logs collection
+    // Audit Logs collection (Admin only)
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAdmin();

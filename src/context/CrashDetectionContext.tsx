@@ -5,7 +5,7 @@ import { useAuth } from "./AuthContext";
 import { getApiUrl } from "../lib/api";
 import { createEmergencyIncident } from "../lib/incidentService";
 import { getLocalMedicalID } from "../lib/medicalIdStore";
-import { EMERGENCY_DISPATCH_NUMBER, generateSOSMessage } from "../lib/emergencyCall";
+import { EMERGENCY_DISPATCH_NUMBER, generateSOSMessage, getEffectiveEmergencyContacts } from "../lib/emergencyCall";
 
 export interface EmergencyContactNotice {
   name: string;
@@ -102,7 +102,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<"available" | "permission_denied" | "unavailable" | "timeout" | "unsupported">("available");
 
-  // Track Geolocation safely without looping
+  // Track Geolocation with high accuracy
   useEffect(() => {
     if (!("geolocation" in navigator)) {
       setLocationStatus("unsupported");
@@ -121,7 +121,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         },
         (err) => {
           if (err.code === 1) {
-            console.warn("Geolocation permission denied (likely iframe permissions policy or user denial).");
+            console.warn("Geolocation permission denied.");
             setLocationStatus("permission_denied");
           } else if (err.code === 2) {
             console.warn("Geolocation position unavailable.");
@@ -133,7 +133,21 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
             setLocationStatus("unavailable");
           }
         },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+
+      // Setup continuous watch position for real-time accuracy
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (pos && pos.coords && Number.isFinite(pos.coords.latitude) && Number.isFinite(pos.coords.longitude)) {
+            setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            setLocationStatus("available");
+          }
+        },
+        (err) => {
+          console.warn("Geolocation watch update notice:", err.message);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
       );
     } catch (e) {
       setLocationStatus("unavailable");
@@ -142,6 +156,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     return () => {
       if (watchIdRef.current !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     };
   }, []);
@@ -248,12 +263,15 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
     // Get medical ID snapshot
     const medicalID = getLocalMedicalID();
+    const effectiveContacts = getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts);
+    const targetPhones = effectiveContacts.map(c => c.phone).filter(Boolean);
+
     const medProfileSnap = {
       bloodGroup: medicalID.bloodGroup || "Unknown",
       fullName: medicalID.fullName || userProfile?.name || "Citizen",
       allergies: medicalID.allergies || "None",
       medicalConditions: medicalID.medicalConditions || "None",
-      emergencyContacts: medicalID.emergencyContacts || []
+      emergencyContacts: effectiveContacts.length > 0 ? effectiveContacts : (medicalID.emergencyContacts || [])
     };
 
     const sosMsg = generateSOSMessage({
@@ -265,26 +283,29 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       ? `[CRASH CONFIRMED] ${sosMsg} Impact detected. User confirmed SOS.` 
       : `[UNRESPONSIVE ACCIDENT] ${sosMsg} Vehicle impact detected. User is unresponsive. Immediate ambulance required!`;
 
-    // Backend SMS dispatch
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
-      await fetch(getApiUrl("/api/emergency/sos"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: EMERGENCY_DISPATCH_NUMBER,
-          latitude: userCoords?.lat || null,
-          longitude: userCoords?.lng || null,
-          timestamp: new Date().toISOString(),
-          message: `${detailedMsg} Location: ${locationName}`,
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-    } catch (smsErr) {
-      console.warn("Auto SOS SMS dispatch notice:", smsErr);
+    // Backend SMS dispatch only to real emergency contacts
+    if (targetPhones.length > 0) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        await fetch(getApiUrl("/api/emergency/sos"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phones: targetPhones,
+            phone: targetPhones[0],
+            latitude: userCoords?.lat || null,
+            longitude: userCoords?.lng || null,
+            timestamp: new Date().toISOString(),
+            message: `${detailedMsg} Location: ${locationName}`,
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (smsErr) {
+        console.warn("Auto SOS SMS dispatch notice:", smsErr);
+      }
     }
 
     // Save to Firestore collections: emergencies, sosRequests, and incidents
@@ -351,13 +372,21 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     isDispatchingRef.current = false;
   }, [userCoords, userProfile, activeEmergency]);
 
+  const lastBeepedSecRef = useRef<number | null>(null);
+
   // Handle Countdown Ticker (exactly 15 -> 0 once)
   useEffect(() => {
     if (isCrashDetected && countdown > 0 && !hasTriggeredSOSRef.current) {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
       countdownTimerRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
-            if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+            if (countdownTimerRef.current) {
+              clearInterval(countdownTimerRef.current);
+              countdownTimerRef.current = null;
+            }
             return 0;
           }
           return prev - 1;
@@ -378,7 +407,10 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
     if (isCrashDetected && countdown === 0 && !hasTriggeredSOSRef.current) {
       dispatchAutoSOS(false);
     } else if (countdown > 0 && countdown < 15 && isCrashDetected && !hasTriggeredSOSRef.current) {
-      playUrgentBeep(countdown % 2 === 0 ? 880 : 1040, 0.12);
+      if (lastBeepedSecRef.current !== countdown) {
+        lastBeepedSecRef.current = countdown;
+        playUrgentBeep(countdown % 2 === 0 ? 880 : 1040, 0.12);
+      }
     }
   }, [countdown, isCrashDetected, dispatchAutoSOS]);
 
@@ -388,10 +420,12 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       clearInterval(countdownTimerRef.current);
       countdownTimerRef.current = null;
     }
+    lastBeepedSecRef.current = null;
     setIsCrashDetected(false);
     setCountdown(15);
     setUnconsciousMode(false);
     hasTriggeredSOSRef.current = false;
+    isDispatchingRef.current = false;
   }, []);
 
   // User selected "I AM NOT SAFE"
@@ -401,6 +435,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       clearInterval(countdownTimerRef.current);
       countdownTimerRef.current = null;
     }
+    lastBeepedSecRef.current = null;
     dispatchAutoSOS(true);
   }, [dispatchAutoSOS]);
 
@@ -414,6 +449,7 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       clearInterval(goldenHourTimerRef.current);
       goldenHourTimerRef.current = null;
     }
+    lastBeepedSecRef.current = null;
     setIsCrashDetected(false);
     setCountdown(15);
     setUnconsciousMode(false);
@@ -426,13 +462,19 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
   // Trigger simulated crash for testing / manual demonstration
   const triggerSimulatedCrash = useCallback(() => {
-    if (hasTriggeredSOSRef.current || activeEmergency || isCrashDetected) return;
-    setIsCrashDetected(true);
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    hasTriggeredSOSRef.current = false;
+    isDispatchingRef.current = false;
+    setActiveEmergency(null);
+    lastBeepedSecRef.current = null;
     setCountdown(15);
     setUnconsciousMode(false);
-    hasTriggeredSOSRef.current = false;
+    setIsCrashDetected(true);
     playUrgentBeep(1200, 0.3);
-  }, [activeEmergency, isCrashDetected]);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {

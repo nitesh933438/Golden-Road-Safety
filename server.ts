@@ -48,13 +48,22 @@ async function startServer() {
 
   app.post("/api/emergency/sos", async (req, res) => {
     try {
-      const { phone, latitude, longitude, timestamp, message } = req.body || {};
-      if (!phone) {
-        return res.status(400).json({ success: false, status: "FAILED", message: "Recipient phone number is required." });
+      const { phone, phones, latitude, longitude, timestamp, message } = req.body || {};
+      const targetPhones: string[] = Array.isArray(phones) && phones.length > 0
+        ? phones
+        : (phone ? [phone] : []);
+
+      if (targetPhones.length === 0) {
+        return res.status(400).json({
+          success: false,
+          status: "FAILED",
+          message: "No emergency contacts configured. Please save emergency contacts in your profile/medical ID."
+        });
       }
 
       const result = await sendEmergencySMS({
-        phone,
+        phones: targetPhones,
+        phone: targetPhones[0],
         latitude: latitude || "Location unavailable",
         longitude: longitude || "Location unavailable",
         timestamp: timestamp || new Date().toISOString(),
@@ -67,7 +76,6 @@ async function startServer() {
         return res.status(200).json({
           ...result,
           success: false,
-          notice: "Emergency alert could not be delivered. Please verify recipient number or use device SMS fallback."
         });
       }
     } catch (error: any) {
@@ -75,7 +83,7 @@ async function startServer() {
       return res.status(500).json({
         success: false,
         status: "FAILED",
-        message: "Emergency alert could not be sent. Please call emergency services.",
+        message: `Emergency alert could not be sent: ${error?.message || "Internal server error"}`,
         error: error.message
       });
     }

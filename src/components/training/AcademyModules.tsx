@@ -61,6 +61,13 @@ function ModuleView({ moduleId, onBack }: { moduleId: string; onBack: () => void
       setQuizIndex(prev => prev + 1);
     } else {
       setStep("certificate");
+      try {
+        const completed = JSON.parse(localStorage.getItem("goldenguard_completed_modules") || "[]");
+        if (!completed.includes(moduleId)) {
+          completed.push(moduleId);
+          localStorage.setItem("goldenguard_completed_modules", JSON.stringify(completed));
+        }
+      } catch (e) {}
     }
   };
 

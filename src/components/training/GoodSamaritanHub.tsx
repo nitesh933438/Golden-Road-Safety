@@ -1,7 +1,13 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Shield, CheckCircle2, AlertTriangle, Scale, Info, HelpCircle } from "lucide-react";
 
 export function GoodSamaritanHub() {
+  useEffect(() => {
+    try {
+      localStorage.setItem("goldenguard_good_samaritan_read", "true");
+    } catch (e) {}
+  }, []);
+
   return (
     <div className="p-6 sm:p-8 max-w-4xl mx-auto space-y-12">
       

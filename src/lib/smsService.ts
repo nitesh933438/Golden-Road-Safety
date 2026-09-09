@@ -1,19 +1,32 @@
 // SMS Service Abstraction Layer for Backend Emergency Dispatch
 // Supports Twilio REST API integration using server environment variables:
-// TWILIO_ACCOUNT_SID / SMS_ACCOUNT_SID, TWILIO_AUTH_TOKEN / SMS_AUTH_TOKEN, TWILIO_FROM_NUMBER / SMS_FROM_NUMBER.
+// TWILIO_ACCOUNT_SID / SMS_ACCOUNT_SID, TWILIO_AUTH_TOKEN / SMS_AUTH_TOKEN, TWILIO_FROM_NUMBER / SMS_FROM_NUMBER / TWILIO_PHONE_NUMBER.
 
 export interface SMSPayload {
-  phone: string;
+  phone?: string;
+  phones?: string[];
+  recipientName?: string;
   latitude: string | number;
   longitude: string | number;
   timestamp: string;
   message: string;
 }
 
+export interface RecipientResult {
+  phone: string;
+  success: boolean;
+  status: "SENT" | "FAILED";
+  message: string;
+  providerResponse?: any;
+}
+
 export interface SMSResponse {
   success: boolean;
   status: "SENT" | "FAILED" | "PENDING";
   message: string;
+  sentCount?: number;
+  failedCount?: number;
+  recipientResults?: RecipientResult[];
   providerResponse?: any;
 }
 
@@ -44,33 +57,77 @@ export function formatToE164(phone: string): string {
 }
 
 /**
- * Sends an emergency SOS SMS via Twilio or configured SMS provider.
+ * Sends an emergency SOS SMS via Twilio to real saved emergency contacts.
  * Keeps private API credentials strictly server-side.
+ * Never uses fake/demo fallback simulator data.
  */
 export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID || process.env.SMS_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN || process.env.SMS_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER || process.env.SMS_FROM_NUMBER || "+17372212163";
+  const fromNumber = process.env.TWILIO_FROM_NUMBER || process.env.SMS_FROM_NUMBER || process.env.TWILIO_PHONE_NUMBER;
 
-  const rawPhone = payload.phone || "";
-  const formattedRecipient = formatToE164(rawPhone);
+  // Extract real target phone numbers
+  const rawList: string[] = [];
+  if (Array.isArray(payload.phones)) {
+    payload.phones.forEach((p) => {
+      if (typeof p === "string" && p.trim()) rawList.push(p.trim());
+    });
+  }
+  if (payload.phone && typeof payload.phone === "string" && payload.phone.trim()) {
+    if (!rawList.includes(payload.phone.trim())) {
+      rawList.push(payload.phone.trim());
+    }
+  }
 
-  if (!isValidE164(formattedRecipient)) {
+  if (rawList.length === 0) {
     return {
       success: false,
       status: "FAILED",
-      message: `Emergency alert could not be delivered: Invalid phone number format (${rawPhone}). Must be in valid E.164 format (e.g., +91XXXXXXXXXX).`,
+      message: "No emergency contacts configured. Please save real emergency contacts in your profile/medical ID.",
+      sentCount: 0,
+      failedCount: 0,
     };
   }
-  
-  const textMessage = payload.message || `🚨 GOLDENGUARD SOS ALERT 🚨\nEmergency assistance requested.\nTime: ${payload.timestamp}\nLocation: Latitude: ${payload.latitude}, Longitude: ${payload.longitude}\nMap: https://www.google.com/maps?q=${payload.latitude},${payload.longitude}`;
 
-  try {
-    // 1. Real Twilio Integration via REST API if credentials are provided
-    if (accountSid && authToken && fromNumber) {
-      const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-      
+  // Verify Twilio configuration
+  if (!accountSid || !authToken || !fromNumber) {
+    const missing: string[] = [];
+    if (!accountSid) missing.push("TWILIO_ACCOUNT_SID");
+    if (!authToken) missing.push("TWILIO_AUTH_TOKEN");
+    if (!fromNumber) missing.push("TWILIO_FROM_NUMBER");
+
+    console.warn(`[SMS Service Configuration Error]: Missing Twilio server credentials: ${missing.join(", ")}`);
+    return {
+      success: false,
+      status: "FAILED",
+      message: `Emergency SMS service is not configured on the server (missing ${missing.join(", ")}).`,
+      sentCount: 0,
+      failedCount: rawList.length,
+    };
+  }
+
+  const textMessage = payload.message || 
+    `🚨 GOLDENGUARD SOS ALERT 🚨\nEmergency assistance requested.\nTime: ${payload.timestamp}\nLocation: Latitude: ${payload.latitude}, Longitude: ${payload.longitude}\nMap: https://www.google.com/maps?q=${payload.latitude},${payload.longitude}`;
+
+  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+  const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+
+  const results: RecipientResult[] = [];
+
+  for (const rawPhone of rawList) {
+    const formattedRecipient = formatToE164(rawPhone);
+
+    if (!isValidE164(formattedRecipient)) {
+      results.push({
+        phone: rawPhone,
+        success: false,
+        status: "FAILED",
+        message: `Invalid phone number format (${rawPhone}). Must be a valid phone number with country code (e.g. +91XXXXXXXXXX).`,
+      });
+      continue;
+    }
+
+    try {
       const response = await fetch(twilioUrl, {
         method: "POST",
         headers: {
@@ -81,7 +138,7 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
           From: fromNumber,
           To: formattedRecipient,
           Body: textMessage,
-         }).toString(),
+        }).toString(),
       });
 
       const data = await response.json();
@@ -89,45 +146,68 @@ export async function sendEmergencySMS(payload: SMSPayload): Promise<SMSResponse
       if (!response.ok) {
         const errCode = data.code || data.error?.code || response.status;
         const errMessage = data.message || data.error?.message || "Twilio request failed";
-        const errMoreInfo = data.more_info || data.error?.more_info || "https://www.twilio.com/docs/errors";
-        
-        console.error("[Twilio SMS Dispatch Error]:", {
+        console.error(`[Twilio SMS Error for ${formattedRecipient}]:`, {
           code: errCode,
           message: errMessage,
           status: response.status,
-          more_info: errMoreInfo,
         });
 
-        return {
+        results.push({
+          phone: formattedRecipient,
           success: false,
           status: "FAILED",
-          message: `Emergency alert could not be delivered. Twilio Error ${errCode}: ${errMessage}`,
+          message: `Twilio Error ${errCode}: ${errMessage}`,
           providerResponse: data,
-        };
+        });
+      } else {
+        results.push({
+          phone: formattedRecipient,
+          success: true,
+          status: "SENT",
+          message: "SMS delivered to Twilio carrier queue.",
+          providerResponse: data,
+        });
       }
-
-      return {
-        success: true,
-        status: "SENT",
-        message: "Emergency alert dispatched successfully via Twilio",
-        providerResponse: data,
-      };
+    } catch (sendErr: any) {
+      console.error(`[SMS Send Exception for ${formattedRecipient}]:`, sendErr);
+      results.push({
+        phone: formattedRecipient,
+        success: false,
+        status: "FAILED",
+        message: sendErr?.message || "Network communication error with SMS provider.",
+      });
     }
+  }
 
-    // 2. Real SMS provider is NOT configured - never simulate SMS success
+  const successful = results.filter((r) => r.success);
+  const failed = results.filter((r) => !r.success);
+
+  if (successful.length === results.length && results.length > 0) {
     return {
-      success: false,
-      status: "FAILED",
-      message: "SMS service is not configured (missing Twilio credentials).",
+      success: true,
+      status: "SENT",
+      message: `Emergency SMS successfully dispatched to ${successful.length} contact(s).`,
+      sentCount: successful.length,
+      failedCount: 0,
+      recipientResults: results,
     };
-  } catch (error: any) {
-    console.error("[SMS Service Dispatch Exception]:", {
-      message: error?.message || "Unknown error",
-    });
+  } else if (successful.length > 0) {
+    return {
+      success: true,
+      status: "SENT",
+      message: `Emergency SMS dispatched to ${successful.length} contact(s) (${failed.length} failed).`,
+      sentCount: successful.length,
+      failedCount: failed.length,
+      recipientResults: results,
+    };
+  } else {
     return {
       success: false,
       status: "FAILED",
-      message: `Emergency alert could not be delivered: ${error?.message || "Network error"}`,
+      message: `Failed to deliver emergency SMS to contacts: ${failed.map((f) => `${f.phone}: ${f.message}`).join("; ")}`,
+      sentCount: 0,
+      failedCount: failed.length,
+      recipientResults: results,
     };
   }
 }

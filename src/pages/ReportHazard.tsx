@@ -35,30 +35,46 @@ export function ReportHazard() {
   const [selectedType, setSelectedType] = useState("pothole");
   const [severity, setSeverity] = useState<"Low" | "Medium" | "High" | "Critical">("High");
   const [description, setDescription] = useState("");
-  const [address, setAddress] = useState("Market Street & 4th Ave, Sector 7");
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>({ lat: 37.7749, lng: -122.4194 });
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
 
   const handleGetLocation = () => {
     setIsLocating(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setAddress(`GPS: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)} (Verified Location)`);
-          setIsLocating(false);
-        },
-        () => {
-          setAddress("Sector 7, Metro Area (Approximate GPS)");
-          setIsLocating(false);
-        }
-      );
-    } else {
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser. Please enter the location address manually.");
       setIsLocating(false);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setCoords({ lat: latitude, lng: longitude });
+        setAddress(`GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        setLocationError(null);
+        setIsLocating(false);
+      },
+      (err) => {
+        let msg = "GPS location unavailable. Please enter the location address manually.";
+        if (err.code === err.PERMISSION_DENIED) {
+          msg = "Location permission was denied. Please allow location access in your browser or type the address manually.";
+        } else if (err.code === err.TIMEOUT) {
+          msg = "Location request timed out. Please retry or enter the address manually.";
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          msg = "Location position is currently unavailable. Please enter the address manually.";
+        }
+        setLocationError(msg);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -305,6 +321,12 @@ export function ReportHazard() {
               showVoiceInput={true}
               enableAIIntent={true}
             />
+            {locationError && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-1">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{locationError}</span>
+              </p>
+            )}
           </div>
 
           {/* Photo Upload */}

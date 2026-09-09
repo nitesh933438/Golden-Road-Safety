@@ -10,6 +10,7 @@ import {
   signOut,
   updateProfile,
   setPersistence,
+  browserLocalPersistence,
   browserSessionPersistence,
   inMemoryPersistence
 } from "firebase/auth";
@@ -102,7 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdminUser = (user: FirebaseUser | null, profile?: UserProfile | null): boolean => {
     const email = user?.email || user?.providerData?.[0]?.email || profile?.email || "";
     if (!email) return false;
-    return email.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase() || email.trim().toLowerCase() === "nitesh933438@gmail.com";
+    const isCorrectEmail = email.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
+    const isGoogle = isGoogleProvider(user) || (profile?.provider === "google");
+    return isCorrectEmail && isGoogle;
   };
 
   // Sync profile to localStorage securely
@@ -294,6 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error("Firebase Auth is not configured. Please check your environment variables.");
     }
     try {
+      await setPersistence(auth, browserLocalPersistence);
       let result;
       try {
         result = await signInWithPopup(auth, googleProvider);

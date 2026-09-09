@@ -1,7 +1,41 @@
 // Emergency Call, SMS & Contact Utilities
 
-export const EMERGENCY_DISPATCH_NUMBER = "9334387983";
-export const EMERGENCY_DISPATCH_LABEL = "Test Emergency Contact";
+export const EMERGENCY_DISPATCH_NUMBER = "112";
+export const EMERGENCY_DISPATCH_LABEL = "National Emergency Services (112)";
+
+/**
+ * Extracts valid, deduplicated emergency contacts saved by the user.
+ */
+export function getEffectiveEmergencyContacts(
+  userProfile?: { emergencyContacts?: Array<{ name?: string; phone?: string; relation?: string }> } | null,
+  medicalContacts?: Array<{ name?: string; phone?: string; relation?: string }> | null
+): Array<{ name: string; phone: string; relation: string }> {
+  const contacts: Array<{ name: string; phone: string; relation: string }> = [];
+  const seenPhones = new Set<string>();
+
+  const add = (c?: { name?: string; phone?: string; relation?: string }) => {
+    if (!c || !c.phone) return;
+    const raw = c.phone.trim();
+    const digits = raw.replace(/[^\d+]/g, "");
+    if (digits && digits.length >= 7 && !seenPhones.has(digits)) {
+      seenPhones.add(digits);
+      contacts.push({
+        name: c.name?.trim() || "Emergency Contact",
+        phone: raw,
+        relation: c.relation?.trim() || "Contact"
+      });
+    }
+  };
+
+  if (Array.isArray(userProfile?.emergencyContacts)) {
+    userProfile.emergencyContacts.forEach(add);
+  }
+  if (Array.isArray(medicalContacts)) {
+    medicalContacts.forEach(add);
+  }
+
+  return contacts;
+}
 
 /**
  * Detects whether the current device is a mobile browser / phone device

@@ -440,7 +440,6 @@ export default function SmartMap() {
                 lng: parsedLng,
                 vicinity: data.address || "Verified responder unit",
                 phone: data.phone || data.officialContact || "112",
-                rating: 5.0,
                 isOpen: true
               });
             }
@@ -482,7 +481,6 @@ export default function SmartMap() {
               lng: pLng,
               vicinity: `Status: ${data.status || "Active"} | Severity: ${data.severity || "Unknown"} | Address: ${data.address || "N/A"}`,
               phone: data.phone || "112",
-              rating: 4.0,
               isOpen: data.status !== "Resolved",
             });
           }
@@ -515,7 +513,6 @@ export default function SmartMap() {
             lng: data.lng,
             vicinity: data.vicinity || `Reported: ${data.description || "Road Alert"}`,
             phone: data.phone || "112",
-            rating: 4.5,
             isOpen: true
           };
         });
@@ -654,7 +651,6 @@ export default function SmartMap() {
       lat,
       lng,
       vicinity: item.display_name,
-      rating: 4.7,
       isOpen: true
     };
     
@@ -791,7 +787,6 @@ export default function SmartMap() {
         lng,
         vicinity: `User Reported Location (${reportType})`,
         phone: "112",
-        rating: 5.0,
         isOpen: true
       };
 
@@ -907,7 +902,7 @@ export default function SmartMap() {
 
           {!isSearching && hasSearched && searchResults.length === 0 && !searchError && searchQuery.trim().length >= 3 && (
             <div className="bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl border border-surface-200 dark:border-surface-700 rounded-2xl shadow-2xl p-4 text-center">
-              <div className="text-surface-500 text-sm font-bold">No places found</div>
+              <div className="text-surface-500 text-sm font-bold">No nearby services found</div>
             </div>
           )}
         </div>
@@ -1079,7 +1074,7 @@ export default function SmartMap() {
       {/* Leaflet Map / Real Google-like View */}
       <MapContainer
         ref={setMap}
-        center={[userLocation?.lat || 28.6139, userLocation?.lng || 77.2090]}
+        center={[userLocation?.lat || 20.5937, userLocation?.lng || 78.9629]}
         zoom={zoomLevel}
         minZoom={3}
         maxZoom={20}

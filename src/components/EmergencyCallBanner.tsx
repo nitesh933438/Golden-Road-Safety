@@ -7,8 +7,11 @@ import {
   triggerEmergencySMS,
   generateSOSMessage, 
   copyTextToClipboard, 
-  isMobileDevice 
+  isMobileDevice,
+  getEffectiveEmergencyContacts
 } from "../lib/emergencyCall";
+import { getLocalMedicalID } from "../lib/medicalIdStore";
+import { useAuth } from "../context/AuthContext";
 import { getApiUrl } from "../lib/api";
 
 interface EmergencyCallBannerProps {
@@ -26,6 +29,7 @@ export function EmergencyCallBanner({
   userName = "GoldenGuard Test User", 
   className = "" 
 }: EmergencyCallBannerProps) {
+  const { userProfile } = useAuth();
   const [copiedNum, setCopiedNum] = useState(false);
   const [copiedMsg, setCopiedMsg] = useState(false);
   const [sendingStatus, setSendingStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
@@ -33,13 +37,17 @@ export function EmergencyCallBanner({
   const [cooldown, setCooldown] = useState(false);
   const isMobile = isMobileDevice();
 
+  const medicalID = getLocalMedicalID();
+  const effectiveContacts = getEffectiveEmergencyContacts(userProfile, medicalID?.emergencyContacts);
+  const primaryContact = effectiveContacts[0] || null;
+
   const sosMessage = generateSOSMessage({
-    userName,
+    userName: userProfile?.name || userName,
     coords,
   });
 
   const handleCopyNumber = async () => {
-    const success = await copyTextToClipboard(EMERGENCY_DISPATCH_NUMBER);
+    const success = await copyTextToClipboard(primaryContact?.phone || EMERGENCY_DISPATCH_NUMBER);
     if (success) {
       setCopiedNum(true);
       setTimeout(() => setCopiedNum(false), 2500);
@@ -57,15 +65,23 @@ export function EmergencyCallBanner({
   const handleSendAutomaticSMS = async () => {
     if (cooldown || sendingStatus === "sending") return;
 
+    const targetPhones = effectiveContacts.map(c => c.phone).filter(Boolean);
+    if (targetPhones.length === 0) {
+      setSendingStatus("failed");
+      setStatusMessage("✕ No emergency contacts found. Please add emergency contacts in your profile.");
+      return;
+    }
+
     setSendingStatus("sending");
-    setStatusMessage("Sending emergency alert...");
+    setStatusMessage(`Sending emergency alert to ${targetPhones.length} contact(s)...`);
 
     try {
       const response = await fetch(getApiUrl("/api/emergency/sos"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: EMERGENCY_DISPATCH_NUMBER,
+          phones: targetPhones,
+          phone: targetPhones[0],
           latitude: coords ? coords.lat : "Location unavailable",
           longitude: coords ? coords.lng : "Location unavailable",
           timestamp: new Date().toISOString(),
@@ -85,15 +101,15 @@ export function EmergencyCallBanner({
 
       if (response.ok && data?.success) {
         setSendingStatus("sent");
-        setStatusMessage("✓ Emergency alert sent successfully");
+        setStatusMessage(`✓ Emergency alert dispatched to ${data.sentCount || targetPhones.length} emergency contact(s)`);
       } else {
         setSendingStatus("failed");
-        setStatusMessage(`✕ ${data?.message || "Emergency alert could not be sent (Twilio trial/config limit). Please use manual SMS."}`);
+        setStatusMessage(`✕ ${data?.message || "Emergency SMS dispatch failed. Twilio service not configured or unavailable."}`);
       }
     } catch (error: any) {
       console.error("Automatic SOS Dispatch Error:", error);
       setSendingStatus("failed");
-      setStatusMessage(`✕ Emergency alert could not be sent: ${error?.message || "Network error"}`);
+      setStatusMessage(`✕ Emergency alert failed: ${error?.message || "Network error"}`);
     } finally {
       // Apply anti-spam cooldown (15 seconds)
       setCooldown(true);
@@ -102,7 +118,7 @@ export function EmergencyCallBanner({
   };
 
   const handleCallNow = () => {
-    triggerEmergencyCall(EMERGENCY_DISPATCH_NUMBER);
+    triggerEmergencyCall(primaryContact?.phone || EMERGENCY_DISPATCH_NUMBER);
   };
 
   return (
