@@ -770,11 +770,13 @@ export function SOS() {
                 <Phone className="w-3.5 h-3.5" /> PRIMARY CONTACT
               </span>
               <div className="text-xs font-bold text-white">
-                {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts)[0]?.name || "Not Set"}
+                {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts)[0]?.name || "Profile information unavailable"}
               </div>
-              <div className="text-[11px] font-mono text-emerald-400">
-                {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts)[0]?.phone || "N/A"}
-              </div>
+              {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts)[0]?.phone && (
+                <div className="text-[11px] font-mono text-emerald-400">
+                  {getEffectiveEmergencyContacts(userProfile, medicalID.emergencyContacts)[0].phone}
+                </div>
+              )}
             </div>
           </div>
 

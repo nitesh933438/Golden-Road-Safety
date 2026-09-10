@@ -70,12 +70,12 @@ export function AdminDashboardTab() {
             timeStr = new Date(d.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           }
           let actType: ActivityItem["type"] = "user";
-          let title = `New Citizen Registered: ${d.name || "Anonymous"}`;
+          let title = d.name?.trim() ? `New Citizen Registered: ${d.name.trim()}` : "New Citizen Registered (Profile information unavailable)";
           let subtitle = `Role: ${role.toUpperCase()}`;
 
           if (appRole === "volunteer" || role === "volunteer") {
             actType = "volunteer";
-            title = `Volunteer Application: ${d.name || "Applicant"}`;
+            title = d.name?.trim() ? `Volunteer Application: ${d.name.trim()}` : "Volunteer Application (Profile information unavailable)";
             subtitle = `Status: ${vStatus}`;
           } else if (appRole === "hospital" || role === "hospital") {
             actType = "hospital";

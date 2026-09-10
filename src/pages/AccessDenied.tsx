@@ -43,7 +43,7 @@ export function AccessDenied({ requiredRoles, message }: AccessDeniedProps) {
           <div className="flex items-center justify-between text-xs font-bold text-surface-500">
             <span>Your Account Identity</span>
             <span className="font-mono text-[10px] text-amber-500">
-              {currentUser ? currentUser.email : "Guest User"}
+              {currentUser ? (currentUser.email || currentUser.displayName || "Profile information unavailable") : "Not signed in"}
             </span>
           </div>
           

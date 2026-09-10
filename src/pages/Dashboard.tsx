@@ -311,7 +311,7 @@ export function Dashboard() {
 
           <div className="p-3 sm:p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200/80 dark:border-surface-700/50 space-y-0.5">
             <div className="text-lg sm:text-2xl font-black text-purple-600 dark:text-purple-400">
-              {realMetrics?.avgResponseTimeMinutes || "N/A"}
+              {realMetrics?.avgResponseTimeMinutes || "--"}
             </div>
             <div className="text-[11px] sm:text-xs text-surface-600 dark:text-surface-300 font-semibold">
               Avg Response Time

@@ -33,7 +33,7 @@ export function EmergencyMedicalIDView() {
     loadData();
   }, [uidParam]);
 
-  const shareableUrl = `${window.location.origin}/medical-id/view?uid=${medicalID.uid || "default_user"}`;
+  const shareableUrl = `${window.location.origin}/medical-id/view?uid=${medicalID.uid || ""}`;
 
   const triggerBystanderSOS = () => {
     setSosTriggered(true);

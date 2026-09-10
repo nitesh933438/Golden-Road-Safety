@@ -52,15 +52,15 @@ export function AdminUsersTab() {
           fetched.push({
             id: `USR-${index + 900}`,
             uid: docSnap.id,
-            name: data.name || "Anonymous Samaritan",
-            email: data.email || "No email available",
+            name: data.name?.trim() || "Profile information unavailable",
+            email: data.email?.trim() || "Profile information unavailable",
             role: (data.role || "user") as AppRole,
             status: data.isOnline ? "active" : "standby",
             joined: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric"
-            }) : "N/A"
+            }) : "Date unavailable"
           });
         });
 

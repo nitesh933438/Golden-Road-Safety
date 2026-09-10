@@ -247,8 +247,8 @@ export function IncidentProvider({ children }: { children: ReactNode }) {
       throw new Error("Authentication required. Please sign in to activate GoldenGuard Emergency SOS.");
     }
 
-    const reporterName = userProfile.name || "GoldenGuard Reporter";
-    const reporterPhone = userProfile.phone || "N/A";
+    const reporterName = userProfile.name?.trim() || "Profile information unavailable";
+    const reporterPhone = userProfile.phone?.trim() || "";
 
     const result = await createEmergencyIncident({
       reporterUid: userProfile.uid,

@@ -46,7 +46,7 @@ export function AdminHazardsTab() {
           id: docSnap.id,
           type: data.type || data.title || "Road Hazard",
           location: data.locationName || data.address || (data.latitude ? `GPS (${data.latitude.toFixed(3)}, ${data.longitude.toFixed(3)})` : "Unspecified location"),
-          reporter: data.userName || data.createdBy || "Anonymous Citizen",
+          reporter: data.userName || data.createdBy || "Profile information unavailable",
           time: timeStr,
           status: (data.status || "pending").toLowerCase() as any,
           photoURL: data.photoURL || data.image,

@@ -116,7 +116,7 @@ export function MedicalWallet() {
     }
   };
 
-  const emergencyViewUrl = `${window.location.origin}/medical-id/view?uid=${formData.uid || "default_user"}`;
+  const emergencyViewUrl = `${window.location.origin}/medical-id/view?uid=${formData.uid || currentUser?.uid || ""}`;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">

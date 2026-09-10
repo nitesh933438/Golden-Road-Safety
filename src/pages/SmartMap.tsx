@@ -479,7 +479,7 @@ export default function SmartMap() {
               type: "emergency",
               lat: pLat,
               lng: pLng,
-              vicinity: `Status: ${data.status || "Active"} | Severity: ${data.severity || "Unknown"} | Address: ${data.address || "N/A"}`,
+              vicinity: `Status: ${data.status || "Active"} | Severity: ${data.severity || "Unknown"} | Address: ${data.address || data.locationText || "Unspecified"}`,
               phone: data.phone || "112",
               isOpen: data.status !== "Resolved",
             });

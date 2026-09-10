@@ -33,7 +33,7 @@ export interface MedicalIDData {
 }
 
 export const DEFAULT_MEDICAL_ID: MedicalIDData = {
-  uid: "default_user",
+  uid: "",
   fullName: "",
   dob: "",
   gender: "",
@@ -84,7 +84,7 @@ export async function saveMedicalID(data: MedicalIDData): Promise<void> {
   safeLocalStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
 
   // If online & valid UID, sync to Firestore
-  if (navigator.onLine && data.uid && data.uid !== "default_user") {
+  if (navigator.onLine && data.uid) {
     try {
       const docRef = doc(db, "medicalIDs", data.uid);
       await setDoc(docRef, {
@@ -101,7 +101,7 @@ export async function saveMedicalID(data: MedicalIDData): Promise<void> {
  * Fetch Medical ID from Firestore with Local Fallback
  */
 export async function fetchRemoteMedicalID(uid: string): Promise<MedicalIDData> {
-  if (!uid || uid === "default_user") {
+  if (!uid) {
     return getLocalMedicalID();
   }
 

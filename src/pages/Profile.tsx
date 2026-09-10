@@ -83,12 +83,12 @@ export function Profile() {
   };
 
   const profileData = {
-    name: userProfile?.name || "Guest",
-    role: userProfile?.role || "User",
+    name: userProfile?.name?.trim() || "Profile information unavailable",
+    role: userProfile?.role || "Citizen",
     badge: "Community Member",
     location: userProfile?.city ? `${userProfile?.city}, ${userProfile?.state || ''}` : "Location Unavailable",
-    phone: userProfile?.phone || "No Phone",
-    email: userProfile?.email || "No Email",
+    phone: userProfile?.phone || "Profile information unavailable",
+    email: userProfile?.email || "Profile information unavailable",
     completionPercentage: 35,
     stats: {
       rescuesConducted: 2,

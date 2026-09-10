@@ -151,13 +151,15 @@ export const OfflineSyncProvider: React.FC<{ children: React.ReactNode }> = ({ c
               createdAt: serverTimestamp()
             });
           } else if (item.type === "notification") {
-            const uId = item.data.userId || "anonymous";
-            const docId = item.data.id || item.id;
-            await setDoc(doc(db, "notifications", uId, "items", docId), {
-              ...item.data,
-              syncedFromOffline: true,
-              timestamp: serverTimestamp()
-            });
+            const uId = item.data.userId;
+            if (uId) {
+              const docId = item.data.id || item.id;
+              await setDoc(doc(db, "notifications", uId, "items", docId), {
+                ...item.data,
+                syncedFromOffline: true,
+                timestamp: serverTimestamp()
+              });
+            }
           } else if (item.type === "volunteer") {
             await addDoc(collection(db, "volunteers"), {
               ...item.data,
