@@ -41,13 +41,16 @@ jobs:
           VITE_FIREBASE_APP_ID: "1:364129436292:web:ed797e2cdbddd83db878d1"
           VITE_FIREBASE_MEASUREMENT_ID: "G-H07B0LRX3Q"
 
+      - name: Verify build artifacts
+        run: ls -la dist/ && test -f dist/index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: 'dist'
 
       - name: Deploy to GitHub Pages
         id: deployment

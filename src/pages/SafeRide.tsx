@@ -14,6 +14,8 @@ import { safeLocalStorage } from "../lib/utils";
 import { VoiceSOSCard } from "../components/voice/VoiceSOSCard";
 import { VoiceSOSToggle } from "../components/voice/VoiceSOSToggle";
 import { useVoiceSOS } from "../context/VoiceSOSContext";
+import { getEffectiveEmergencyContacts, EMERGENCY_DISPATCH_NUMBER } from "../lib/emergencyCall";
+import { getLocalMedicalID } from "../lib/medicalIdStore";
 
 interface RideHistoryItem {
   id: string;
@@ -29,7 +31,7 @@ interface RideHistoryItem {
 
 export function SafeRide() {
   const { activeEmergency } = useCrashDetection();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const navigate = useNavigate();
 
   // Ride State
@@ -453,9 +455,14 @@ export function SafeRide() {
                   <ShieldAlert className="w-5 h-5 text-amber-400" />
                   <h3 className="font-extrabold text-sm">Emergency Contacts</h3>
                 </div>
-                <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
-                  3 ACTIVE
-                </span>
+                {(() => {
+                  const effective = getEffectiveEmergencyContacts(userProfile, getLocalMedicalID()?.emergencyContacts);
+                  return (
+                    <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
+                      {effective.length} ACTIVE
+                    </span>
+                  );
+                })()}
               </div>
 
               <p className="text-xs text-surface-400 leading-relaxed font-medium">
@@ -463,26 +470,30 @@ export function SafeRide() {
               </p>
 
               <div className="space-y-2 font-mono text-xs">
-                <div className="p-2.5 rounded-xl bg-surface-800/80 flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-white">Elena Rivera (Spouse)</div>
-                    <div className="text-[10px] text-surface-400">+91 98765 43210</div>
-                  </div>
-                  <span className="text-emerald-400 text-[10px] font-bold">✓ Ready</span>
-                </div>
+                {(() => {
+                  const effective = getEffectiveEmergencyContacts(userProfile, getLocalMedicalID()?.emergencyContacts);
+                  if (effective.length === 0) {
+                    return (
+                      <div className="p-3 rounded-xl bg-surface-800/80 text-surface-400 text-xs">
+                        Waiting for emergency response. Add contacts in Profile.
+                      </div>
+                    );
+                  }
+                  return effective.map((c, i) => (
+                    <div key={i} className="p-2.5 rounded-xl bg-surface-800/80 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-white">{c.name}</div>
+                        <div className="text-[10px] text-surface-400">{c.phone}</div>
+                      </div>
+                      <span className="text-emerald-400 text-[10px] font-bold">✓ Ready</span>
+                    </div>
+                  ));
+                })()}
 
                 <div className="p-2.5 rounded-xl bg-surface-800/80 flex items-center justify-between">
                   <div>
-                    <div className="font-bold text-white">Dr. Robert Miller</div>
-                    <div className="text-[10px] text-surface-400">+91 98123 45678</div>
-                  </div>
-                  <span className="text-emerald-400 text-[10px] font-bold">✓ Ready</span>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-surface-800/80 flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-white">Control Hub 112</div>
-                    <div className="text-[10px] text-surface-400">National Dispatch</div>
+                    <div className="font-bold text-white">National Emergency Dispatch</div>
+                    <div className="text-[10px] text-surface-400">{EMERGENCY_DISPATCH_NUMBER}</div>
                   </div>
                   <span className="text-emerald-400 text-[10px] font-bold">✓ Linked</span>
                 </div>

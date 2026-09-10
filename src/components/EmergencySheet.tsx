@@ -370,7 +370,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
               <EmergencyCallBanner 
                 coords={coords} 
                 locationError={locationError} 
-                userName={userProfile?.name || "GoldenGuard Test User"}
+                userName={userProfile?.name || "GoldenGuard User"}
                 onCancel={() => setStep("setup")} 
               />
 
@@ -402,19 +402,19 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2"><User className="w-4 h-4 text-blue-500"/> Volunteers</div>
                     <span className="font-bold text-blue-600 dark:text-blue-400">
-                      {assignedResponders.volunteer ? `Assigned: ${assignedResponders.volunteer}` : "Searching..."}
+                      {assignedResponders.volunteer ? `Assigned: ${assignedResponders.volunteer}` : "Waiting for emergency response."}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2"><Activity className="w-4 h-4 text-red-500"/> Medical Facility</div>
                     <span className="font-bold text-red-600 dark:text-red-400">
-                      {assignedResponders.hospital ? `Assigned: ${assignedResponders.hospital}` : "Dispatching hospital..."}
+                      {assignedResponders.hospital ? `Assigned: ${assignedResponders.hospital}` : "Waiting for emergency response."}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-indigo-500"/> Police Station</div>
                     <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                      {assignedResponders.police ? `Assigned: ${assignedResponders.police}` : "Dispatching police..."}
+                      {assignedResponders.police ? `Assigned: ${assignedResponders.police}` : "Waiting for emergency response."}
                     </span>
                   </div>
                 </div>
@@ -491,14 +491,22 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
                         <h3 className="text-sm font-bold text-surface-900 dark:text-white">Emergency Contacts</h3>
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-surface-600 dark:text-surface-400">Wife (Sarah)</span>
-                          <span className="text-xs font-bold text-green-600 dark:text-green-400">Viewed</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-surface-600 dark:text-surface-400">Brother (Mike)</span>
-                          <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Delivered</span>
-                        </div>
+                        {(() => {
+                          const contacts = getEffectiveEmergencyContacts(userProfile, getLocalMedicalID()?.emergencyContacts);
+                          if (contacts.length === 0) {
+                            return (
+                              <div className="text-xs text-surface-500">
+                                Waiting for emergency response.
+                              </div>
+                            );
+                          }
+                          return contacts.map((c, i) => (
+                            <div key={i} className="flex justify-between items-center text-sm">
+                              <span className="text-surface-600 dark:text-surface-400 font-medium">{c.name} ({c.phone})</span>
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Notified</span>
+                            </div>
+                          ));
+                        })()}
                       </div>
                     </div>
 
@@ -567,15 +575,17 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
                   <div>
                     <h4 className="text-xs uppercase font-bold tracking-wider text-surface-500 mb-1">Responders</h4>
                     <p className="font-semibold text-surface-900 dark:text-white">
-                      2 Volunteers, 1 Ambulance
+                      {assignedResponders.volunteer || assignedResponders.hospital || assignedResponders.police
+                        ? [assignedResponders.volunteer, assignedResponders.hospital, assignedResponders.police].filter(Boolean).join(", ")
+                        : "Waiting for emergency response."}
                     </p>
                   </div>
                 </div>
 
                 <div className="bg-surface-50 dark:bg-surface-900/50 p-4 rounded-xl border border-surface-200 dark:border-surface-700">
-                   <h4 className="text-xs uppercase font-bold tracking-wider text-surface-500 mb-2">Automated Post-Analysis</h4>
+                   <h4 className="text-xs uppercase font-bold tracking-wider text-surface-500 mb-2">Incident Log</h4>
                    <p className="text-sm text-surface-700 dark:text-surface-300">
-                     Response time was 42% faster than regional average. Immediate compression application suggested by Smart First Aid prevented severe blood loss.
+                     Incident recorded in secure database with real-time GPS telemetry and responder synchronization.
                    </p>
                 </div>
 

@@ -5,15 +5,14 @@ import path from "path";
 import packageJson from "./package.json";
 
 export default defineConfig(({ mode }) => {
-  const isGitHubPages = process.env.DEPLOY_TARGET === 'gh-pages' || 
-                        process.env.GITHUB_ACTIONS === 'true' || 
-                        process.env.BUILD_TARGET === 'gh-pages';
+  const isGitHubPages = process.env.DEPLOY_TARGET === 'gh-pages';
   const base = process.env.BASE_URL || (isGitHubPages ? '/Golden-Road-Safety/' : '/');
 
   return {
     base,
     build: {
       outDir: 'dist',
+      sourcemap: false,
     },
     plugins: [react(), tailwindcss()],
     define: {
