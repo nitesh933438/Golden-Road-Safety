@@ -133,8 +133,9 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
   }, [step, emergencyId]);
 
   const handleSendSOS = async () => {
+    const resolvedName = userProfile?.name?.trim() || "Profile information unavailable";
     const sosMsg = generateSOSMessage({
-      userName: userProfile?.name || "GoldenGuard Test User",
+      userName: resolvedName,
       coords,
     });
 
@@ -180,9 +181,9 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
       const uniqueSosId = "sos_" + Date.now() + "_" + Math.random().toString(36).substring(2, 11);
       
       const incResult = await createEmergencyIncident({
-        reporterUid: userProfile?.uid || "anonymous",
-        reporterName: userProfile?.name || "Good Samaritan User",
-        reporterPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
+        reporterUid: userProfile?.uid || "",
+        reporterName: resolvedName,
+        reporterPhone: userProfile?.phone || "",
         latitude: coords ? coords.lat : 0,
         longitude: coords ? coords.lng : 0,
         locationText: location || (coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : "Location Not Available"),
@@ -195,7 +196,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
 
       const record = {
         id: createdIncId,
-        userId: userProfile?.uid || "anonymous",
+        userId: userProfile?.uid || "",
         type,
         severity,
         priority: severity || "CRITICAL",
@@ -370,7 +371,7 @@ export function EmergencySheet({ isOpen, onClose }: { isOpen: boolean, onClose: 
               <EmergencyCallBanner 
                 coords={coords} 
                 locationError={locationError} 
-                userName={userProfile?.name || "GoldenGuard User"}
+                userName={userProfile?.name?.trim() || "Profile information unavailable"}
                 onCancel={() => setStep("setup")} 
               />
 

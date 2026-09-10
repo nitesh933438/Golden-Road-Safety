@@ -87,22 +87,22 @@ export function EmergencyMedicalIDView() {
                   <img src={medicalID.photoURL} alt="User Avatar" className="w-full h-full object-cover rounded-[14px]" />
                 ) : (
                   <div className="w-full h-full bg-surface-950 rounded-[14px] flex items-center justify-center font-black text-2xl text-amber-400">
-                    {medicalID.fullName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                    {medicalID.fullName ? medicalID.fullName.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase() : "--"}
                   </div>
                 )}
               </div>
 
               <div>
-                <h2 className="text-2xl font-black text-white tracking-tight">{medicalID.fullName}</h2>
-                <div className="text-xs text-surface-400 font-medium">DOB: {medicalID.dob || "N/A"} • {medicalID.gender}</div>
-                <div className="text-xs text-surface-400 font-medium">Height: {medicalID.height} • Weight: {medicalID.weight}</div>
+                <h2 className="text-2xl font-black text-white tracking-tight">{medicalID.fullName || "Profile information unavailable"}</h2>
+                <div className="text-xs text-surface-400 font-medium">DOB: {medicalID.dob || "Profile information unavailable"} • {medicalID.gender || "Profile information unavailable"}</div>
+                <div className="text-xs text-surface-400 font-medium">Height: {medicalID.height || "Profile information unavailable"} • Weight: {medicalID.weight || "Profile information unavailable"}</div>
               </div>
             </div>
 
             {/* Blood Group Badge */}
             <div className="flex flex-col items-center justify-center bg-red-600 text-white p-3 rounded-2xl min-w-[70px] shadow-lg shadow-red-600/30 shrink-0">
               <span className="text-[10px] font-black uppercase tracking-wider text-red-200">BLOOD</span>
-              <span className="text-2xl font-black tracking-tighter">{medicalID.bloodGroup}</span>
+              <span className="text-2xl font-black tracking-tighter">{medicalID.bloodGroup || "--"}</span>
             </div>
           </div>
 

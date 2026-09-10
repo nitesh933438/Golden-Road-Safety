@@ -208,7 +208,7 @@ export function Team() {
               <PhoneCall className="w-5 h-5" />
             </div>
             <h4 className="font-bold text-sm">Emergency Hotdesk</h4>
-            <p className="text-xs text-blue-300 font-mono">+1 (800) 555-GOLDEN</p>
+            <p className="text-xs text-blue-300 font-mono">112 (National Emergency Dispatch)</p>
           </div>
 
           <div className="p-6 rounded-2xl bg-surface-800/80 border border-surface-700 text-center space-y-3">

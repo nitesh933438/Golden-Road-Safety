@@ -158,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!prev || prev.uid !== user.uid) {
             return {
               uid: user.uid,
-              name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
+              name: user.displayName || user.email?.split("@")[0] || "Profile information unavailable",
               email: user.email || "",
               phone: "",
               role: fallbackRole,
@@ -191,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const initialRole: AppRole = isAdminUser(user) ? "admin" : "citizen";
             const newProfileData = {
               uid: user.uid,
-              name: user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
+              name: user.displayName || user.email?.split("@")[0] || "Profile information unavailable",
               email: user.email || "",
               phone: "",
               role: initialRole,
@@ -245,7 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: existingRole,
               uid: user.uid,
               email: user.email || existingData.email || "",
-              name: existingData.name || user.displayName || user.email?.split("@")[0] || "GoldenGuard User",
+              name: existingData.name || user.displayName || user.email?.split("@")[0] || "Profile information unavailable",
               profileCompleted: isComplete,
               isProfileComplete: isComplete
             } as UserProfile);

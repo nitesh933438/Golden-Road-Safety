@@ -32,7 +32,7 @@ export function MedicalWallet() {
       setFormData(prev => ({
         ...prev,
         uid: currentUser.uid,
-        fullName: prev.fullName || userProfile?.name || currentUser.displayName || "Good Samaritan",
+        fullName: prev.fullName || userProfile?.name || currentUser.displayName || "",
         photoURL: prev.photoURL || userProfile?.photoURL || currentUser.photoURL || ""
       }));
     }
@@ -230,13 +230,13 @@ export function MedicalWallet() {
                     <img src={formData.photoURL} alt="Medical ID" className="w-full h-full object-cover rounded-[14px]" />
                   ) : (
                     <div className="w-full h-full bg-surface-950 rounded-[14px] flex items-center justify-center font-black text-2xl text-amber-400">
-                      {formData.fullName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                      {formData.fullName ? formData.fullName.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase() : "--"}
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-1.5 text-center sm:text-left flex-1">
-                  <h3 className="text-2xl font-black text-white">{formData.fullName}</h3>
+                  <h3 className="text-2xl font-black text-white">{formData.fullName || "Profile information unavailable"}</h3>
                   <p className="text-xs text-surface-400 font-medium">
                     DOB: <strong>{formData.dob}</strong> ({formData.gender}) • Height: <strong>{formData.height}</strong> • Weight: <strong>{formData.weight}</strong>
                   </p>

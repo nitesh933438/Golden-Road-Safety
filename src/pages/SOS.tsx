@@ -244,8 +244,10 @@ export function SOS() {
       // Unique SOS ID
       const uniqueSosId = "sos_" + Date.now() + "_" + Math.random().toString(36).substring(2, 11);
 
+      const resolvedUserName = userProfile?.name?.trim() || "Profile information unavailable";
+
       const sosMsg = generateSOSMessage({
-        userName: userProfile?.name || "GoldenGuard User",
+        userName: resolvedUserName,
         coords: freshCoords ? { lat: freshCoords.lat, lng: freshCoords.lng } : undefined,
       });
 
@@ -301,7 +303,7 @@ export function SOS() {
       // Medical profile snapshot
       const medProfileSnap = {
         bloodGroup: medicalID.bloodGroup || "Unknown",
-        fullName: medicalID.fullName || userProfile?.name || "Citizen",
+        fullName: medicalID.fullName || userProfile?.name || "Profile information unavailable",
         allergies: medicalID.allergies || "None",
         medicalConditions: medicalID.medicalConditions || "None",
         emergencyContacts: effectiveContacts.length > 0 ? effectiveContacts : (medicalID.emergencyContacts || [])
@@ -311,9 +313,9 @@ export function SOS() {
       // sosId, userId, createdAt, location, latitude, longitude, severity, description, medicalProfileReference, status, assignedVolunteerId, assignedHospitalId, assignedPoliceId, updatedAt, resolvedAt
       const sosPayload = {
         sosId: uniqueSosId,
-        userId: userProfile?.uid || "anonymous",
-        userName: userProfile?.name || "GoldenGuard User",
-        userPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
+        userId: userProfile?.uid || "",
+        userName: resolvedUserName,
+        userPhone: userProfile?.phone || "",
         emergencyType: "General Emergency SOS",
         createdAt: serverTimestamp(),
         location: finalLocationText,
@@ -359,9 +361,9 @@ export function SOS() {
 
           // Mirror to /incidents for command center
           await createEmergencyIncident({
-            reporterUid: userProfile?.uid || "anonymous",
-            reporterName: userProfile?.name || "GoldenGuard Citizen",
-            reporterPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
+            reporterUid: userProfile?.uid || "",
+            reporterName: resolvedUserName,
+            reporterPhone: userProfile?.phone || "",
             latitude: freshCoords?.lat || 0,
             longitude: freshCoords?.lng || 0,
             locationText: finalLocationText,
@@ -596,7 +598,7 @@ export function SOS() {
         <EmergencyCallBanner 
           coords={coords} 
           locationError={locationError} 
-          userName={userProfile?.name || "GoldenGuard User"}
+          userName={userProfile?.name?.trim() || "Profile information unavailable"}
           onCancel={() => setSosActive(false)} 
           className="my-4"
         />

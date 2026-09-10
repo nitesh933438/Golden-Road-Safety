@@ -34,7 +34,7 @@ export function ProfileModal({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
             <h4 className="font-black text-sm text-surface-900 dark:text-white truncate">
-              {userProfile?.name || currentUser?.displayName || "GoldenGuard User"}
+              {userProfile?.name || currentUser?.displayName || "Profile information unavailable"}
             </h4>
             <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
           </div>

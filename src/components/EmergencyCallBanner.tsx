@@ -26,7 +26,7 @@ export function EmergencyCallBanner({
   onCancel, 
   coords, 
   locationError, 
-  userName = "GoldenGuard Test User", 
+  userName, 
   className = "" 
 }: EmergencyCallBannerProps) {
   const { userProfile } = useAuth();
@@ -41,8 +41,10 @@ export function EmergencyCallBanner({
   const effectiveContacts = getEffectiveEmergencyContacts(userProfile, medicalID?.emergencyContacts);
   const primaryContact = effectiveContacts[0] || null;
 
+  const resolvedUserName = userProfile?.name?.trim() || userName?.trim() || "Profile information unavailable";
+
   const sosMessage = generateSOSMessage({
-    userName: userProfile?.name || userName,
+    userName: resolvedUserName,
     coords,
   });
 

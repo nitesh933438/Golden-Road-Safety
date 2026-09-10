@@ -238,9 +238,11 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       { name: "Emergency Dispatch 112", phone: "112", relationship: "Control Room", status: "High Priority Relay Dispatched", timeSent: timeStr },
     ];
 
+    const resolvedUserName = userProfile?.name?.trim() || "Profile information unavailable";
+
     const emergencyPayload: AutoEmergencyPayload = {
       id: emergencyId,
-      patientName: userProfile?.name || "GoldenGuard User",
+      patientName: resolvedUserName,
       type: wasUserResponded 
         ? "Accident Impact Alert (User Confirmed)" 
         : "Automated Vehicle Crash & Impact Alert (Unresponsive Victim)",
@@ -267,14 +269,14 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
 
     const medProfileSnap = {
       bloodGroup: medicalID.bloodGroup || "Unknown",
-      fullName: medicalID.fullName || userProfile?.name || "Citizen",
+      fullName: medicalID.fullName || userProfile?.name || "Profile information unavailable",
       allergies: medicalID.allergies || "None",
       medicalConditions: medicalID.medicalConditions || "None",
       emergencyContacts: effectiveContacts.length > 0 ? effectiveContacts : (medicalID.emergencyContacts || [])
     };
 
     const sosMsg = generateSOSMessage({
-      userName: userProfile?.name || "GoldenGuard User",
+      userName: resolvedUserName,
       coords: userCoords ? { lat: userCoords.lat, lng: userCoords.lng } : undefined,
     });
 
@@ -312,9 +314,9 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
       const firestorePayload = {
         sosId: emergencyId,
         id: emergencyId,
-        userId: userProfile?.uid || "anonymous",
-        userName: userProfile?.name || "GoldenGuard User",
-        userPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
+        userId: userProfile?.uid || "",
+        userName: resolvedUserName,
+        userPhone: userProfile?.phone || "",
         emergencyType: emergencyPayload.type,
         type: emergencyPayload.type,
         severity: "critical",
@@ -343,9 +345,9 @@ export const CrashDetectionProvider: React.FC<{ children: React.ReactNode }> = (
         setDoc(doc(db, "emergencies", emergencyId), firestorePayload),
         setDoc(doc(db, "sosRequests", emergencyId), firestorePayload),
         createEmergencyIncident({
-          reporterUid: userProfile?.uid || "anonymous",
-          reporterName: userProfile?.name || "GoldenGuard Citizen",
-          reporterPhone: userProfile?.phone || EMERGENCY_DISPATCH_NUMBER,
+          reporterUid: userProfile?.uid || "",
+          reporterName: resolvedUserName,
+          reporterPhone: userProfile?.phone || "",
           latitude: userCoords?.lat || 0,
           longitude: userCoords?.lng || 0,
           locationText: locationName,

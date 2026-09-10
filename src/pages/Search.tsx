@@ -387,7 +387,7 @@ export function Search() {
 
           snapshot.docs.forEach(docSnap => {
             const data = docSnap.data();
-            const name = data.name || "GoldenGuard User";
+            const name = data.name || "Profile information unavailable";
             const city = data.city || "";
             const state = data.state || "";
             const role = data.role || "user";

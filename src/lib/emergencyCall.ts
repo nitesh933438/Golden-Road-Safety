@@ -54,7 +54,7 @@ export function generateSOSMessage(options: {
   coords?: { lat: number; lng: number } | null;
   time?: string;
 }): string {
-  const contactName = options.userName || "GoldenGuard User";
+  const contactName = options.userName?.trim() || "Profile information unavailable";
   const currentTime = options.time || new Date().toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
